@@ -36,7 +36,9 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
   `service.py` — never its `repo.py`/`tables.py`. In-process calls only; no events/queues.
 - **Layering (ADR 0002):** router → service → repo. Router = HTTP parsing + status codes only;
   service = business rules, no FastAPI/SQL imports, unit-tested; repo = SQLAlchemy Core statements
-  taking a `Connection`. Inject with FastAPI `Depends` (`get_connection` = one transaction per request).
+  taking a `Connection`. Inject with FastAPI `Depends` (`get_connection` = one transaction per
+  request). Health-only exception: its repo pings an `Engine`, not the per-request `Connection`,
+  so a dead DB yields `db: "down"` instead of failing in the `get_connection` dependency.
 - **Errors:** domain errors subclass `AppError(code, message, status)` (`core/errors.py`); every
   error — including 404 and 422 validation — renders RFC 9457 `application/problem+json`
   `{"type","title","status","detail","code"}`. Never raise `HTTPException` from a service.

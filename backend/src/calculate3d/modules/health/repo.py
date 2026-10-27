@@ -7,6 +7,9 @@ database would fail the request; health must report `down` instead.
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
+# Lets the service type the engine without importing SQLAlchemy.
+DbEngine = Engine
+
 
 def ping(engine: Engine) -> bool:
     try:

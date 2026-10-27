@@ -62,7 +62,7 @@ modules (likely pricing settings, catalog, costing) are designed per feature by
 | Module | Path | Layers | Wired at | Responsibility |
 |---|---|---|---|---|
 | core | `backend/src/calculate3d/core/` | config · db · errors · ids | `backend/src/calculate3d/main.py` (`create_app`) | Settings, engine/connection, error envelope, UUIDv7 |
-| health | `backend/src/calculate3d/modules/health/` | router · service | `main.py` → `app.include_router(...)` | `GET /api/health` → `{"status":"ok","db":"ok"}` (pings SQLite) |
+| health | `backend/src/calculate3d/modules/health/` | router · schemas · service · repo · tables | `main.py` → `app.include_router(...)` | `GET /api/health` → `{"status":"ok","db":"ok"}` (pings SQLite) |
 | web app | `web/src/` | FSD: app · pages · widgets · features · entities · shared | `web/src/app/` (providers, router) | UI shell + a Home page showing API health |
 
 ### Target folder layout
@@ -101,7 +101,8 @@ CLAUDE.md                    # conventions summary for agents (from this map)
 - **Layering (ADR 0002):** `router → service → repo`. Router: HTTP parsing + status codes only.
   Service: business rules, no FastAPI / SQL imports, unit-testable. Repo: SQLAlchemy Core statements,
   takes a `Connection`. Dependencies injected with FastAPI `Depends` (connection per request,
-  transaction via `engine.begin()`).
+  transaction via `engine.begin()`). Health-only exception: its repo pings an `Engine`, not the
+  per-request `Connection`, so a dead DB yields `db: "down"` instead of failing in `get_connection`.
 - **Error handling:** domain errors subclass `AppError(code, message, status)` in `core/errors.py`;
   one exception handler renders **RFC 9457 problem+json**
   `{"type","title","status","detail","code"}`; validation errors (422) use the same envelope.

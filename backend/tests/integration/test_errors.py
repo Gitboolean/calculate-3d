@@ -37,9 +37,8 @@ def build_app(engine: Engine, tmp_path: Path) -> FastAPI:
 def test_unhandled_exception_returns_problem_json_without_leaking_detail(
     engine: Engine, tmp_path: Path
 ) -> None:
-    client = TestClient(build_app(engine, tmp_path), raise_server_exceptions=False)
-
-    response = client.get("/api/_test/boom")
+    with TestClient(build_app(engine, tmp_path), raise_server_exceptions=False) as client:
+        response = client.get("/api/_test/boom")
 
     assert response.status_code == 500
     assert response.headers["content-type"].startswith("application/problem+json")
@@ -51,9 +50,8 @@ def test_unhandled_exception_returns_problem_json_without_leaking_detail(
 
 
 def test_invalid_body_returns_validation_problem_json(engine: Engine, tmp_path: Path) -> None:
-    client = TestClient(build_app(engine, tmp_path))
-
-    response = client.post("/api/_test/items", json={"qty": "not-a-number"})
+    with TestClient(build_app(engine, tmp_path)) as client:
+        response = client.post("/api/_test/items", json={"qty": "not-a-number"})
 
     assert response.status_code == 422
     assert response.headers["content-type"].startswith("application/problem+json")
@@ -66,9 +64,8 @@ def test_invalid_body_returns_validation_problem_json(engine: Engine, tmp_path: 
 
 
 def test_method_not_allowed_keeps_allow_header(engine: Engine, tmp_path: Path) -> None:
-    client = TestClient(build_app(engine, tmp_path))
-
-    response = client.post("/api/health")
+    with TestClient(build_app(engine, tmp_path)) as client:
+        response = client.post("/api/health")
 
     assert response.status_code == 405
     assert response.headers["content-type"].startswith("application/problem+json")
@@ -78,9 +75,8 @@ def test_method_not_allowed_keeps_allow_header(engine: Engine, tmp_path: Path) -
 def test_app_error_with_non_http_status_renders_problem_json(
     engine: Engine, tmp_path: Path
 ) -> None:
-    client = TestClient(build_app(engine, tmp_path), raise_server_exceptions=False)
-
-    response = client.get("/api/_test/odd")
+    with TestClient(build_app(engine, tmp_path), raise_server_exceptions=False) as client:
+        response = client.get("/api/_test/odd")
 
     assert response.status_code == 499
     assert response.headers["content-type"].startswith("application/problem+json")

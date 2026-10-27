@@ -24,6 +24,18 @@ test('shows API and database status from /api/health', async () => {
   expect(fetchMock).toHaveBeenCalledOnce()
 })
 
+test('shows the database as down when /api/health reports db down', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ status: 'ok', db: 'down' })),
+  )
+
+  renderWithQuery(<HomePage />)
+
+  expect(await screen.findByText('База даних: не відповідає')).toBeInTheDocument()
+  expect(screen.getByText('API: працює')).toBeInTheDocument()
+})
+
 test('shows an error when the API is unreachable', async () => {
   vi.stubGlobal(
     'fetch',

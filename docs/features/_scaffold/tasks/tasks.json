@@ -114,6 +114,46 @@
       "review_findings": [7],
       "dod": "`make api-types-check` regenerates the schema into a temp file and diffs it against the committed one; `make check` runs it; it is green now and fails after a hand edit of schema.d.ts; CLAUDE.md lists the target.",
       "files_hint": ["Makefile", "web/package.json", "CLAUDE.md"]
+    },
+    {
+      "id": "R6",
+      "title": "Review fix: health router depends only on its service; template layering documented",
+      "layer": "scaffold",
+      "deps": ["R5"],
+      "acs": [],
+      "review_findings": [10],
+      "dod": "`modules/health/router.py` imports `service` (+ schemas, core deps) but never `repo`; `service.py` still has no FastAPI/SQLAlchemy imports (the AST test stays green); the health-only exception (repo pings an `Engine`, not the per-request `Connection`, so a dead DB yields `db: \"down\"` instead of failing in the dependency) is stated in one sentence in architecture-map.md §Layering and CLAUDE.md; the architecture-map.md module inventory lists health as router · schemas · service · repo · tables.",
+      "files_hint": ["backend/src/calculate3d/modules/health/router.py", "backend/src/calculate3d/modules/health/service.py", "backend/tests/unit/test_health_service.py", "docs/architecture-map.md", "CLAUDE.md"]
+    },
+    {
+      "id": "R7",
+      "title": "Review fix: create_app(settings) uses settings.database_url",
+      "layer": "scaffold",
+      "deps": ["R6"],
+      "acs": [],
+      "review_findings": [11],
+      "dod": "`create_app` builds the engine from the `settings` it receives and keeps it on `app.state`; `get_engine` reads it from the request's app (no module-global engine built from `get_settings()`); an integration test proves an app from `create_app(Settings(database_url=<tmp>))` uses exactly that database and never touches `backend/var/`; test fixtures no longer need to override `get_engine`.",
+      "files_hint": ["backend/src/calculate3d/core/db.py", "backend/src/calculate3d/main.py", "backend/tests/conftest.py", "backend/tests/integration/test_health.py"]
+    },
+    {
+      "id": "R8",
+      "title": "Review fix: the OpenAPI dump goes to a temp file, never the working tree",
+      "layer": "scaffold",
+      "deps": ["R7"],
+      "acs": [],
+      "review_findings": [12],
+      "dod": "`api:types` and `api:types:check` write the OpenAPI JSON to a `mktemp` file removed by `trap … EXIT` (works under macOS sh and Linux dash); a failed or interrupted run leaves no file under `web/`; `web/openapi.json` is listed in `.gitignore` and `web/.prettierignore` as a safety net; `make api-types` still regenerates an identical schema.d.ts and `make api-types-check` still fails after a hand edit.",
+      "files_hint": ["web/package.json", ".gitignore", "web/.prettierignore"]
+    },
+    {
+      "id": "R9",
+      "title": "Review fix: HomePage renders the db-down state",
+      "layer": "ui",
+      "deps": ["R5"],
+      "acs": [],
+      "review_findings": [13],
+      "dod": "`HomePage.test.tsx` has a case that mocks `{\"status\":\"ok\",\"db\":\"down\"}` and asserts the visible label «База даних: не відповідає»; `make web-check` is green.",
+      "files_hint": ["web/src/pages/home/ui/HomePage.test.tsx"]
     }
   ]
 }

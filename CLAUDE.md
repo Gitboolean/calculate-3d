@@ -9,14 +9,15 @@ Layer-specific notes: `backend/CLAUDE.md`, `web/CLAUDE.md`.
 
 | Command | Does |
 |---|---|
-| `make install` | `uv sync` in backend + `npm ci` in web |
+| `make install` | `uv sync --locked` in backend + `npm ci` in web |
 | `make dev` | API with `--reload` on 127.0.0.1:8000 + Vite on :5173 (proxies `/api`) |
 | `make run` | migrate, build `web/dist`, serve UI + API from one process on 127.0.0.1:8000 |
-| `make check` | `api-check` + `web-check` — exactly what CI runs; must be green before a commit |
+| `make check` | `api-check` + `web-check` + `api-types-check` — exactly what CI runs; must be green before a commit |
 | `make api-check` | `ruff check` · `ruff format --check` · `mypy --strict src` · `pytest` |
 | `make web-check` | `npm run lint` (ESLint + Prettier + Steiger) · `tsc -b --noEmit` · `vitest run` · `vite build` |
 | `make migrate` / `make migrate-down` | `alembic upgrade head` / `alembic downgrade -1` |
 | `make api-types` | regenerate `web/src/shared/api/schema.d.ts` from the backend OpenAPI |
+| `make api-types-check` | fail if the committed `schema.d.ts` differs from a fresh regeneration |
 
 Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `uv run <tool>` in `backend/`.
 

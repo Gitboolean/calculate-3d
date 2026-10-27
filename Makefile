@@ -5,10 +5,10 @@ SHELL := /bin/bash
 API := cd backend &&
 WEB := cd web &&
 
-.PHONY: help install dev run check api-check web-check migrate migrate-down api-types
+.PHONY: help install dev run check api-check web-check migrate migrate-down api-types api-types-check
 
 help: ## List targets
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-13s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
 
 install: ## Install backend (uv) and web (npm ci) dependencies
 	$(API) uv sync --locked
@@ -24,7 +24,7 @@ run: migrate ## Build the UI and serve UI + API from one process on 127.0.0.1:80
 	$(WEB) npm run build
 	$(API) uv run calculate3d
 
-check: api-check web-check ## Everything CI runs
+check: api-check web-check api-types-check ## Everything CI runs
 
 api-check: ## ruff lint + format check, mypy --strict, pytest
 	$(API) uv run ruff check
@@ -46,3 +46,6 @@ migrate-down: ## alembic downgrade -1
 
 api-types: ## Regenerate web/src/shared/api/schema.d.ts from the backend OpenAPI
 	$(WEB) npm run api:types
+
+api-types-check: ## Fail if schema.d.ts drifts from the backend OpenAPI (run `make api-types`)
+	$(WEB) npm run -s api:types:check

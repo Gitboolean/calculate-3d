@@ -14,7 +14,9 @@
     "format": "prettier --write .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "api:types": "cd ../backend && uv run python -c \"import json; from calculate3d.main import create_app; print(json.dumps(create_app().openapi()))\" > ../web/openapi.json && cd ../web && openapi-typescript openapi.json -o src/shared/api/schema.d.ts && rm openapi.json && prettier --write src/shared/api/schema.d.ts"
+    "api:openapi": "cd ../backend && uv run python -c \"import json; from calculate3d.main import create_app; print(json.dumps(create_app().openapi()))\" > ../web/openapi.json",
+    "api:types": "npm run -s api:openapi && openapi-typescript openapi.json -o src/shared/api/schema.d.ts && rm openapi.json && prettier --write src/shared/api/schema.d.ts",
+    "api:types:check": "npm run -s api:openapi && openapi-typescript openapi.json | prettier --stdin-filepath src/shared/api/schema.d.ts | diff -u src/shared/api/schema.d.ts -; s=$?; rm -f openapi.json; exit $s"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.17",

@@ -4,13 +4,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
 from calculate3d.core.config import Settings
-from calculate3d.core.db import get_engine
 from calculate3d.main import create_app
 
 
 def _client(engine: Engine, dist: Path) -> TestClient:
-    app = create_app(Settings(web_dist_dir=dist))
-    app.dependency_overrides[get_engine] = lambda: engine
+    app = create_app(Settings(database_url=str(engine.url), web_dist_dir=dist))
     return TestClient(app)
 
 

@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from sqlalchemy import Engine
 
 from calculate3d.core.config import Settings
-from calculate3d.core.db import get_engine
 from calculate3d.core.errors import AppError
 from calculate3d.main import create_app
 
@@ -18,8 +17,7 @@ class ItemIn(BaseModel):
 
 
 def build_app(engine: Engine, tmp_path: Path) -> FastAPI:
-    app = create_app(Settings(web_dist_dir=tmp_path / "missing"))
-    app.dependency_overrides[get_engine] = lambda: engine
+    app = create_app(Settings(database_url=str(engine.url), web_dist_dir=tmp_path / "missing"))
 
     @app.get("/api/_test/boom")
     def boom() -> None:

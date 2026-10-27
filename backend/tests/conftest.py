@@ -7,8 +7,8 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from calculate3d.core.config import BACKEND_DIR
-from calculate3d.core.db import create_db_engine, get_engine
+from calculate3d.core.config import BACKEND_DIR, Settings
+from calculate3d.core.db import create_db_engine
 from calculate3d.main import create_app
 
 
@@ -32,7 +32,6 @@ def engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Engine]:
 
 @pytest.fixture
 def client(engine: Engine) -> Iterator[TestClient]:
-    app = create_app()
-    app.dependency_overrides[get_engine] = lambda: engine
+    app = create_app(Settings(database_url=str(engine.url)))
     with TestClient(app) as c:
         yield c

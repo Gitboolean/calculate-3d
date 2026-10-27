@@ -11,7 +11,7 @@ help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-13s %s\n", $$1, $$2}'
 
 install: ## Install backend (uv) and web (npm ci) dependencies
-	$(API) uv sync
+	$(API) uv sync --locked
 	$(WEB) npm ci
 
 dev: ## API with --reload on :8000 + Vite on :5173 (proxies /api)

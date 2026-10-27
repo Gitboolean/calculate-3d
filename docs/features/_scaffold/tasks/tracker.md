@@ -14,10 +14,10 @@
 | R3 | Review fix: always bind 127.0.0.1 | done | 6dc5c67 |
 | R4 | Review fix: `uv sync --locked` | done | 8bee718 |
 | R5 | Review fix: schema.d.ts drift check in `make check` | done | 9902f33 |
-| R6 | Review fix: health router depends only on its service; layering documented | todo | |
-| R7 | Review fix: `create_app(settings)` uses `settings.database_url` | todo | |
-| R8 | Review fix: OpenAPI dump to a temp file | todo | |
-| R9 | Review fix: HomePage db-down test | todo | |
+| R6 | Review fix: health router depends only on its service; layering documented | done | 1841046 |
+| R7 | Review fix: `create_app(settings)` uses `settings.database_url` | done | bd1ecf8 |
+| R8 | Review fix: OpenAPI dump to a temp file | done | acfaf6f |
+| R9 | Review fix: HomePage db-down test | done | a730ae1 |
 
 R1–R5 come from `_review/review-2026-10-27.md` (findings 1–9).
 R6–R9 come from `_review/review-2026-10-27-r2.md` (findings 10–13).

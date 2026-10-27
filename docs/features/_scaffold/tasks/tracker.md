@@ -18,10 +18,10 @@
 | R7 | Review fix: `create_app(settings)` uses `settings.database_url` | done | bd1ecf8 |
 | R8 | Review fix: OpenAPI dump to a temp file | done | acfaf6f |
 | R9 | Review fix: HomePage db-down test | done | a730ae1 |
-| R10 | Review fix: TestClient as a context manager; engine-disposal note | done | |
-| R11 | Review fix: `get_connection` commit/rollback test | done | |
-| R12 | Review fix: R7 test proves no default-DB fallback | done | |
-| R13 | Review fix: api-types temp file removed on INT/TERM (dash) | done | |
+| R10 | Review fix: TestClient as a context manager; engine-disposal note | done | 1a668d3 |
+| R11 | Review fix: `get_connection` commit/rollback test | done | e4f61d1 |
+| R12 | Review fix: R7 test proves no default-DB fallback | done | 182f12a |
+| R13 | Review fix: api-types temp file removed on INT/TERM (dash) | done | a17fe30 |
 
 R1–R5 come from `_review/review-2026-10-27.md` (findings 1–9).
 R6–R9 come from `_review/review-2026-10-27-r2.md` (findings 10–13).

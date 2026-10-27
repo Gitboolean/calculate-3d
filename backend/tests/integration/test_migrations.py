@@ -16,11 +16,17 @@ def test_migrations_upgrade_downgrade_upgrade_cleanly(tmp_path: Path) -> None:
     command.upgrade(cfg, "head")
 
     engine = create_db_engine(url)
-    assert "alembic_version" in inspect(engine).get_table_names()
+    try:
+        assert "alembic_version" in inspect(engine).get_table_names()
+    finally:
+        engine.dispose()
 
 
 def test_fresh_connection_has_foreign_keys_and_wal(tmp_path: Path) -> None:
     engine = create_db_engine(f"sqlite:///{tmp_path / 'p.db'}")
-    with engine.connect() as conn:
-        assert conn.execute(text("PRAGMA foreign_keys")).scalar() == 1
-        assert conn.execute(text("PRAGMA journal_mode")).scalar() == "wal"
+    try:
+        with engine.connect() as conn:
+            assert conn.execute(text("PRAGMA foreign_keys")).scalar() == 1
+            assert conn.execute(text("PRAGMA journal_mode")).scalar() == "wal"
+    finally:
+        engine.dispose()

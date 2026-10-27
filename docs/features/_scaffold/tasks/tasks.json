@@ -64,6 +64,146 @@
       "acs": [],
       "dod": "CLAUDE.md states the commands from the Makefile and every convention in docs/architecture-map.md §Conventions and §Frontend (layering, errors, IDs, money in kopecks, migrations, tests, FSD) and links ADR 0001-0004.",
       "files_hint": ["CLAUDE.md", "backend/CLAUDE.md", "web/CLAUDE.md"]
+    },
+    {
+      "id": "R1",
+      "title": "Review fix: health module follows router → service → repo, and reports db \"down\" when SQLite is unreachable",
+      "layer": "scaffold",
+      "deps": ["S2"],
+      "acs": [],
+      "review_findings": [1, 5],
+      "dod": "`modules/health/` has router/schemas/service/repo/tables; `service.py` imports neither FastAPI nor SQLAlchemy; the SQL ping lives in `repo.py` and returns False on `SQLAlchemyError` (including failing to open a connection); GET /api/health returns 200 {\"status\":\"ok\",\"db\":\"down\"} when the database is unreachable (integration test with a broken engine) and {\"status\":\"ok\",\"db\":\"ok\"} otherwise; a unit test covers the service without I/O.",
+      "files_hint": ["backend/src/calculate3d/modules/health/", "backend/tests/integration/test_health.py", "backend/tests/unit/test_health_service.py"]
+    },
+    {
+      "id": "R2",
+      "title": "Review fix: every error is problem+json — catch-all 500, 422 envelope test, HTTP headers kept, unknown status safe",
+      "layer": "scaffold",
+      "deps": ["S2"],
+      "acs": [],
+      "review_findings": [2, 3, 8, 9],
+      "dod": "An unhandled exception returns 500 `application/problem+json` with `code` \"internal_error\" and no exception text in the body; invalid request input returns 422 problem+json with `code` \"validation_error\", `type/title/status/detail` and `errors[]`; a 405 keeps its `Allow` header; an `AppError` with a status outside `HTTPStatus` (e.g. 499) renders problem+json with title \"Error\" instead of crashing. Each is asserted by an integration test.",
+      "files_hint": ["backend/src/calculate3d/core/errors.py", "backend/tests/integration/test_errors.py"]
+    },
+    {
+      "id": "R3",
+      "title": "Review fix: the server always binds 127.0.0.1 — no host setting can override it (ADR 0004)",
+      "layer": "scaffold",
+      "deps": ["S1"],
+      "acs": [],
+      "review_findings": [4],
+      "dod": "`Settings` has no `host` field; `run()` passes host \"127.0.0.1\" to uvicorn; a unit test asserts that host even with `CALC3D_HOST=0.0.0.0` in the environment.",
+      "files_hint": ["backend/src/calculate3d/core/config.py", "backend/src/calculate3d/main.py", "backend/tests/unit/test_run.py"]
+    },
+    {
+      "id": "R4",
+      "title": "Review fix: `make install` fails on a stale uv.lock (`uv sync --locked`)",
+      "layer": "scaffold",
+      "deps": ["S5"],
+      "acs": [],
+      "review_findings": [6],
+      "dod": "`make install` runs `uv sync --locked` in backend; it succeeds on the committed lock.",
+      "files_hint": ["Makefile"]
+    },
+    {
+      "id": "R5",
+      "title": "Review fix: `make check` fails when web/src/shared/api/schema.d.ts drifts from the backend OpenAPI",
+      "layer": "scaffold",
+      "deps": ["R4"],
+      "acs": [],
+      "review_findings": [7],
+      "dod": "`make api-types-check` regenerates the schema into a temp file and diffs it against the committed one; `make check` runs it; it is green now and fails after a hand edit of schema.d.ts; CLAUDE.md lists the target.",
+      "files_hint": ["Makefile", "web/package.json", "CLAUDE.md"]
+    },
+    {
+      "id": "R6",
+      "title": "Review fix: health router depends only on its service; template layering documented",
+      "layer": "scaffold",
+      "deps": ["R5"],
+      "acs": [],
+      "review_findings": [10],
+      "dod": "`modules/health/router.py` imports `service` (+ schemas, core deps) but never `repo`; `service.py` still has no FastAPI/SQLAlchemy imports (the AST test stays green); the health-only exception (repo pings an `Engine`, not the per-request `Connection`, so a dead DB yields `db: \"down\"` instead of failing in the dependency) is stated in one sentence in architecture-map.md §Layering and CLAUDE.md; the architecture-map.md module inventory lists health as router · schemas · service · repo · tables.",
+      "files_hint": ["backend/src/calculate3d/modules/health/router.py", "backend/src/calculate3d/modules/health/service.py", "backend/tests/unit/test_health_service.py", "docs/architecture-map.md", "CLAUDE.md"]
+    },
+    {
+      "id": "R7",
+      "title": "Review fix: create_app(settings) uses settings.database_url",
+      "layer": "scaffold",
+      "deps": ["R6"],
+      "acs": [],
+      "review_findings": [11],
+      "dod": "`create_app` builds the engine from the `settings` it receives and keeps it on `app.state`; `get_engine` reads it from the request's app (no module-global engine built from `get_settings()`); an integration test proves an app from `create_app(Settings(database_url=<tmp>))` uses exactly that database and never touches `backend/var/`; test fixtures no longer need to override `get_engine`.",
+      "files_hint": ["backend/src/calculate3d/core/db.py", "backend/src/calculate3d/main.py", "backend/tests/conftest.py", "backend/tests/integration/test_health.py"]
+    },
+    {
+      "id": "R8",
+      "title": "Review fix: the OpenAPI dump goes to a temp file, never the working tree",
+      "layer": "scaffold",
+      "deps": ["R7"],
+      "acs": [],
+      "review_findings": [12],
+      "dod": "`api:types` and `api:types:check` write the OpenAPI JSON to a `mktemp` file removed by `trap … EXIT` (works under macOS sh and Linux dash); a failed or interrupted run leaves no file under `web/`; `web/openapi.json` is listed in `.gitignore` and `web/.prettierignore` as a safety net; `make api-types` still regenerates an identical schema.d.ts and `make api-types-check` still fails after a hand edit.",
+      "files_hint": ["web/package.json", ".gitignore", "web/.prettierignore"]
+    },
+    {
+      "id": "R9",
+      "title": "Review fix: HomePage renders the db-down state",
+      "layer": "ui",
+      "deps": ["R5"],
+      "acs": [],
+      "review_findings": [13],
+      "dod": "`HomePage.test.tsx` has a case that mocks `{\"status\":\"ok\",\"db\":\"down\"}` and asserts the visible label «База даних: не відповідає»; `make web-check` is green.",
+      "files_hint": ["web/src/pages/home/ui/HomePage.test.tsx"]
+    },
+    {
+      "id": "R10",
+      "title": "Review fix: integration tests enter TestClient as a context manager; engine-disposal note",
+      "layer": "scaffold",
+      "deps": ["R7"],
+      "acs": [],
+      "review_findings": [14],
+      "dod": "Every `TestClient(...)` in `backend/tests/` (incl. the four in `integration/test_errors.py`) is entered as `with TestClient(app) as client:` so the lifespan disposes `app.state.engine`; `backend/CLAUDE.md` replaces \"Dispose any engine you create in a test\" with \"Always enter `TestClient(app)` as a context manager — the lifespan disposes `app.state.engine`\"; `make api-check` is green.",
+      "files_hint": ["backend/tests/integration/test_errors.py", "backend/CLAUDE.md"]
+    },
+    {
+      "id": "R11",
+      "title": "Review fix: get_connection commits on success and rolls back on error",
+      "layer": "scaffold",
+      "deps": ["R10"],
+      "acs": [],
+      "review_findings": [15],
+      "dod": "An integration test builds `create_app(Settings(database_url=<tmp>))`, adds test-only routes using `Depends(get_connection)` that insert into a test-created table, and asserts the row is committed after a 200 and absent after a handler that raises (rollback). The root `CLAUDE.md` \"Copy `modules/health/`\" line notes that its Engine-based repo is the health-only exception and new repos take the `get_connection` Connection. `make api-check` is green.",
+      "files_hint": ["backend/tests/integration/test_get_connection.py", "backend/src/calculate3d/core/db.py", "CLAUDE.md"]
+    },
+    {
+      "id": "R12",
+      "title": "Review fix: the R7 test proves there is no fallback to the default DB URL",
+      "layer": "scaffold",
+      "deps": ["R7"],
+      "acs": [],
+      "review_findings": [16],
+      "dod": "`test_app_database_settings.py` points `CALC3D_DATABASE_URL` at an unreachable sentinel (e.g. `sqlite:////nonexistent-dir/sentinel.db`) via monkeypatch + `get_settings.cache_clear()` and asserts `create_app(Settings(database_url=<tmp>))` reports `db: \"ok\"` — any fallback to `get_settings()` would report `down`; the settings cache is restored afterwards; `make api-check` is green.",
+      "files_hint": ["backend/tests/integration/test_app_database_settings.py"]
+    },
+    {
+      "id": "R13",
+      "title": "Review fix: the api-types temp file is removed on INT/TERM under dash",
+      "layer": "scaffold",
+      "deps": ["R8"],
+      "acs": [],
+      "review_findings": [17],
+      "dod": "The `api-types` / `api-types-check` scripts add `trap 'exit 130' INT; trap 'exit 143' TERM` after the EXIT trap so dash runs the EXIT trap (and its `rm -f`) on a signal; drift still exits non-zero, a match exits 0, nothing is left under `web/`; `make web-check` and `make api-types-check` are green.",
+      "files_hint": ["web/package.json"]
+    },
+    {
+      "id": "R14",
+      "title": "Review fix: get_connection commits before the response is sent — a failed commit renders 500 problem+json",
+      "layer": "scaffold",
+      "deps": ["R11"],
+      "acs": [],
+      "review_findings": [18],
+      "dod": "`core/db.py` exports `ConnectionDep = Annotated[Connection, Depends(get_connection, scope=\"function\")]` so the commit runs before the response is sent; `test_get_connection.py` uses `ConnectionDep`; a new integration test makes the commit fail (deferred FK violation) and asserts 500 `application/problem+json` and that no row is stored — it turns red if `scope=\"function\"` is removed; root `CLAUDE.md` (and `backend/CLAUDE.md` / `docs/architecture-map.md` where they describe `get_connection`) name `ConnectionDep` as the way repos get their `Connection`; `make check` is green.",
+      "files_hint": ["backend/src/calculate3d/core/db.py", "backend/tests/integration/test_get_connection.py", "CLAUDE.md", "backend/CLAUDE.md", "docs/architecture-map.md"]
     }
   ]
 }

@@ -1,0 +1,90 @@
+# calculate-3d
+
+Local, single-user tool that computes the cost price of a 3D print (= minimum donation in UAH).
+Monorepo: `backend/` (Python 3.14, FastAPI) + `web/` (React, TypeScript, Vite). Product context:
+`docs/idea-brief.md`; architecture + conventions source of truth: `docs/architecture-map.md`.
+Layer-specific notes: `backend/CLAUDE.md`, `web/CLAUDE.md`.
+
+## Commands (root `Makefile` — always prefer these)
+
+| Command | Does |
+|---|---|
+| `make install` | `uv sync --locked` in backend + `npm ci` in web |
+| `make dev` | API with `--reload` on 127.0.0.1:8000 + Vite on :5173 (proxies `/api`) |
+| `make run` | migrate, build `web/dist`, serve UI + API from one process on 127.0.0.1:8000 |
+| `make check` | `api-check` + `web-check` + `api-types-check` — exactly what CI runs; must be green before a commit |
+| `make api-check` | `ruff check` · `ruff format --check` · `mypy --strict src` · `pytest` |
+| `make web-check` | `npm run lint` (ESLint + Prettier + Steiger) · `tsc -b --noEmit` · `vitest run` · `vite build` |
+| `make migrate` / `make migrate-down` | `alembic upgrade head` / `alembic downgrade -1` |
+| `make api-types` | regenerate `web/src/shared/api/schema.d.ts` from the backend OpenAPI |
+| `make api-types-check` | fail if the committed `schema.d.ts` differs from a fresh regeneration |
+
+Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `uv run <tool>` in `backend/`.
+
+## Architecture decisions
+
+- [ADR 0001](docs/adr/0001-use-python-fastapi-and-react-vite-stack.md) — Python/FastAPI + React/Vite stack
+- [ADR 0002](docs/adr/0002-organize-as-modular-monolith-with-simple-layers.md) — modular monolith, simple layers
+- [ADR 0003](docs/adr/0003-store-data-in-sqlite-via-sqlalchemy-core-and-alembic.md) — SQLite via SQLAlchemy Core + Alembic; IDs and money
+- [ADR 0004](docs/adr/0004-run-local-only-without-authentication.md) — local-only, no auth
+
+## Backend conventions
+
+- **Modules:** `backend/src/calculate3d/modules/<module>/` = `router.py · schemas.py · service.py ·
+  repo.py · tables.py`; `router = APIRouter(prefix="/api/<module>")`, included in `create_app()`
+  (`main.py`). Copy `modules/health/` for a new module (its `Engine`-based repo is the health-only
+  exception — new repos take the `Connection` via `ConnectionDep`). Modules talk only via another
+  module's `service.py` — never its `repo.py`/`tables.py`. In-process calls only; no events/queues.
+- **Layering (ADR 0002):** router → service → repo. Router = HTTP parsing + status codes only;
+  service = business rules, no FastAPI/SQL imports, unit-tested; repo = SQLAlchemy Core statements
+  taking a `Connection`. Inject it with `ConnectionDep` (`core/db.py`: `get_connection` with
+  `scope="function"` — one transaction per request, committed before the response is sent, so a
+  failed commit renders problem+json). Health-only exception: its repo pings an `Engine`, not the
+  per-request `Connection`, so a dead DB yields `db: "down"` instead of failing in `get_connection`.
+- **Errors:** domain errors subclass `AppError(code, message, status)` (`core/errors.py`); every
+  error — including 404 and 422 validation — renders RFC 9457 `application/problem+json`
+  `{"type","title","status","detail","code"}`. Never raise `HTTPException` from a service.
+- **IDs:** UUIDv7 generated in the app (`core/ids.py::new_id()`), stored as 36-char `TEXT`. The DB
+  never generates IDs (ADR 0003).
+- **Money (ADR 0003):** `INTEGER` kopecks with a `_kop` suffix (`price_per_kg_kop`); compute with
+  `decimal.Decimal`; round the final cost / minimum donation **up** with `ROUND_CEILING` to whole
+  kopecks. API exposes kopecks as ints. Never `float` for money.
+- **Physical units live in the column name:** grams `*_g`, seconds `*_s`, watts `*_w`, rates
+  `*_per_hour_kop`.
+- **Persistence:** SQLAlchemy 2 Core only (`select/insert/update/delete` on `Table`s sharing
+  `core.db.metadata`), no ORM sessions. DB is dumb storage: no CHECK, no TRIGGER, no business
+  defaults — validation lives in Pydantic/service. Audit column `created_at` (UTC ISO-8601 `TEXT`)
+  only; hard delete. Pragmas `foreign_keys=ON` + WAL are set on every connection by
+  `create_db_engine()`. DB file: `CALC3D_DATABASE_URL` (default `backend/var/calculate3d.db`, gitignored).
+- **Migrations:** Alembic in `backend/migrations/`, timestamped file names
+  (`YYYYMMDD_HHMM_<slug>.py`), **SQL-first** — `op.execute("""<SQL>""")` in `upgrade()`/`downgrade()`,
+  no autogenerate. Staged `docs/features/<slug>/migrations/<NN>_*.up.sql`/`.down.sql` are copied
+  verbatim into a fresh revision. Every migration must upgrade → downgrade → upgrade cleanly (tested).
+- **API shape:** JSON, `snake_case` fields, prefix `/api`. FastAPI's OpenAPI is the source of the web
+  types — run `make api-types` after changing a schema; never hand-write API types on the web.
+- **Catalog stores parameters, never a final price** — prices are always recomputed from current settings.
+
+## Web conventions
+
+- **FSD:** `web/src/{app,pages,widgets,features,entities,shared}`; layers import only downward;
+  each slice exposes `index.ts`; enforced by Steiger.
+- **UI:** Tailwind CSS only + shadcn/ui primitives owned in `web/src/shared/ui/`; tokens are CSS
+  variables in `web/src/app/styles/index.css`. Data fetching via TanStack Query + the typed
+  `openapi-fetch` client (`@/shared/api`) generated by openapi-typescript.
+- **Locale:** UI copy in Ukrainian; money via
+  `Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'UAH' })` from kopecks.
+
+## Tests
+
+- Backend: pytest — `tests/unit/` (pure logic, no I/O) and `tests/integration/` (FastAPI
+  `TestClient` against a real temporary SQLite file migrated with Alembic). Names `test_<behaviour>`.
+  Warnings are errors.
+- Web: Vitest + Testing Library, `*.test.tsx` next to the component.
+- Lint/types: ruff (line length 100) + `mypy --strict`; ESLint + Prettier + Steiger + strict `tsc`.
+
+## Constraints
+
+- Server binds to `127.0.0.1` only and has no auth (ADR 0004) — never bind `0.0.0.0` or add a deploy
+  without revisiting the ADR.
+- Single user, single process: no background workers / multi-process servers (ADR 0003).
+- CI (`.github/workflows/ci.yml`) runs `make install` + `make check`; no deploy job.

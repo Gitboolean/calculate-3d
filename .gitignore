@@ -1,0 +1,25 @@
+# Per-developer SDLC settings + parallel worktrees
+.claude/*.local.md
+.worktrees/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# App data (SQLite file lives here)
+backend/var/*
+!backend/var/.gitkeep
+
+# Web
+node_modules/
+web/dist/
+web/openapi.json
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

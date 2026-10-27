@@ -1,5 +1,6 @@
 """Domain errors and the RFC 9457 problem+json envelope used for every error response."""
 
+from collections.abc import Mapping
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request
@@ -20,16 +21,30 @@ class AppError(Exception):
         self.status = status
 
 
-def problem(status: int, detail: str, code: str, **extra: object) -> JSONResponse:
+def _phrase(status: int) -> str:
+    try:
+        return HTTPStatus(status).phrase
+    except ValueError:
+        return "Error"
+
+
+def problem(
+    status: int,
+    detail: str,
+    code: str,
+    *,
+    headers: Mapping[str, str] | None = None,
+    **extra: object,
+) -> JSONResponse:
     body: dict[str, object] = {
         "type": "about:blank",
-        "title": HTTPStatus(status).phrase,
+        "title": _phrase(status),
         "status": status,
         "detail": detail,
         "code": code,
         **extra,
     }
-    return JSONResponse(body, status_code=status, media_type=PROBLEM_JSON)
+    return JSONResponse(body, status_code=status, headers=headers, media_type=PROBLEM_JSON)
 
 
 async def _app_error(_: Request, exc: Exception) -> JSONResponse:
@@ -39,8 +54,15 @@ async def _app_error(_: Request, exc: Exception) -> JSONResponse:
 
 async def _http_error(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, StarletteHTTPException)
-    code = HTTPStatus(exc.status_code).name.lower()
-    return problem(exc.status_code, str(exc.detail), code)
+    try:
+        code = HTTPStatus(exc.status_code).name.lower()
+    except ValueError:
+        code = "http_error"
+    return problem(exc.status_code, str(exc.detail), code, headers=exc.headers)
+
+
+async def _unhandled_error(_: Request, __: Exception) -> JSONResponse:
+    return problem(500, "Internal server error", "internal_error")
 
 
 async def _validation_error(_: Request, exc: Exception) -> JSONResponse:
@@ -53,3 +75,4 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AppError, _app_error)
     app.add_exception_handler(StarletteHTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
+    app.add_exception_handler(Exception, _unhandled_error)

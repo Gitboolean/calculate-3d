@@ -17,6 +17,7 @@ backend/var/*
 # Web
 node_modules/
 web/dist/
+web/openapi.json
 
 # OS / editors
 .DS_Store

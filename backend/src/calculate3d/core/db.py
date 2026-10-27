@@ -31,6 +31,11 @@ def get_engine(request: Request) -> Engine:
 
 
 def get_connection(engine: Annotated[Engine, Depends(get_engine)]) -> Iterator[Connection]:
-    """FastAPI dependency: one transaction per request, committed on success."""
+    """One transaction per request, committed on success. Inject via `ConnectionDep`."""
     with engine.begin() as conn:
         yield conn
+
+
+# `scope="function"` finishes the dependency (commit) before the response is sent, so a failed
+# commit renders a 500 problem+json instead of a silent 200.
+ConnectionDep = Annotated[Connection, Depends(get_connection, scope="function")]

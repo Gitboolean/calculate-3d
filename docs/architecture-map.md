@@ -100,8 +100,9 @@ CLAUDE.md                    # conventions summary for agents (from this map)
   other only through the other module's `service.py` (never its `repo.py`/`tables.py`).
 - **Layering (ADR 0002):** `router → service → repo`. Router: HTTP parsing + status codes only.
   Service: business rules, no FastAPI / SQL imports, unit-testable. Repo: SQLAlchemy Core statements,
-  takes a `Connection`. Dependencies injected with FastAPI `Depends` (connection per request,
-  transaction via `engine.begin()`). Health-only exception: its repo pings an `Engine`, not the
+  takes a `Connection`. Dependencies injected with FastAPI `Depends`; the connection comes from
+  `ConnectionDep` (per request, transaction via `engine.begin()`, `scope="function"` so it commits
+  before the response is sent). Health-only exception: its repo pings an `Engine`, not the
   per-request `Connection`, so a dead DB yields `db: "down"` instead of failing in `get_connection`.
 - **Error handling:** domain errors subclass `AppError(code, message, status)` in `core/errors.py`;
   one exception handler renders **RFC 9457 problem+json**

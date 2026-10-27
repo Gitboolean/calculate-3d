@@ -33,13 +33,14 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
 - **Modules:** `backend/src/calculate3d/modules/<module>/` = `router.py · schemas.py · service.py ·
   repo.py · tables.py`; `router = APIRouter(prefix="/api/<module>")`, included in `create_app()`
   (`main.py`). Copy `modules/health/` for a new module (its `Engine`-based repo is the health-only
-  exception — new repos take the `get_connection` `Connection`). Modules talk only via another
+  exception — new repos take the `Connection` via `ConnectionDep`). Modules talk only via another
   module's `service.py` — never its `repo.py`/`tables.py`. In-process calls only; no events/queues.
 - **Layering (ADR 0002):** router → service → repo. Router = HTTP parsing + status codes only;
   service = business rules, no FastAPI/SQL imports, unit-tested; repo = SQLAlchemy Core statements
-  taking a `Connection`. Inject with FastAPI `Depends` (`get_connection` = one transaction per
-  request). Health-only exception: its repo pings an `Engine`, not the per-request `Connection`,
-  so a dead DB yields `db: "down"` instead of failing in the `get_connection` dependency.
+  taking a `Connection`. Inject it with `ConnectionDep` (`core/db.py`: `get_connection` with
+  `scope="function"` — one transaction per request, committed before the response is sent, so a
+  failed commit renders problem+json). Health-only exception: its repo pings an `Engine`, not the
+  per-request `Connection`, so a dead DB yields `db: "down"` instead of failing in `get_connection`.
 - **Errors:** domain errors subclass `AppError(code, message, status)` (`core/errors.py`); every
   error — including 404 and 422 validation — renders RFC 9457 `application/problem+json`
   `{"type","title","status","detail","code"}`. Never raise `HTTPException` from a service.

@@ -22,7 +22,9 @@
 | R11 | Review fix: `get_connection` commit/rollback test | done | e4f61d1 |
 | R12 | Review fix: R7 test proves no default-DB fallback | done | 182f12a |
 | R13 | Review fix: api-types temp file removed on INT/TERM (dash) | done | a17fe30 |
+| R14 | Review fix: `ConnectionDep` commits before the response; failed commit → 500 | todo | — |
 
 R1–R5 come from `_review/review-2026-10-27.md` (findings 1–9).
 R6–R9 come from `_review/review-2026-10-27-r2.md` (findings 10–13).
 R10–R13 come from `_review/review-2026-10-27-r3.md` (findings 14–17).
+R14 comes from `_review/review-2026-10-27-r4.md` (finding 18).

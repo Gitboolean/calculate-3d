@@ -194,6 +194,16 @@
       "review_findings": [17],
       "dod": "The `api-types` / `api-types-check` scripts add `trap 'exit 130' INT; trap 'exit 143' TERM` after the EXIT trap so dash runs the EXIT trap (and its `rm -f`) on a signal; drift still exits non-zero, a match exits 0, nothing is left under `web/`; `make web-check` and `make api-types-check` are green.",
       "files_hint": ["web/package.json"]
+    },
+    {
+      "id": "R14",
+      "title": "Review fix: get_connection commits before the response is sent — a failed commit renders 500 problem+json",
+      "layer": "scaffold",
+      "deps": ["R11"],
+      "acs": [],
+      "review_findings": [18],
+      "dod": "`core/db.py` exports `ConnectionDep = Annotated[Connection, Depends(get_connection, scope=\"function\")]` so the commit runs before the response is sent; `test_get_connection.py` uses `ConnectionDep`; a new integration test makes the commit fail (deferred FK violation) and asserts 500 `application/problem+json` and that no row is stored — it turns red if `scope=\"function\"` is removed; root `CLAUDE.md` (and `backend/CLAUDE.md` / `docs/architecture-map.md` where they describe `get_connection`) name `ConnectionDep` as the way repos get their `Connection`; `make check` is green.",
+      "files_hint": ["backend/src/calculate3d/core/db.py", "backend/tests/integration/test_get_connection.py", "CLAUDE.md", "backend/CLAUDE.md", "docs/architecture-map.md"]
     }
   ]
 }

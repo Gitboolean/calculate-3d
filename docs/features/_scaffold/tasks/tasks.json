@@ -64,6 +64,56 @@
       "acs": [],
       "dod": "CLAUDE.md states the commands from the Makefile and every convention in docs/architecture-map.md §Conventions and §Frontend (layering, errors, IDs, money in kopecks, migrations, tests, FSD) and links ADR 0001-0004.",
       "files_hint": ["CLAUDE.md", "backend/CLAUDE.md", "web/CLAUDE.md"]
+    },
+    {
+      "id": "R1",
+      "title": "Review fix: health module follows router → service → repo, and reports db \"down\" when SQLite is unreachable",
+      "layer": "scaffold",
+      "deps": ["S2"],
+      "acs": [],
+      "review_findings": [1, 5],
+      "dod": "`modules/health/` has router/schemas/service/repo/tables; `service.py` imports neither FastAPI nor SQLAlchemy; the SQL ping lives in `repo.py` and returns False on `SQLAlchemyError` (including failing to open a connection); GET /api/health returns 200 {\"status\":\"ok\",\"db\":\"down\"} when the database is unreachable (integration test with a broken engine) and {\"status\":\"ok\",\"db\":\"ok\"} otherwise; a unit test covers the service without I/O.",
+      "files_hint": ["backend/src/calculate3d/modules/health/", "backend/tests/integration/test_health.py", "backend/tests/unit/test_health_service.py"]
+    },
+    {
+      "id": "R2",
+      "title": "Review fix: every error is problem+json — catch-all 500, 422 envelope test, HTTP headers kept, unknown status safe",
+      "layer": "scaffold",
+      "deps": ["S2"],
+      "acs": [],
+      "review_findings": [2, 3, 8, 9],
+      "dod": "An unhandled exception returns 500 `application/problem+json` with `code` \"internal_error\" and no exception text in the body; invalid request input returns 422 problem+json with `code` \"validation_error\", `type/title/status/detail` and `errors[]`; a 405 keeps its `Allow` header; an `AppError` with a status outside `HTTPStatus` (e.g. 499) renders problem+json with title \"Error\" instead of crashing. Each is asserted by an integration test.",
+      "files_hint": ["backend/src/calculate3d/core/errors.py", "backend/tests/integration/test_errors.py"]
+    },
+    {
+      "id": "R3",
+      "title": "Review fix: the server always binds 127.0.0.1 — no host setting can override it (ADR 0004)",
+      "layer": "scaffold",
+      "deps": ["S1"],
+      "acs": [],
+      "review_findings": [4],
+      "dod": "`Settings` has no `host` field; `run()` passes host \"127.0.0.1\" to uvicorn; a unit test asserts that host even with `CALC3D_HOST=0.0.0.0` in the environment.",
+      "files_hint": ["backend/src/calculate3d/core/config.py", "backend/src/calculate3d/main.py", "backend/tests/unit/test_run.py"]
+    },
+    {
+      "id": "R4",
+      "title": "Review fix: `make install` fails on a stale uv.lock (`uv sync --locked`)",
+      "layer": "scaffold",
+      "deps": ["S5"],
+      "acs": [],
+      "review_findings": [6],
+      "dod": "`make install` runs `uv sync --locked` in backend; it succeeds on the committed lock.",
+      "files_hint": ["Makefile"]
+    },
+    {
+      "id": "R5",
+      "title": "Review fix: `make check` fails when web/src/shared/api/schema.d.ts drifts from the backend OpenAPI",
+      "layer": "scaffold",
+      "deps": ["R4"],
+      "acs": [],
+      "review_findings": [7],
+      "dod": "`make api-types-check` regenerates the schema into a temp file and diffs it against the committed one; `make check` runs it; it is green now and fails after a hand edit of schema.d.ts; CLAUDE.md lists the target.",
+      "files_hint": ["Makefile", "web/package.json", "CLAUDE.md"]
     }
   ]
 }

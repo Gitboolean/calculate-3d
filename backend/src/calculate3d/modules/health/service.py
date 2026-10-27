@@ -1,7 +1,8 @@
-"""Health checks — no FastAPI imports, so it stays unit-testable."""
+"""Health checks — no FastAPI/SQL imports, so it stays unit-testable."""
 
-from sqlalchemy import Connection, text
+from collections.abc import Callable
+from typing import Literal
 
 
-def database_ok(conn: Connection) -> bool:
-    return conn.execute(text("SELECT 1")).scalar() == 1
+def db_status(ping: Callable[[], bool]) -> Literal["ok", "down"]:
+    return "ok" if ping() else "down"

@@ -19,7 +19,7 @@
 | R8 | Review fix: OpenAPI dump to a temp file | done | acfaf6f |
 | R9 | Review fix: HomePage db-down test | done | a730ae1 |
 | R10 | Review fix: TestClient as a context manager; engine-disposal note | done | |
-| R11 | Review fix: `get_connection` commit/rollback test | todo | |
+| R11 | Review fix: `get_connection` commit/rollback test | done | |
 | R12 | Review fix: R7 test proves no default-DB fallback | todo | |
 | R13 | Review fix: api-types temp file removed on INT/TERM (dash) | todo | |
 

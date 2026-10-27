@@ -32,8 +32,9 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
 
 - **Modules:** `backend/src/calculate3d/modules/<module>/` = `router.py · schemas.py · service.py ·
   repo.py · tables.py`; `router = APIRouter(prefix="/api/<module>")`, included in `create_app()`
-  (`main.py`). Copy `modules/health/` for a new module. Modules talk only via another module's
-  `service.py` — never its `repo.py`/`tables.py`. In-process calls only; no events/queues.
+  (`main.py`). Copy `modules/health/` for a new module (its `Engine`-based repo is the health-only
+  exception — new repos take the `get_connection` `Connection`). Modules talk only via another
+  module's `service.py` — never its `repo.py`/`tables.py`. In-process calls only; no events/queues.
 - **Layering (ADR 0002):** router → service → repo. Router = HTTP parsing + status codes only;
   service = business rules, no FastAPI/SQL imports, unit-tested; repo = SQLAlchemy Core statements
   taking a `Connection`. Inject with FastAPI `Depends` (`get_connection` = one transaction per

@@ -21,7 +21,7 @@
 | R10 | Review fix: TestClient as a context manager; engine-disposal note | done | |
 | R11 | Review fix: `get_connection` commit/rollback test | done | |
 | R12 | Review fix: R7 test proves no default-DB fallback | done | |
-| R13 | Review fix: api-types temp file removed on INT/TERM (dash) | todo | |
+| R13 | Review fix: api-types temp file removed on INT/TERM (dash) | done | |
 
 R1–R5 come from `_review/review-2026-10-27.md` (findings 1–9).
 R6–R9 come from `_review/review-2026-10-27-r2.md` (findings 10–13).

@@ -154,6 +154,46 @@
       "review_findings": [13],
       "dod": "`HomePage.test.tsx` has a case that mocks `{\"status\":\"ok\",\"db\":\"down\"}` and asserts the visible label «База даних: не відповідає»; `make web-check` is green.",
       "files_hint": ["web/src/pages/home/ui/HomePage.test.tsx"]
+    },
+    {
+      "id": "R10",
+      "title": "Review fix: integration tests enter TestClient as a context manager; engine-disposal note",
+      "layer": "scaffold",
+      "deps": ["R7"],
+      "acs": [],
+      "review_findings": [14],
+      "dod": "Every `TestClient(...)` in `backend/tests/` (incl. the four in `integration/test_errors.py`) is entered as `with TestClient(app) as client:` so the lifespan disposes `app.state.engine`; `backend/CLAUDE.md` replaces \"Dispose any engine you create in a test\" with \"Always enter `TestClient(app)` as a context manager — the lifespan disposes `app.state.engine`\"; `make api-check` is green.",
+      "files_hint": ["backend/tests/integration/test_errors.py", "backend/CLAUDE.md"]
+    },
+    {
+      "id": "R11",
+      "title": "Review fix: get_connection commits on success and rolls back on error",
+      "layer": "scaffold",
+      "deps": ["R10"],
+      "acs": [],
+      "review_findings": [15],
+      "dod": "An integration test builds `create_app(Settings(database_url=<tmp>))`, adds test-only routes using `Depends(get_connection)` that insert into a test-created table, and asserts the row is committed after a 200 and absent after a handler that raises (rollback). The root `CLAUDE.md` \"Copy `modules/health/`\" line notes that its Engine-based repo is the health-only exception and new repos take the `get_connection` Connection. `make api-check` is green.",
+      "files_hint": ["backend/tests/integration/test_get_connection.py", "backend/src/calculate3d/core/db.py", "CLAUDE.md"]
+    },
+    {
+      "id": "R12",
+      "title": "Review fix: the R7 test proves there is no fallback to the default DB URL",
+      "layer": "scaffold",
+      "deps": ["R7"],
+      "acs": [],
+      "review_findings": [16],
+      "dod": "`test_app_database_settings.py` points `CALC3D_DATABASE_URL` at an unreachable sentinel (e.g. `sqlite:////nonexistent-dir/sentinel.db`) via monkeypatch + `get_settings.cache_clear()` and asserts `create_app(Settings(database_url=<tmp>))` reports `db: \"ok\"` — any fallback to `get_settings()` would report `down`; the settings cache is restored afterwards; `make api-check` is green.",
+      "files_hint": ["backend/tests/integration/test_app_database_settings.py"]
+    },
+    {
+      "id": "R13",
+      "title": "Review fix: the api-types temp file is removed on INT/TERM under dash",
+      "layer": "scaffold",
+      "deps": ["R8"],
+      "acs": [],
+      "review_findings": [17],
+      "dod": "The `api-types` / `api-types-check` scripts add `trap 'exit 130' INT; trap 'exit 143' TERM` after the EXIT trap so dash runs the EXIT trap (and its `rm -f`) on a signal; drift still exits non-zero, a match exits 0, nothing is left under `web/`; `make web-check` and `make api-types-check` are green.",
+      "files_hint": ["web/package.json"]
     }
   ]
 }

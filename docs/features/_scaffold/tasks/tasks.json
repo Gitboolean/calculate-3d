@@ -1,0 +1,69 @@
+{
+  "slug": "_scaffold",
+  "source": "docs/architecture-map.md (mode: greenfield-bootstrap) + docs/adr/0001-0004",
+  "tasks": [
+    {
+      "id": "S1",
+      "title": "Create the backend project: uv + Python 3.14 + FastAPI app factory, core/ (config, errors, ids) and folder structure",
+      "layer": "scaffold",
+      "deps": [],
+      "acs": [],
+      "dod": "`uv sync` succeeds in backend/ and `uv run python -c 'from calculate3d.main import create_app; create_app()'` exits 0; uvicorn binds 127.0.0.1 by default.",
+      "files_hint": ["backend/pyproject.toml", "backend/.python-version", "backend/src/calculate3d/main.py", "backend/src/calculate3d/core/", "backend/src/calculate3d/modules/", ".gitignore"]
+    },
+    {
+      "id": "S2",
+      "title": "Wire the backend test harness + lint/type gates and the health smoke test (GET /api/health)",
+      "layer": "scaffold",
+      "deps": ["S1"],
+      "acs": [],
+      "dod": "`uv run pytest` passes an integration smoke test asserting GET /api/health returns 200 {\"status\":\"ok\",\"db\":\"ok\"} and an unknown route returns RFC 9457 problem+json; `ruff check`, `ruff format --check` and `mypy --strict src` are green.",
+      "files_hint": ["backend/src/calculate3d/modules/health/", "backend/tests/conftest.py", "backend/tests/integration/test_health.py", "backend/tests/unit/test_ids.py", "backend/pyproject.toml"]
+    },
+    {
+      "id": "S3",
+      "title": "Set up SQLite engine (pragmas) + Alembic with timestamped SQL-first revisions and an initial empty migration",
+      "layer": "scaffold",
+      "deps": ["S1"],
+      "acs": [],
+      "dod": "`alembic upgrade head`, `alembic downgrade base`, `alembic upgrade head` all succeed against a temp SQLite file (covered by a pytest test); foreign_keys=ON and WAL are asserted on a fresh connection.",
+      "files_hint": ["backend/alembic.ini", "backend/migrations/env.py", "backend/migrations/versions/", "backend/src/calculate3d/core/db.py", "backend/tests/integration/test_migrations.py"]
+    },
+    {
+      "id": "S4",
+      "title": "Create the web app: Vite + React + TypeScript + FSD layers, Tailwind + shadcn/ui primitives, TanStack Query, generated API types, Home page showing API health",
+      "layer": "scaffold",
+      "deps": ["S2"],
+      "acs": [],
+      "dod": "`npm ci && npm run lint && npx tsc --noEmit && npx vitest run && npm run build` succeed in web/; a Vitest test renders the Home page with a mocked health response; Steiger reports no FSD violations; `web/src/shared/api/schema.d.ts` is generated from the backend OpenAPI.",
+      "files_hint": ["web/package.json", "web/vite.config.ts", "web/components.json", "web/src/app/", "web/src/pages/home/", "web/src/entities/health/", "web/src/shared/ui/", "web/src/shared/api/", "web/src/shared/lib/cn.ts"]
+    },
+    {
+      "id": "S5",
+      "title": "Add the root Makefile (dev, run, check, api-check, web-check, migrate, migrate-down, api-types) and serve web/dist from FastAPI in `make run`",
+      "layer": "scaffold",
+      "deps": ["S3", "S4"],
+      "acs": [],
+      "dod": "`make check` is green end to end; `make run` boots one process on 127.0.0.1:8000 where `/` serves the built UI and `/api/health` returns ok (verified by a smoke test or scripted curl).",
+      "files_hint": ["Makefile", "backend/src/calculate3d/main.py", "README.md"]
+    },
+    {
+      "id": "S6",
+      "title": "Add the CI workflow running `make check`",
+      "layer": "scaffold",
+      "deps": ["S5"],
+      "acs": [],
+      "dod": "`.github/workflows/ci.yml` is valid YAML, sets up uv (Python 3.14) and Node 24, and runs exactly `make check`; no deploy job.",
+      "files_hint": [".github/workflows/ci.yml"]
+    },
+    {
+      "id": "S7",
+      "title": "Write root CLAUDE.md (+ backend/ and web/ notes) from the foundation conventions",
+      "layer": "scaffold",
+      "deps": ["S5"],
+      "acs": [],
+      "dod": "CLAUDE.md states the commands from the Makefile and every convention in docs/architecture-map.md §Conventions and §Frontend (layering, errors, IDs, money in kopecks, migrations, tests, FSD) and links ADR 0001-0004.",
+      "files_hint": ["CLAUDE.md", "backend/CLAUDE.md", "web/CLAUDE.md"]
+    }
+  ]
+}

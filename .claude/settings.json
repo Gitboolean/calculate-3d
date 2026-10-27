@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "sdlc": {
+      "source": {
+        "source": "github",
+        "repo": "genkovich/sdlc"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "sdlc@sdlc": true,
+    "sdlc@gitboolean": false
+  }
+}

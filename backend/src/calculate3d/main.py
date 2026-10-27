@@ -8,6 +8,9 @@ from calculate3d.core.config import Settings, get_settings
 from calculate3d.core.errors import register_error_handlers
 from calculate3d.modules.health.router import router as health_router
 
+# Local-only, no auth (ADR 0004): the bind address is deliberately not configurable.
+HOST = "127.0.0.1"
+
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
@@ -25,6 +28,6 @@ def run() -> None:
     uvicorn.run(
         "calculate3d.main:create_app",
         factory=True,
-        host=settings.host,
+        host=HOST,
         port=settings.port,
     )

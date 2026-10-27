@@ -6,6 +6,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[3]
+REPO_DIR = BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
@@ -15,6 +16,8 @@ class Settings(BaseSettings):
     # Local-only (ADR 0004): never bind to a public interface by default.
     host: str = "127.0.0.1"
     port: int = 8000
+    # Built web UI served at `/` by `make run`; skipped when absent (API-only / `make dev`).
+    web_dist_dir: Path = REPO_DIR / "web" / "dist"
 
 
 @lru_cache

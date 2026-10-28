@@ -29,7 +29,10 @@ ticket: ""
 
 1. **Host allowlist + same-origin перевірки** — middleware у `core` для всіх запитів: дозволений лише `Host` з переліку (`127.0.0.1`/`localhost` з портом застосунку та портом Vite); для `/api` — відмова, якщо `Sec-Fetch-Site` дорівнює `cross-site` або `same-site` чи `Origin` присутній і не з переліку; змінні запити приймають лише `Content-Type: application/json`; CORS-дозволів немає.
 2. **CSRF-токен (double-submit) + Host allowlist** — не покладається на `Sec-Fetch-*`, але додає cookie, обгортку для `openapi-fetch` і токен у тестах; читання при DNS rebinding однаково зупиняє лише `Host`.
-3. **Лише `application/json` + bind** — змушує браузер робити CORS preflight, який без CORS провалюється, тож CSRF зупинено; але після DNS rebinding запит same-origin і preflight не потрібен, тож AC-16b не виконано.
+
+**Розглянуто й виключено обмеженням** (не рівноцінна альтернатива):
+
+- *Лише `application/json` + bind* — не зупиняє DNS rebinding (після нього запит same-origin і preflight не потрібен), тож не виконує AC-16b / PRD §6.1.
 
 ## Decision outcome
 

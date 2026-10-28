@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Accepted
 owner: "Anton Pohorielov"
 reviewers: []
 updated_at: "2026-10-28"
@@ -12,7 +12,7 @@ target_surfaces: [backend-service, web-frontend]  # filled in §4 — subset of:
 # Software Architecture Document — cost-calculator
 
 <!-- Stages 04-05 → see sdlc/plugin/skills/architecture-design/SKILL.md -->
-<!-- 12 Arc42 sections. Empty sections — <!-- N/A: <one-line reason> -->. -->
+<!-- 12 Arc42 sections; an empty section would carry an N/A comment with a one-line reason. -->
 <!-- C4 Context (L1) lives inline in §3. C4 Container (L2) lives inline in §5. -->
 <!-- §6 Runtime view seeds the primary flow(s) here; complete-sequence-diagrams (stage 06) then -->
 <!--    fills §6 with every critical flow / §5 AC — no cap. -->
@@ -35,7 +35,9 @@ target_surfaces: [backend-service, web-frontend]  # filled in §4 — subset of:
 |---|---|---|
 | автор | єдиний користувач (налаштування цін, розрахунок, каталог); водночас власник продукту, архітектор і розробник навчального проєкту | Yes |
 
-<!-- Decision overrides (¶4) — populated by the Step-7 critic resolution loop, empty otherwise.       -->
+**Decision overrides.**
+
+- Decision override: маса пластику — `*_cg` (соті грама, `INTEGER`) замість конвенції `*_g` з `CLAUDE.md` — rationale: точність 0,01 г (AC-07) без `REAL`/float; див. [ADR 0004](adr/0004-exchange-quantities-as-scaled-integers.md), борг оновити `CLAUDE.md` — §11.
 
 ## 2. Constraints
 
@@ -54,7 +56,7 @@ target_surfaces: [backend-service, web-frontend]  # filled in §4 — subset of:
 **Conventions.**
 - Кореневий `CLAUDE.md` + `backend/CLAUDE.md` + `web/CLAUDE.md` — джерело конвенцій. `docs/architecture-map.md` описує стан до scaffold і застарів (див. §11).
 - IDs — UUIDv7 із застосунку (`core/ids.py::new_id()`), `TEXT` 36 символів; БД ID не генерує.
-- Гроші — `INTEGER` копійки з суфіксом `_kop`, обчислення в `decimal.Decimal`, мінімальний донат округлюється вгору (`ROUND_CEILING`); `float` для грошей заборонено. Одиниця виміру — в назві колонки (`*_g`, `*_s`, `*_w`, `*_per_hour_kop`).
+- Гроші — `INTEGER` копійки з суфіксом `_kop`, обчислення в `decimal.Decimal`, мінімальний донат округлюється вгору (`ROUND_CEILING`); `float` для грошей заборонено. Одиниця виміру — в назві колонки (`*_s`, `*_w`, `*_per_hour_kop`). **Override (ADR 0004):** маса пластику зберігається цілим числом у сотих грама `*_cg`, а не `*_g` з `CLAUDE.md` (AC-07 вимагає 0,01 г, а `REAL` неточний); частки відсотка — `*_permille`.
 - Помилки — `AppError(code, message, status)` → RFC 9457 `application/problem+json`; сервіси не кидають `HTTPException`.
 - «БД як тупе сховище»: без CHECK/TRIGGER/бізнес-дефолтів; аудит лише `created_at`; hard delete.
 - Каталог зберігає параметри, ніколи не готову ціну.
@@ -385,7 +387,7 @@ ADR files live under `docs/features/cost-calculator/adr/NNNN-<title>.md`.
 - Немає автоматичного бекапу БД — лише ручне копіювання файлу (§7).
 - Каталог без пагінації: кожне читання перераховує всі вироби (ADR 0003).
 - Перевірку «надто точне значення» виконує лише UI-парсер; сервер бачить уже ціле число (ADR 0004).
-- Нові суфікси одиниць `_cg` і `_permille` (ADR 0004) треба дописати до конвенцій у `CLAUDE.md` під час імплементації.
+- Конвенцію одиниць у `CLAUDE.md` треба оновити під час імплементації: маса з дробовою точністю — `*_cg` (замість `*_g`), частки відсотка — `*_permille` (ADR 0004, §1 Decision overrides).
 - Немає історії цін і розрахунків — свідомий non-goal (PRD §3), а не борг, що чекає виправлення.
 
 ## 12. Glossary

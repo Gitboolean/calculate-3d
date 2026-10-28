@@ -7,7 +7,7 @@ acs: ["AC-03", "AC-10", "AC-12", "AC-14b", "AC-15"]
 files_hint: ["backend/src/calculate3d/modules/catalog/__init__.py", "backend/src/calculate3d/modules/catalog/tables.py", "backend/src/calculate3d/modules/catalog/repo.py", "backend/tests/factories.py", "backend/tests/integration/test_catalog_repo.py"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T9 — Додати catalog tables + repo: вироби з рядками витрати, пакетне читання без N+1

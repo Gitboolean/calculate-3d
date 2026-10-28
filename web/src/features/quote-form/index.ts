@@ -2,6 +2,7 @@ export {
   emptyQuoteForm,
   newRow,
   parseQuoteForm,
+  quoteFormFrom,
   type QuoteFormErrors,
   type QuoteFormValue,
 } from './model/parse'

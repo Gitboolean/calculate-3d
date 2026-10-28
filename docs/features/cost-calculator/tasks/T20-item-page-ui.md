@@ -7,7 +7,7 @@ acs: ["AC-14", "AC-14b", "AC-14c", "AC-15"]
 files_hint: ["web/src/pages/item", "web/src/features/delete-item", "web/src/entities/item"]
 owner: "Anton Pohorielov"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T20 — Зібрати сторінку /catalog/:itemId: перегляд, редагування через quote-form і видалення

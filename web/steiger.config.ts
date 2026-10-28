@@ -22,18 +22,11 @@ export default defineConfig([
   },
   {
     // User actions from the cost-calculator SAD, kept as features even with one page using
-    // them so /settings stays a thin composition (tasks T14).
-    files: ['./src/features/edit-plastic/**', './src/features/edit-price-settings/**'],
-    rules: { 'fsd/insignificant-slice': 'off' },
-  },
-  {
-    // TEMPORARY until T19/T20: /catalog and /catalog/:itemId become their second consumer.
+    // them so the pages stay thin compositions (tasks T14, T15, T20).
     files: [
-      './src/entities/item/**',
-      './src/features/save-item/**',
-      './src/entities/quote/**',
-      './src/widgets/cost-breakdown/**',
-      './src/features/quote-form/**',
+      './src/features/edit-plastic/**',
+      './src/features/edit-price-settings/**',
+      './src/features/delete-item/**',
     ],
     rules: { 'fsd/insignificant-slice': 'off' },
   },

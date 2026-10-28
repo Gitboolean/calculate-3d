@@ -1,4 +1,4 @@
-import { parseQuoteForm, type QuoteFormValue } from './parse'
+import { parseQuoteForm, quoteFormFrom, type QuoteFormValue } from './parse'
 
 const form = (rows: [string, string][], hours = '3', minutes = '30'): QuoteFormValue => ({
   rows: rows.map(([plasticId, grams], i) => ({ key: String(i), plasticId, grams })),
@@ -64,4 +64,23 @@ test('there is no upper bound for grams or hours', () => {
     plastics: [{ plastic_id: 'petg', usage_cg: 10000000 }],
     print_time_s: 1800000,
   })
+})
+
+test('a saved input fills the form and parses back to itself', () => {
+  const input = {
+    plastics: [
+      { plastic_id: 'petg', usage_cg: 12000 },
+      { plastic_id: 'pla', usage_cg: 1234 },
+    ],
+    print_time_s: 12600,
+  }
+
+  const value = quoteFormFrom(input)
+
+  expect(value.rows.map((r) => [r.plasticId, r.grams])).toEqual([
+    ['petg', '120,00'],
+    ['pla', '12,34'],
+  ])
+  expect([value.hours, value.minutes]).toEqual(['3', '30'])
+  expect(parseQuoteForm(value).input).toEqual(input)
 })

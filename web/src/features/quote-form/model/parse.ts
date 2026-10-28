@@ -1,5 +1,5 @@
 import type { QuoteInput } from '@/entities/quote'
-import { parseDecimal } from '@/shared/lib'
+import { formatDecimal, parseDecimal } from '@/shared/lib'
 
 export type QuoteFormRow = { key: string; plasticId: string; grams: string }
 export type QuoteFormValue = { rows: QuoteFormRow[]; hours: string; minutes: string }
@@ -15,6 +15,16 @@ export function newRow(plasticId = '', grams = ''): QuoteFormRow {
 
 export function emptyQuoteForm(): QuoteFormValue {
   return { rows: [newRow()], hours: '', minutes: '' }
+}
+
+/** A saved item's parameters back into the form's text (AC-14b editing). */
+export function quoteFormFrom(input: QuoteInput): QuoteFormValue {
+  const minutes = input.print_time_s / 60
+  return {
+    rows: input.plastics.map((p) => newRow(p.plastic_id, formatDecimal(p.usage_cg, 2))),
+    hours: String(Math.floor(minutes / 60)),
+    minutes: String(minutes % 60),
+  }
 }
 
 const GRAMS_ERRORS = {

@@ -25,6 +25,6 @@
 | [T17](./T17-calculate-page-quote-form.md) | Зібрати сторінку /calculate з формою quote-form, валідацією AC-07 і станом «бракує налаштувань» | ui | Anton Pohorielov | L | T14, T16 | done |
 | [T18](./T18-save-item-ui.md) | Додати збереження розрахунку в каталог (feature save-item) на /calculate | ui | Anton Pohorielov | M | T11, T17 | done |
 | [T19](./T19-catalog-page-ui.md) | Зібрати сторінку /catalog: пошук за ?q= і список виробів з актуальним мінімальним донатом | ui | Anton Pohorielov | M | T11, T13, T18 | done |
-| [T20](./T20-item-page-ui.md) | Зібрати сторінку /catalog/:itemId: перегляд, редагування через quote-form і видалення | ui | Anton Pohorielov | L | T17, T18 | todo |
+| [T20](./T20-item-page-ui.md) | Зібрати сторінку /catalog/:itemId: перегляд, редагування через quote-form і видалення | ui | Anton Pohorielov | L | T17, T18 | done |
 
 **Total:** 20 tasks, ~12.5 person-days (100 год).

@@ -158,3 +158,63 @@ def test_settings_derive_allowed_hosts_from_app_and_vite_ports() -> None:
         {"127.0.0.1:8100", "localhost:8100", "127.0.0.1:5200", "localhost:5200"}
     )
     assert "http://localhost:5200" in settings.allowed_origins
+
+
+def _snapshot(engine: Engine) -> dict[str, list[tuple[object, ...]]]:
+    from sqlalchemy import select
+
+    from calculate3d.core.db import metadata
+
+    with engine.connect() as conn:
+        return {
+            name: sorted(tuple(row) for row in conn.execute(select(table)))
+            for name, table in metadata.tables.items()
+        }
+
+
+@pytest.mark.parametrize("attack", ["foreign-origin", "cross-site", "form-post"])
+def test_rejected_mutations_leave_the_database_unchanged(
+    client: TestClient, engine: Engine, attack: str
+) -> None:
+    from tests.factories import make_item, make_plastic, make_price_settings
+
+    with engine.begin() as conn:
+        make_price_settings(conn)
+        plastic_id = make_plastic(conn)
+        item_id = make_item(conn, usage={plastic_id: 100})
+    item_body = {
+        "name": "Злам",
+        "plastics": [{"plastic_id": plastic_id, "usage_cg": 1}],
+        "print_time_s": 60,
+    }
+    mutations = [
+        ("POST", "/api/pricing/plastics", {"name": "Злам", "price_per_kg_kop": 1}),
+        ("PUT", f"/api/pricing/plastics/{plastic_id}", {"name": "Злам", "price_per_kg_kop": 1}),
+        ("DELETE", f"/api/pricing/plastics/{plastic_id}", None),
+        ("PUT", "/api/pricing/settings", {"tariff_per_kwh_kop": 0}),
+        ("POST", "/api/catalog/items", item_body),
+        ("PUT", f"/api/catalog/items/{item_id}", item_body),
+        ("DELETE", f"/api/catalog/items/{item_id}", None),
+    ]
+    headers = {
+        "foreign-origin": {"origin": "https://evil.example.test"},
+        "cross-site": {"sec-fetch-site": "cross-site"},
+        "form-post": {"content-type": "application/x-www-form-urlencoded"},
+    }[attack]
+    before = _snapshot(engine)
+
+    for method, url, payload in mutations:
+        if attack == "form-post":
+            response = client.request(method, url, content="name=x", headers=headers)
+        else:
+            response = client.request(method, url, json=payload, headers=headers)
+        assert response.status_code in {403, 415}, (method, url, response.status_code)
+
+    assert _snapshot(engine) == before
+
+
+@pytest.mark.parametrize("path", ["/api/pricing/settings", "/api/catalog/items"])
+def test_cross_site_reads_are_refused(client: TestClient, path: str) -> None:
+    response = client.get(path, headers={"origin": "https://evil.example.test"})
+
+    _assert_problem(response, 403, "cross_origin_forbidden")

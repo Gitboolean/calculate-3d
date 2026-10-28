@@ -7,7 +7,7 @@ acs: ["AC-01", "AC-03", "AC-04", "AC-06", "AC-10", "AC-12", "AC-13", "AC-15", "A
 files_hint: ["backend/tests/integration/test_nfr_latency.py", "backend/tests/integration/test_nfr_durability.py", "backend/tests/integration/test_price_consistency.py", "backend/tests/integration/test_contract.py", "backend/tests/integration/test_e2e_golden_path.py", "backend/tests/integration/test_request_guard.py", "backend/pyproject.toml", "backend/uv.lock"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T12 — Додати тести NFR (латентність, збереженість, узгодженість цін) і контрактний тест OpenAPI

@@ -7,7 +7,7 @@ acs: ["AC-04", "AC-05"]
 files_hint: ["web/src/pages/settings", "web/src/features/edit-price-settings", "web/src/entities/price-settings"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T15 — Зібрати форму налаштувань цін на /settings: 6 полів, одне збереження, знос за годину

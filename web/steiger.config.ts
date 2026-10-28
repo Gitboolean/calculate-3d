@@ -23,12 +23,12 @@ export default defineConfig([
   {
     // User actions from the cost-calculator SAD, kept as features even with one page using
     // them so /settings stays a thin composition (tasks T14).
-    files: ['./src/features/edit-plastic/**'],
+    files: ['./src/features/edit-plastic/**', './src/features/edit-price-settings/**'],
     rules: { 'fsd/insignificant-slice': 'off' },
   },
   {
     // TEMPORARY until T17: the quote form on /calculate becomes the second consumer.
-    files: ['./src/entities/plastic/**'],
+    files: ['./src/entities/plastic/**', './src/entities/price-settings/**'],
     rules: { 'fsd/insignificant-slice': 'off' },
   },
 ])

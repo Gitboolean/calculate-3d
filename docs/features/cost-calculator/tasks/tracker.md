@@ -20,7 +20,7 @@
 | [T12](./T12-nfr-and-contract-tests.md) | Додати тести NFR (латентність, збереженість, узгодженість цін) і контрактний тест OpenAPI | tests | Anton Pohorielov | M | T3, T11 | done |
 | [T13](./T13-web-foundation.md) | Підключити React Router, оболонку з навігацією, parse-decimal і format-money | ui | Anton Pohorielov | M | — | done |
 | [T14](./T14-settings-plastics-ui.md) | Зібрати розділ пластиків на /settings: список, додавання, редагування, видалення з підтвердженням | ui | Anton Pohorielov | L | T7, T13 | done |
-| [T15](./T15-settings-price-form-ui.md) | Зібрати форму налаштувань цін на /settings: 6 полів, одне збереження, знос за годину | ui | Anton Pohorielov | M | T7, T13, T14 | todo |
+| [T15](./T15-settings-price-form-ui.md) | Зібрати форму налаштувань цін на /settings: 6 полів, одне збереження, знос за годину | ui | Anton Pohorielov | M | T7, T13, T14 | done |
 | [T16](./T16-quote-entity-and-breakdown-widget.md) | Додати entity quote (debounce + ключ запиту) і віджет cost-breakdown | ui | Anton Pohorielov | M | T8, T13 | todo |
 | [T17](./T17-calculate-page-quote-form.md) | Зібрати сторінку /calculate з формою quote-form, валідацією AC-07 і станом «бракує налаштувань» | ui | Anton Pohorielov | L | T14, T16 | todo |
 | [T18](./T18-save-item-ui.md) | Додати збереження розрахунку в каталог (feature save-item) на /calculate | ui | Anton Pohorielov | M | T11, T17 | todo |

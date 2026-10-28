@@ -18,7 +18,7 @@
 | [T10](./T10-catalog-service.md) | Реалізувати catalog.service: збереження, редагування, видалення, пошук і перерахунок цін | app | Anton Pohorielov | L | T2, T8, T9 | todo |
 | [T11](./T11-catalog-router-and-plastic-in-use.md) | Відкрити /api/catalog/items і підключити перевірку використання пластику в pricing (AC-03) | ports | Anton Pohorielov | L | T7, T8, T10 | todo |
 | [T12](./T12-nfr-and-contract-tests.md) | Додати тести NFR (латентність, збереженість, узгодженість цін) і контрактний тест OpenAPI | tests | Anton Pohorielov | M | T3, T11 | todo |
-| [T13](./T13-web-foundation.md) | Підключити React Router, оболонку з навігацією, parse-decimal і format-money | ui | Anton Pohorielov | M | — | todo |
+| [T13](./T13-web-foundation.md) | Підключити React Router, оболонку з навігацією, parse-decimal і format-money | ui | Anton Pohorielov | M | — | done |
 | [T14](./T14-settings-plastics-ui.md) | Зібрати розділ пластиків на /settings: список, додавання, редагування, видалення з підтвердженням | ui | Anton Pohorielov | L | T7, T13 | todo |
 | [T15](./T15-settings-price-form-ui.md) | Зібрати форму налаштувань цін на /settings: 6 полів, одне збереження, знос за годину | ui | Anton Pohorielov | M | T7, T13, T14 | todo |
 | [T16](./T16-quote-entity-and-breakdown-widget.md) | Додати entity quote (debounce + ключ запиту) і віджет cost-breakdown | ui | Anton Pohorielov | M | T8, T13 | todo |

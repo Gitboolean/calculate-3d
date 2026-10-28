@@ -5,7 +5,7 @@ export default defineConfig([
   ...fsd.configs.recommended,
   {
     // Baseline precedent from docs/architecture-map.md §Frontend: new screens copy this
-    // entity, so it stays a slice even while Home is its only consumer.
+    // entity, so it stays a slice even while the app shell is its only consumer.
     files: ['./src/entities/health/**'],
     rules: { 'fsd/insignificant-slice': 'off' },
   },

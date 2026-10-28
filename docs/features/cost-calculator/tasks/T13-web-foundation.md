@@ -7,7 +7,7 @@ acs: ["AC-01", "AC-02", "AC-05", "AC-07", "AC-09"]
 files_hint: ["web/package.json", "web/package-lock.json", "web/src/app/App.tsx", "web/src/app/layout", "web/src/shared/lib/parse-decimal.ts", "web/src/shared/lib/parse-decimal.test.ts", "web/src/shared/lib/format-money.ts", "web/src/shared/lib/format-money.test.ts", "web/src/shared/lib/index.ts", "web/src/pages"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T13 — Підключити React Router, оболонку з навігацією, parse-decimal і format-money

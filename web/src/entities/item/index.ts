@@ -1,1 +1,8 @@
-export { itemKeys, useCreateItem, type Item, type ItemInput } from './api/items'
+export {
+  itemKeys,
+  useCreateItem,
+  useItems,
+  type Item,
+  type ItemInput,
+  type ItemSummary,
+} from './api/items'

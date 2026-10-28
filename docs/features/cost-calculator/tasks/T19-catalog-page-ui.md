@@ -7,7 +7,7 @@ acs: ["AC-12", "AC-13"]
 files_hint: ["web/src/pages/catalog", "web/src/entities/item"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T19 — Зібрати сторінку /catalog: пошук за ?q= і список виробів з актуальним мінімальним донатом

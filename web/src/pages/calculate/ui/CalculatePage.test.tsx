@@ -190,3 +190,17 @@ test('a 409 settings_missing from the server is explained the same way (AC-09)',
   ).toBeInTheDocument()
   expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
 })
+
+test('saving to the catalog becomes available once the donation is shown (AC-10)', async () => {
+  serve()
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  const save = screen.getByRole('button', { name: 'Зберегти в каталог' })
+  expect(save).toBeDisabled()
+
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('3', '30')
+
+  await screen.findByRole('status', { name: 'Мінімальний донат' })
+  expect(save).toBeEnabled()
+})

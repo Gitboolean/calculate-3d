@@ -27,8 +27,10 @@ export default defineConfig([
     rules: { 'fsd/insignificant-slice': 'off' },
   },
   {
-    // TEMPORARY until T20: /catalog/:itemId becomes their second consumer.
+    // TEMPORARY until T19/T20: /catalog and /catalog/:itemId become their second consumer.
     files: [
+      './src/entities/item/**',
+      './src/features/save-item/**',
       './src/entities/quote/**',
       './src/widgets/cost-breakdown/**',
       './src/features/quote-form/**',

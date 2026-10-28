@@ -4,6 +4,7 @@ import { usePlastics } from '@/entities/plastic'
 import { usePriceSettings } from '@/entities/price-settings'
 import { useQuote } from '@/entities/quote'
 import { emptyQuoteForm, MissingSettings, parseQuoteForm, QuoteForm } from '@/features/quote-form'
+import { SaveItemForm } from '@/features/save-item'
 import { isProblem } from '@/shared/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
@@ -80,6 +81,15 @@ export function CalculatePage() {
           </CardContent>
         </Card>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Зберегти в каталог</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Only a calculation with its donation on screen can be saved (AC-10). */}
+          <SaveItemForm input={quote ? input : null} />
+        </CardContent>
+      </Card>
     </section>
   )
 }

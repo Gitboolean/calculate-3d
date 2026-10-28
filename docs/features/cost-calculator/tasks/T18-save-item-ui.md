@@ -7,7 +7,7 @@ acs: ["AC-10", "AC-11"]
 files_hint: ["web/src/features/save-item", "web/src/entities/item", "web/src/pages/calculate"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T18 — Додати збереження розрахунку в каталог (feature save-item) на /calculate

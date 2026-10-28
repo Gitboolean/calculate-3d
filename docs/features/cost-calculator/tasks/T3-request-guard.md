@@ -7,7 +7,7 @@ acs: ["AC-16", "AC-16b"]
 files_hint: ["backend/src/calculate3d/core/guard.py", "backend/src/calculate3d/core/config.py", "backend/src/calculate3d/main.py", "backend/tests/integration/test_request_guard.py"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T3 — Додати middleware захисту запитів: allowlist Host, same-origin, JSON-only

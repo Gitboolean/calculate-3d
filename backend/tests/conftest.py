@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from sqlalchemy import Engine
 from calculate3d.core.config import BACKEND_DIR, Settings
 from calculate3d.core.db import create_db_engine
 from calculate3d.main import create_app
+
+# TestClient sends `Host: testserver`; let the request guard accept it in every test-built Settings.
+os.environ.setdefault("CALC3D_EXTRA_ALLOWED_HOSTS", '["testserver"]')
 
 
 def alembic_config(database_url: str) -> Config:

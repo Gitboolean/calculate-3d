@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from calculate3d.core.config import Settings, get_settings
 from calculate3d.core.db import create_db_engine
 from calculate3d.core.errors import register_error_handlers
+from calculate3d.core.guard import RequestGuard
 from calculate3d.modules.health.router import router as health_router
 
 # Local-only, no auth (ADR 0004): the bind address is deliberately not configurable.
@@ -28,6 +29,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="calculate-3d", version="0.1.0", lifespan=lifespan)
     app.state.engine = engine
     register_error_handlers(app)
+    # No CORSMiddleware, ever: the API is same-origin only (cost-calculator ADR 0007).
+    app.add_middleware(
+        RequestGuard,
+        allowed_hosts=settings.allowed_hosts,
+        allowed_origins=settings.allowed_origins,
+    )
     app.include_router(health_router)
     # Mounted last so every /api route wins over the static catch-all.
     if settings.web_dist_dir.is_dir():

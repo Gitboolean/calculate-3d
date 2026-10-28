@@ -4,10 +4,20 @@ from collections.abc import Iterator
 from typing import Annotated, Any
 
 from fastapi import Depends, Request
-from sqlalchemy import Connection, Engine, MetaData, create_engine, event
+from sqlalchemy import Column, Connection, Engine, MetaData, Text, create_engine, event, text
 
 # Shared MetaData for every module's `tables.py`.
 metadata = MetaData()
+
+
+def created_at_column() -> Column[str]:
+    """Audit column; the DB fills it (UTC ISO-8601), as in every migration."""
+    return Column(
+        "created_at",
+        Text,
+        nullable=False,
+        server_default=text("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+    )
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _record: Any) -> None:

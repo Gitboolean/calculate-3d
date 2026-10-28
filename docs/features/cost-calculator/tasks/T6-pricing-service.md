@@ -7,7 +7,7 @@ acs: ["AC-01", "AC-02", "AC-03", "AC-04", "AC-05"]
 files_hint: ["backend/src/calculate3d/modules/pricing/__init__.py", "backend/src/calculate3d/modules/pricing/tables.py", "backend/src/calculate3d/modules/pricing/repo.py", "backend/src/calculate3d/modules/pricing/service.py", "backend/src/calculate3d/modules/pricing/schemas.py", "backend/tests/factories.py", "backend/tests/conftest.py", "backend/tests/unit/test_pricing_service.py"]
 owner: "Anton Pohorielov"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T6 — Зібрати модуль pricing: tables, repo, service, schemas для пластиків і налаштувань цін

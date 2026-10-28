@@ -16,6 +16,9 @@ from calculate3d.modules.pricing.schemas import (
     PriceSettingsInput,
 )
 
+# Connection type for callers (costing, catalog) that must not import pricing's repo.
+DbConnection = repo.DbConnection
+
 
 class PlasticNameTaken(AppError):
     def __init__(self) -> None:
@@ -41,6 +44,10 @@ def _to_schema(record: repo.PlasticRecord) -> Plastic:
 def list_plastics(conn: repo.DbConnection) -> list[Plastic]:
     records = sorted(repo.list_plastics(conn), key=lambda r: sort_key(r.name))
     return [_to_schema(r) for r in records]
+
+
+def plastics_exist(conn: repo.DbConnection) -> bool:
+    return repo.plastics_exist(conn)
 
 
 def list_plastics_by_ids(conn: repo.DbConnection, ids: Collection[str]) -> list[Plastic]:

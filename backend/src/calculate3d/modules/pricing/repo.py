@@ -43,6 +43,10 @@ def list_plastics(conn: Connection) -> list[PlasticRecord]:
     return [PlasticRecord(*row) for row in conn.execute(select(*_PLASTIC_COLUMNS))]
 
 
+def plastics_exist(conn: Connection) -> bool:
+    return conn.execute(select(plastics.c.id).limit(1)).first() is not None
+
+
 def list_plastics_by_ids(conn: Connection, ids: Collection[str]) -> list[PlasticRecord]:
     rows = conn.execute(select(*_PLASTIC_COLUMNS).where(plastics.c.id.in_(ids)))
     return [PlasticRecord(*row) for row in rows]

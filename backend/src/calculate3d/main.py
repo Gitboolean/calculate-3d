@@ -15,6 +15,7 @@ from calculate3d.core.db import create_db_engine
 from calculate3d.core.errors import register_error_handlers
 from calculate3d.core.guard import RequestGuard
 from calculate3d.core.problems import use_problem_json_in_openapi
+from calculate3d.modules.costing.router import router as costing_router
 from calculate3d.modules.health.router import router as health_router
 from calculate3d.modules.pricing.router import router as pricing_router
 
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(pricing_router)
+    app.include_router(costing_router)
     use_problem_json_in_openapi(app)
     # Mounted last so every /api route wins over the static catch-all.
     if settings.web_dist_dir.is_dir():

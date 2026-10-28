@@ -75,10 +75,41 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/costing/quote': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Quote Cost
+     * @description Мінімальний донат і розбивка з поточних налаштувань цін; нічого не зберігає.
+     */
+    post: operations['quoteCost']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    /** CostBreakdown */
+    CostBreakdown: {
+      /** Plastic Kop */
+      plastic_kop: number
+      /** Electricity Kop */
+      electricity_kop: number
+      /** Wear Kop */
+      wear_kop: number
+      /** Scrap Kop */
+      scrap_kop: number
+    }
     /** FieldProblem */
     FieldProblem: {
       /** Type */
@@ -148,6 +179,16 @@ export interface components {
     PlasticList: {
       /** Items */
       items: components['schemas']['Plastic'][]
+    }
+    /** PlasticUsage */
+    PlasticUsage: {
+      /** Plastic Id */
+      plastic_id: string
+      /**
+       * Usage Cg
+       * @description Витрата в сотих грама; 120 г → 12000
+       */
+      usage_cg: number
     }
     /** PriceSettings */
     PriceSettings: {
@@ -232,6 +273,37 @@ export interface components {
       detail: string
       /** Code */
       code: string
+    }
+    /** Quote */
+    Quote: {
+      /** Min Donation Kop */
+      min_donation_kop: number
+      breakdown: components['schemas']['CostBreakdown']
+    }
+    /** QuoteInput */
+    QuoteInput: {
+      /** Plastics */
+      plastics: components['schemas']['PlasticUsage'][]
+      /**
+       * Print Time S
+       * @description Час друку в секундах, кратний 60
+       */
+      print_time_s: number
+    }
+    /** SettingsMissingProblem */
+    SettingsMissingProblem: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Status */
+      status: number
+      /** Detail */
+      detail: string
+      /** Code */
+      code: string
+      /** Missing */
+      missing: ('plastics' | 'price_settings')[]
     }
     /** ValidationIssue */
     ValidationIssue: {
@@ -666,6 +738,85 @@ export interface operations {
         }
         content: {
           'application/problem+json': components['schemas']['ValidationProblem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+    }
+  }
+  quoteCost: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['QuoteInput']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Quote']
+        }
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Бракує налаштувань цін (AC-09) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['SettingsMissingProblem']
+        }
+      }
+      /** @description Змінний запит не у форматі application/json (ADR 0007) */
+      415: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Хибний вхід (AC-07) або пластика з таким id немає */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json':
+            components['schemas']['ValidationProblem'] | components['schemas']['FieldProblem']
         }
       }
       /** @description Неочікувана помилка сервера */

@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-06b", "AC-07", "AC-08", "AC-09"]
 files_hint: ["backend/src/calculate3d/modules/costing/service.py", "backend/src/calculate3d/modules/costing/schemas.py", "backend/src/calculate3d/modules/costing/router.py", "backend/src/calculate3d/main.py", "backend/tests/unit/test_costing_service.py", "backend/tests/integration/test_costing_api.py", "web/src/shared/api/schema.d.ts"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T8 — Реалізувати costing.service.quote() і POST /api/costing/quote

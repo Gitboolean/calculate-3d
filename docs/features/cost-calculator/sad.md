@@ -67,34 +67,33 @@ target_surfaces: []  # filled in §4 — subset of: backend-service | web-fronte
 
 ## 3. Context and scope
 
-<!-- 🎯 Навіщо: малює КОРДОН СИСТЕМИ — хто з нею говорить ззовні, де закінчується зона довіри. -->
-<!--           Без §3 §5 і §8 (авторизація) розпливаються — неясно, що «всередині», а що «зовні». -->
-<!-- 📋 Що писати: 2-3 речення бізнес-контексту + таблиця зовнішніх систем + Mermaid C4Context. -->
-<!-- 📌 Приклад: «зовнішні — нема (свідома відмова від third-party у v1)» — це теж рішення.   -->
-<!-- Кордон довіри (trust boundary) — лінія, за якою ти не довіряєш даним без перевірки.       -->
-
-<Business context in 2-3 sentences. What the system does for whom.>
+Автор нарізає модель у слайсері, переносить витрату кожного пластику та час друку в інструмент і отримує мінімальний донат із розбивкою собівартості; повторювані вироби зберігає в каталог, де ціна щоразу перераховується з поточних налаштувань цін (PRD §1). Інструмент — одна система на комп'ютері автора; інтеграцій із зовнішніми сервісами немає. Межа довіри (trust boundary) — сам комп'ютер автора: інші пристрої в домашній мережі та сторонні сайти, відкриті в тому самому браузері, лежать **поза** нею, і інструмент їм не відповідає (AC-16, AC-16b).
 
 **External systems (in / out):**
 
 | Actor or system | Type | Interaction |
 |---|---|---|
-| <e.g. IC> | Person | Creates goals, adds checkpoints |
-| <e.g. notification-service> | System (internal) | Receives cron registration |
-| <e.g. Identity Provider> | System (external) | Provides JWT tokens |
+| автор | Person | Веде налаштування цін, рахує мінімальний донат, веде каталог — через браузер на `127.0.0.1` |
+| Слайсер (Bambu Studio / OrcaSlicer) | System (external) | Джерело витрати пластику й часу друку; автор переносить значення **вручну** — інтеграції немає (імпорт файлу — етап 2, PRD §3) |
+| Сторонній сайт у браузері автора | System (external, hostile) | Може спробувати надіслати запит до інструмента від імені автора (CSRF) або через DNS rebinding; запит відхиляється (AC-16b) |
+| Інший пристрій у домашній мережі | System (external, hostile) | Може спробувати відкрити інструмент; сервер слухає лише `127.0.0.1`, тож з мережі він недосяжний (AC-16) |
 
 **C4 Context (L1):**
 
 ```mermaid
 C4Context
-    title <system> — System Context
+    title cost-calculator — System Context
 
-    Person(user, "<User>", "<role + intent>")
-    System(system, "<Our System>", "<one-sentence description>")
-    System_Ext(ext, "<External system>", "<one-sentence description>")
+    Person(author, "автор", "Мейкер з одним принтером; ставить мінімальний донат за виріб")
+    System(calc, "calculate-3d", "Локальний інструмент: налаштування цін, розрахунок мінімального донату, каталог виробів")
+    System_Ext(slicer, "Слайсер", "Bambu Studio / OrcaSlicer — показує витрату пластику й час друку")
+    System_Ext(thirdparty, "Сторонній сайт", "Відкритий у тому самому браузері; поза межею довіри")
+    System_Ext(landevice, "Інший пристрій у мережі", "Телефон чи інший комп'ютер у домашній мережі; поза межею довіри")
 
-    Rel(user, system, "<interaction>", "<protocol>")
-    Rel(system, ext, "<interaction>", "<protocol>")
+    Rel(author, slicer, "Нарізає модель, читає вагу й час")
+    Rel(author, calc, "Вводить параметри, бачить мінімальний донат", "браузер, http://127.0.0.1")
+    Rel(thirdparty, calc, "Спроба змінити чи прочитати дані (відхиляється)", "HTTP з браузера автора")
+    Rel(landevice, calc, "Спроба відкрити інструмент (недосяжно)", "HTTP по LAN")
 ```
 
 ## 4. Solution strategy

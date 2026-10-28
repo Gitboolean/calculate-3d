@@ -1,0 +1,451 @@
+{
+  "slug": "cost-calculator",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Перенести 4 staged-міграції в ланцюжок Alembic і задокументувати суфікси одиниць",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-03",
+        "AC-09",
+        "AC-15"
+      ],
+      "dod": "Чотири ревізії проходять upgrade → downgrade → upgrade на тимчасовому SQLite у test_migrations.py, а make api-check зелений.",
+      "files_hint": [
+        "docs/features/cost-calculator/migrations/20261028120000_create_plastics",
+        "docs/features/cost-calculator/migrations/20261028120001_create_price_settings",
+        "docs/features/cost-calculator/migrations/20261028120002_create_items",
+        "docs/features/cost-calculator/migrations/20261028120003_create_item_plastics",
+        "backend/tests/integration/test_migrations.py",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Додати core/text.py (trim, name_key, пошук, український порядок) і поля-розширення AppError",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-03",
+        "AC-09",
+        "AC-11",
+        "AC-12"
+      ],
+      "dod": "Unit-тести core/text.py відтворюють порядок «Benchy, гачок, ґудзик, єдиноріг, Іграшка, Ялинка» з AC-12, а інтеграційний тест бачить field/items/missing у тілі problem+json.",
+      "files_hint": [
+        "backend/src/calculate3d/core/text.py",
+        "backend/src/calculate3d/core/errors.py",
+        "backend/tests/unit/test_text.py",
+        "backend/tests/integration/test_errors.py"
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Додати middleware захисту запитів: allowlist Host, same-origin, JSON-only",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-16",
+        "AC-16b"
+      ],
+      "dod": "Інтеграційні тести показують 400/403/415 на чужий Host, чужий Origin і не-JSON зміну без зміни стану БД, а запити з дозволеним Host/Origin на обох портах проходять.",
+      "files_hint": [
+        "backend/src/calculate3d/core/guard.py",
+        "backend/src/calculate3d/core/config.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_request_guard.py"
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Віддавати index.html для будь-якого не-/api шляху (SPA fallback)",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-09",
+        "AC-14"
+      ],
+      "dod": "test_static_ui.py показує, що GET /catalog/<uuid> і /settings повертають index.html, а GET /api/unknown повертає problem+json 404.",
+      "files_hint": [
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_static_ui.py"
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "Реалізувати чисту формулу собівартості costing.domain на Decimal з еталонною таблицею",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-04",
+        "AC-06",
+        "AC-06b",
+        "AC-08",
+        "AC-08b",
+        "AC-13"
+      ],
+      "dod": "Параметризований pytest на ≥10 еталонних прикладах (AC-06, AC-06b, AC-08b, AC-13 та інші) збігається до копійки, а перевірка з фіксованим seed доводить, що донат ≥ точної суми і < суми + 1 коп.",
+      "files_hint": [
+        "backend/src/calculate3d/core/money.py",
+        "backend/src/calculate3d/modules/costing/__init__.py",
+        "backend/src/calculate3d/modules/costing/domain.py",
+        "backend/tests/unit/test_costing_domain.py"
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "Зібрати модуль pricing: tables, repo, service, schemas для пластиків і налаштувань цін",
+      "layer": "app",
+      "deps": [
+        "T1",
+        "T2",
+        "T5"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-03",
+        "AC-04",
+        "AC-05"
+      ],
+      "dod": "Unit-тести сервісу pricing покривають AC-01–AC-05 (унікальність після trim+casefold, plastic_in_use з назвами виробів, атомарна заміна всіх 6 полів), а make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/pricing/__init__.py",
+        "backend/src/calculate3d/modules/pricing/tables.py",
+        "backend/src/calculate3d/modules/pricing/repo.py",
+        "backend/src/calculate3d/modules/pricing/service.py",
+        "backend/src/calculate3d/modules/pricing/schemas.py",
+        "backend/tests/factories.py",
+        "backend/tests/unit/test_pricing_service.py"
+      ]
+    },
+    {
+      "id": "T7",
+      "title": "Відкрити /api/pricing: CRUD пластиків і GET/PUT налаштувань цін",
+      "layer": "ports",
+      "deps": [
+        "T6"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-04",
+        "AC-05"
+      ],
+      "dod": "Інтеграційні тести через TestClient проходять AC-01, AC-02, AC-04 і AC-05 на реальному SQLite з problem+json кодами з контракту, а make api-types-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/pricing/router.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_pricing_api.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T8",
+      "title": "Реалізувати costing.service.quote() і POST /api/costing/quote",
+      "layer": "ports",
+      "deps": [
+        "T5",
+        "T7"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-06b",
+        "AC-07",
+        "AC-08",
+        "AC-09"
+      ],
+      "dod": "POST /api/costing/quote повертає 11525 коп і розбивку AC-06, 8063 коп для AC-06b, 422 для кожного хибного випадку AC-07 і 409 costing.settings_missing з missing для AC-09.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/costing/service.py",
+        "backend/src/calculate3d/modules/costing/schemas.py",
+        "backend/src/calculate3d/modules/costing/router.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/unit/test_costing_service.py",
+        "backend/tests/integration/test_costing_api.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T9",
+      "title": "Додати catalog tables + repo: вироби з рядками витрати, пакетне читання без N+1",
+      "layer": "infra",
+      "deps": [
+        "T1"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-10",
+        "AC-12",
+        "AC-14b",
+        "AC-15"
+      ],
+      "dod": "Інтеграційні тести repo на мігрованому SQLite підтверджують, що list_items_with_usage робить фіксовану кількість SQL-запитів на 1 000 виробів, видалення виробу каскадить рядки, а item_names_using_plastic повертає назви.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/__init__.py",
+        "backend/src/calculate3d/modules/catalog/tables.py",
+        "backend/src/calculate3d/modules/catalog/repo.py",
+        "backend/tests/factories.py",
+        "backend/tests/integration/test_catalog_repo.py"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Реалізувати catalog.service: збереження, редагування, видалення, пошук і перерахунок цін",
+      "layer": "app",
+      "deps": [
+        "T2",
+        "T8",
+        "T9"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-14b",
+        "AC-14c",
+        "AC-15"
+      ],
+      "dod": "Unit-тести catalog.service з підміненими repo і costing покривають AC-10–AC-15 (зокрема незмінність виробу при помилці AC-14c та український порядок AC-12), а make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/service.py",
+        "backend/src/calculate3d/modules/catalog/schemas.py",
+        "backend/tests/unit/test_catalog_service.py"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Відкрити /api/catalog/items і підключити перевірку використання пластику в pricing (AC-03)",
+      "layer": "ports",
+      "deps": [
+        "T7",
+        "T8",
+        "T10"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-14b",
+        "AC-14c",
+        "AC-15"
+      ],
+      "dod": "Інтеграційні тести через TestClient проходять AC-03 (409 pricing.plastic_in_use з items), AC-10–AC-15 і AC-13 (ціна виробу змінюється після PUT ціни пластику), а make check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/router.py",
+        "backend/src/calculate3d/modules/pricing/router.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_catalog_api.py",
+        "backend/tests/integration/test_pricing_api.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Додати тести NFR (латентність, збереженість, узгодженість цін) і контрактний тест OpenAPI",
+      "layer": "tests",
+      "deps": [
+        "T3",
+        "T11"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04",
+        "AC-06",
+        "AC-10",
+        "AC-12",
+        "AC-13",
+        "AC-15",
+        "AC-16b"
+      ],
+      "dod": "Нові тести NFR, наскрізний сценарій API і контракт зелені в локальному make check (латентність пропускається при CI=1); кількість SQL-запитів на відкриття каталогу не залежить від кількості виробів; дифф app.openapi() з contracts/openapi.yaml не має відсутніх операцій чи error-кодів.",
+      "files_hint": [
+        "backend/tests/integration/test_nfr_latency.py",
+        "backend/tests/integration/test_nfr_durability.py",
+        "backend/tests/integration/test_price_consistency.py",
+        "backend/tests/integration/test_contract.py",
+        "backend/tests/integration/test_e2e_golden_path.py",
+        "backend/tests/integration/test_request_guard.py",
+        "backend/pyproject.toml",
+        "backend/uv.lock"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Підключити React Router, оболонку з навігацією, parse-decimal і format-money",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-09"
+      ],
+      "dod": "Vitest покриває parse-decimal на всіх прикладах з AC-01, AC-02, AC-05 і AC-07 (кома, крапка, 649,995, 4,3216, 7,25 %, 152,5 Вт, 12,345 г) і format-money (11525 → «115,25 ₴»), а make web-check зелений зі Steiger.",
+      "files_hint": [
+        "web/package.json",
+        "web/package-lock.json",
+        "web/src/app/App.tsx",
+        "web/src/app/layout",
+        "web/src/shared/lib/parse-decimal.ts",
+        "web/src/shared/lib/parse-decimal.test.ts",
+        "web/src/shared/lib/format-money.ts",
+        "web/src/shared/lib/format-money.test.ts",
+        "web/src/shared/lib/index.ts",
+        "web/src/pages"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Зібрати розділ пластиків на /settings: список, додавання, редагування, видалення з підтвердженням",
+      "layer": "ui",
+      "deps": [
+        "T7",
+        "T13"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-03"
+      ],
+      "dod": "Component-тести з підміненим API проходять AC-01 (пластик у списку), AC-02 (помилки біля полів без збереження) і AC-03 (повідомлення з назвами виробів), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/settings",
+        "web/src/features/edit-plastic",
+        "web/src/entities/plastic",
+        "web/src/shared/ui/alert-dialog.tsx",
+        "web/src/shared/ui/index.ts"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Зібрати форму налаштувань цін на /settings: 6 полів, одне збереження, знос за годину",
+      "layer": "ui",
+      "deps": [
+        "T7",
+        "T13",
+        "T14"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-05"
+      ],
+      "dod": "Component-тести проходять AC-04 (один PUT з усіма 6 полями і показ зносу 7,00 ₴) і AC-05 (жодного запиту, коли хоч одне поле хибне; нуль допустимий), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/settings",
+        "web/src/features/edit-price-settings",
+        "web/src/entities/price-settings"
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Додати entity quote (debounce + ключ запиту) і віджет cost-breakdown",
+      "layer": "ui",
+      "deps": [
+        "T8",
+        "T13"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-06b",
+        "AC-08",
+        "AC-08b"
+      ],
+      "dod": "Vitest-сценарій «дві швидкі зміни, повільна перша відповідь» ніколи не показує донат для попередніх значень, а віджет рендерить 115,25 ₴ і 4 рядки AC-06.",
+      "files_hint": [
+        "web/src/entities/quote",
+        "web/src/widgets/cost-breakdown"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Зібрати сторінку /calculate з формою quote-form, валідацією AC-07 і станом «бракує налаштувань»",
+      "layer": "ui",
+      "deps": [
+        "T14",
+        "T16"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-06b",
+        "AC-07",
+        "AC-09"
+      ],
+      "dod": "Component-тести проходять AC-06/AC-06b (донат з'являється без окремої дії), AC-07 (донату немає, помилки біля полів) і AC-09 (перелік відсутніх налаштувань з посиланням на /settings), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate",
+        "web/src/features/quote-form",
+        "web/src/shared/ui/select.tsx",
+        "web/src/shared/ui/index.ts"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Додати збереження розрахунку в каталог (feature save-item) на /calculate",
+      "layer": "ui",
+      "deps": [
+        "T11",
+        "T17"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "Component-тести показують, що збереження недоступне без донату (AC-10), успішне збереження надсилає лише параметри і веде на сторінку виробу, а 409 catalog.name_taken дає помилку біля назви (AC-11).",
+      "files_hint": [
+        "web/src/features/save-item",
+        "web/src/entities/item",
+        "web/src/pages/calculate"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Зібрати сторінку /catalog: пошук за ?q= і список виробів з актуальним мінімальним донатом",
+      "layer": "ui",
+      "deps": [
+        "T11",
+        "T13",
+        "T18"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "Component-тести показують відфільтрований за ?q=тризуб список у серверному порядку з цінами у форматі «115,25 ₴», а повторне відкриття сторінки робить новий запит (AC-13).",
+      "files_hint": [
+        "web/src/pages/catalog",
+        "web/src/entities/item"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Зібрати сторінку /catalog/:itemId: перегляд, редагування через quote-form і видалення",
+      "layer": "ui",
+      "deps": [
+        "T17",
+        "T18"
+      ],
+      "acs": [
+        "AC-14",
+        "AC-14b",
+        "AC-14c",
+        "AC-15"
+      ],
+      "dod": "Component-тести проходять AC-14 (параметри й розбивка), AC-14b (оновлення після збереження), AC-14c (помилки без зміни виробу) і AC-15 (видалення після підтвердження, скасування лишає виріб), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/item",
+        "web/src/features/delete-item",
+        "web/src/entities/item"
+      ]
+    }
+  ]
+}

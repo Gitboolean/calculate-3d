@@ -304,22 +304,23 @@ sequenceDiagram
 
 ## 8. Crosscutting concepts
 
-<!-- 🎯 Навіщо: НАСКРІЗНІ ПАТЕРНИ, які перетинають кілька модулів: логування, помилки,    -->
-<!--           авторизація, ID strategy, outbox, кеш. ⭐ Друга найгустіша секція.          -->
-<!--           Якщо патерн всередині одного модуля — він НЕ сюди. Якщо це конвенція        -->
-<!--           проєкту в цілому — у CLAUDE.md.                                              -->
-<!-- 📋 Що писати: таблиця концепт / конвенція / де визначено. Один рядок на концепт.      -->
-<!-- 📌 Приклад: «UUID v7 (час+випадковий, сортується) у app-layer» — як default з CLAUDE.md. -->
-
 | Concept | Convention | Where defined |
 |---|---|---|
-| Logging | <e.g. structured slog, fields `module=<name>`> | <CLAUDE.md §X or here> |
-| Authentication | <e.g. JWT via session middleware> | <CLAUDE.md §X> |
-| Error handling | <e.g. domain sentinel → ports/errors.go → apperr JSON> | <CLAUDE.md §X> |
-| ID strategy | <e.g. UUID v7 in app layer> | <CLAUDE.md §X> |
-| Internationalisation | <e.g. N/A, English only> | — |
-| Observability | <e.g. OpenTelemetry on HTTP boundaries> | — |
-| Outbox / events | <module-specific patterns, if any> | <here> |
+| Logging / observability | Консольний access log Uvicorn + `GET /api/health`; метрик і трасування немає (локальний інструмент, §7) | repo default |
+| Authentication | Немає — інструмент доступний лише з комп'ютера автора | ADR 0004 (проєкт) |
+| **Request guard (AC-16, AC-16b)** | Bind `127.0.0.1` + middleware у `core`: allowlist `Host` (`127.0.0.1`/`localhost` × порти :8000 і :5173) → `400 host_not_allowed`; для `/api` відмова при `Sec-Fetch-Site` cross-site/same-site чи чужому `Origin` → `403 cross_origin_forbidden`; змінні запити — лише `application/json` (`415`); `CORSMiddleware` не додається | [ADR 0007](adr/0007-guard-local-api-with-host-allowlist-and-same-origin-checks.md) |
+| Error handling | `AppError(code, message, status)` → RFC 9457 problem+json. Коди з простором імен модуля (`pricing.plastic_in_use`, `pricing.name_taken`, `costing.settings_missing`, `catalog.name_taken`, …). **Доповнення:** `AppError` отримує необов'язкові поля-розширення (`field` — яке поле підсвітити; `items` — назви виробів для AC-03; `missing` — яких налаштувань бракує для AC-09), які `problem()` додає в тіло. 422 уже має `errors[{loc, msg}]` | `core/errors.py` + тут |
+| ID strategy | UUIDv7 у застосунку (`core/ids.py::new_id()`), `TEXT` 36 символів | `CLAUDE.md` |
+| Money & units | Масштабовані цілі з одиницею в назві (`*_kop`, `*_cg`, `*_permille`, `*_s`, `*_w`); `Decimal` лише всередині формули; мінімальний донат — `ROUND_CEILING` з точної суми; рядки розбивки й показ зносу за годину — `ROUND_HALF_UP` до копійки (AC-04, AC-08) | [ADR 0002](adr/0002-compute-cost-on-server-only.md), [ADR 0004](adr/0004-exchange-quantities-as-scaled-integers.md) |
+| **Names (пластик, виріб)** | `name` без пробілів на краях + `name_key = casefold(name)` з UNIQUE-індексом; пошук (підрядок у casefold) і сортування (латиниця, потім українська абетка) — у Python через `core/text.py`; SQL `LIKE`/`NOCASE` для назв не використовуються (ASCII-only) | [ADR 0006](adr/0006-enforce-name-uniqueness-via-casefolded-name-key.md) |
+| Input parsing (web) | Спільний парсер `shared/lib/parse-decimal`: кома або крапка, зайва точність → помилка біля поля без округлення; повертає ціле в потрібній одиниці | [ADR 0004](adr/0004-exchange-quantities-as-scaled-integers.md) |
+| Internationalisation | Увесь текст UI українською; людський текст помилки UI формує за `code` (+ `field`/`items`/`missing`), а серверний `detail` — лише запасний технічний текст; гроші — `Intl.NumberFormat('uk-UA', {style:'currency', currency:'UAH'})` з копійок | `web/CLAUDE.md` + тут |
+| XSS | Назви завжди рендеряться як текст (React екранує за замовчуванням); `dangerouslySetInnerHTML` для даних користувача заборонено (PRD §6.1) | тут |
+| Transactions | Одна транзакція на запит (`ConnectionDep`, commit до відповіді). Виріб разом із рядками витрати пластиків і вся форма налаштувань цін пишуться атомарно — або все, або нічого (AC-05, AC-14c) | `core/db.py` |
+| Concurrency | Один користувач: перемагає останній запис, без оптимістичних блокувань і версій рядків. На UI стару відповідь розрахунку відкидає ключ запиту (ADR 0002) | тут |
+| Durability | SQLite WAL + commit до відправки відповіді; налаштування `synchronous` — дефолт драйвера | `core/db.py` |
+| Delete confirmation | Підтвердження видалення виробу й пластику — лише в UI (AC-15); API видаляє одразу | тут |
+| Outbox / events | N/A — синхронні виклики `service.py` в одному процесі (ADR 0002 проєкту) | — |
 
 ## 9. Architecture decisions
 

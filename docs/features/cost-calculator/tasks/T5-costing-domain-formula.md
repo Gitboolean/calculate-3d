@@ -7,7 +7,7 @@ acs: ["AC-04", "AC-06", "AC-06b", "AC-08", "AC-08b", "AC-13"]
 files_hint: ["backend/src/calculate3d/core/money.py", "backend/src/calculate3d/modules/costing/__init__.py", "backend/src/calculate3d/modules/costing/domain.py", "backend/tests/unit/test_costing_domain.py"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T5 — Реалізувати чисту формулу собівартості costing.domain на Decimal з еталонною таблицею

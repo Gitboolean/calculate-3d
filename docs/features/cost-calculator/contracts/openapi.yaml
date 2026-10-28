@@ -1,0 +1,933 @@
+# Derived by /sdlc:api-forge cost-calculator (scenario A) from:
+#   fields + constraints  ← data-model.md (plastics, price_settings, items, item_plastics)
+#   error responses       ← sad.md §6 alt-branches + ADR 0007 (request guard)
+#   endpoint list + shape ← PRD.md §4 US-01..US-06 / §5 AC-01..AC-16b
+# Repo deviations from the api-forge defaults (see api-sync-report.md §Deviations and
+# .claude/rules/openapi.md § Repo adaptation): no BearerAuth (project ADR 0004), /api/<module>
+# without /v1 (CLAUDE.md), RFC 9457 problem+json instead of {code,message,details?}
+# (CLAUDE.md, core/errors.py), no cursor on lists (feature ADR 0003 + ADR 0006).
+openapi: 3.1.0
+
+info:
+  title: calculate-3d — cost-calculator API
+  version: 0.1.0
+  description: |
+    Локальний API інструмента автора, який рахує мінімальний донат за надрукований виріб.
+    Автор веде налаштування цін (пластики з ціною за кілограм, тариф, потужність, знос, брак),
+    вводить витрату кожного пластику й час друку зі слайсера та отримує мінімальний донат із
+    розбивкою собівартості. Каталог зберігає лише параметри виробу й щоразу перераховує його
+    мінімальний донат з поточних налаштувань цін, тож після подорожчання пластику чи тарифу
+    повторюваний виріб не продається в мінус непомітно (PRD §1–§2).
+
+    Усі дробові величини — масштабовані цілі з одиницею в назві поля (`*_kop` копійки,
+    `*_cg` соті грама, `*_permille` десяті відсотка, `*_s` секунди, `*_w` вати, `*_h` години;
+    ADR 0004). Мінімальний донат округлено вгору до копійки з точної суми, рядки розбивки —
+    до копійки за звичайними правилами (AC-08). Сервер слухає лише `127.0.0.1` і не має
+    автентифікації; запити з чужим `Host`, з чужого джерела чи змінні запити не у форматі JSON
+    відхиляються (ADR 0007, AC-16, AC-16b).
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: make run — UI + API in one process
+  - url: http://localhost:5173
+    description: make dev — Vite, proxies /api to :8000
+
+# Local-only, no authentication (project ADR 0004). Protection = bind 127.0.0.1 + request guard.
+security: []
+
+tags:
+  - name: pricing
+    description: Налаштування цін — пластики й тариф/потужність/знос/брак (US-01, US-02)
+  - name: costing
+    description: Розрахунок мінімального донату; нічого не зберігає (US-03)
+  - name: catalog
+    description: Каталог виробів; ціни перераховуються при кожному читанні (US-04..US-06)
+
+paths:
+  # ───────────────────────────── pricing ─────────────────────────────
+  /api/pricing/plastics:
+    get:
+      tags: [pricing]
+      summary: Список пластиків з поточною ціною за кілограм
+      description: |
+        Усі пластики (≤ 50 за NFR), відсортовані за назвою: спершу латиниця, потім українська
+        абетка, без урахування регістру (ADR 0006). Без пагінації. AC-01: пластик доступний для
+        вибору в розрахунку.
+      operationId: listPlastics
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlasticList" }
+              example:
+                items:
+                  - id: "01900000-0000-7000-8000-00000000a001"
+                    name: "PETG чорний"
+                    price_per_kg_kop: 65000
+                  - id: "01900000-0000-7000-8000-00000000a002"
+                    name: "PLA білий"
+                    price_per_kg_kop: 40000
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+    post:
+      tags: [pricing]
+      summary: Додати пластик
+      description: |
+        Назву обрізають від пробілів на краях; унікальність перевіряють без урахування регістру
+        вже після обрізання (AC-02, ADR 0006). Ціна за кг — ціле число копійок > 0; зайву
+        точність (649,995 ₴) відхиляє UI-парсер ще до запиту (ADR 0004).
+      operationId: createPlastic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlasticInput" }
+            example:
+              name: "PETG чорний"
+              price_per_kg_kop: 65000
+      responses:
+        "201":
+          description: Пластик створено (AC-01)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plastic" }
+              example:
+                id: "01900000-0000-7000-8000-00000000a001"
+                name: "PETG чорний"
+                price_per_kg_kop: 65000
+        "409": { $ref: "#/components/responses/PlasticNameTaken" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/pricing/plastics/{plastic_id}:
+    parameters:
+      - $ref: "#/components/parameters/PlasticId"
+    put:
+      tags: [pricing]
+      summary: Змінити назву або ціну пластику
+      description: |
+        Повна заміна назви й ціни. Ціну пластику, який використовують вироби, змінювати можна
+        (AC-03); каталог одразу покаже нові мінімальні донати (AC-13).
+      operationId: updatePlastic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlasticInput" }
+            example:
+              name: "PETG чорний"
+              price_per_kg_kop: 80000
+      responses:
+        "200":
+          description: Пластик змінено
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plastic" }
+              example:
+                id: "01900000-0000-7000-8000-00000000a001"
+                name: "PETG чорний"
+                price_per_kg_kop: 80000
+        "404": { $ref: "#/components/responses/PlasticNotFound" }
+        "409": { $ref: "#/components/responses/PlasticNameTaken" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+    delete:
+      tags: [pricing]
+      summary: Видалити пластик
+      description: |
+        Видаляє одразу (підтвердження — лише в UI, SAD §8). Пластик, який використовує хоча б
+        один виріб, не видаляється: відповідь 409 з назвами цих виробів (AC-03, Critical flow 3).
+        Пластик, прибраний з усіх виробів, знову можна видалити (AC-14b, AC-15).
+      operationId: deletePlastic
+      responses:
+        "204":
+          description: Пластик видалено, тіла немає
+        "404": { $ref: "#/components/responses/PlasticNotFound" }
+        "409":
+          description: Пластик використовують вироби (AC-03)
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/PlasticInUseProblem" }
+              example:
+                type: "about:blank"
+                title: "Conflict"
+                status: 409
+                detail: "Plastic is used by catalog items"
+                code: "pricing.plastic_in_use"
+                items: ["Органайзер", "Підставка"]
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/pricing/settings:
+    get:
+      tags: [pricing]
+      summary: Поточні налаштування цін (тариф, потужність, знос, брак)
+      description: |
+        `null`, доки налаштування жодного разу не збережено (немає рядка = «не задано», AC-09);
+        UI за цим веде автора до налаштувань.
+      operationId: getPriceSettings
+      responses:
+        "200":
+          description: Налаштування або null
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: "#/components/schemas/PriceSettings"
+                  - type: "null"
+              examples:
+                saved:
+                  summary: Налаштування з AC-04
+                  value:
+                    tariff_per_kwh_kop: 432
+                    printer_power_w: 150
+                    printer_price_kop: 3000000
+                    printer_lifetime_h: 5000
+                    parts_per_hour_kop: 100
+                    scrap_rate_permille: 100
+                    wear_per_hour_kop: 700
+                not_set:
+                  summary: Ще не збережено (AC-09)
+                  value: null
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+    put:
+      tags: [pricing]
+      summary: Зберегти всі налаштування цін однією дією
+      description: |
+        Повна заміна всіх шести полів в одній транзакції (upsert єдиного рядка). Якщо хоч одне
+        поле хибне — не зберігається жодне (AC-05). Нуль допустимий для тарифу, потужності, ціни
+        принтера, деталей і браку; термін служби > 0; брак 0–1000 ‰. Очистити збережене назад до
+        «не задано» неможливо: усі поля обов'язкові. Відповідь містить знос за годину, округлений
+        до копійки для показу (AC-04: 7,00 ₴ = 700).
+      operationId: replacePriceSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PriceSettingsInput" }
+            example:
+              tariff_per_kwh_kop: 432
+              printer_power_w: 150
+              printer_price_kop: 3000000
+              printer_lifetime_h: 5000
+              parts_per_hour_kop: 100
+              scrap_rate_permille: 100
+      responses:
+        "200":
+          description: Налаштування збережено (AC-04)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PriceSettings" }
+              example:
+                tariff_per_kwh_kop: 432
+                printer_power_w: 150
+                printer_price_kop: 3000000
+                printer_lifetime_h: 5000
+                parts_per_hour_kop: 100
+                scrap_rate_permille: 100
+                wear_per_hour_kop: 700
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  # ───────────────────────────── costing ─────────────────────────────
+  /api/costing/quote:
+    post:
+      tags: [costing]
+      summary: Розрахувати мінімальний донат і розбивку собівартості
+      description: |
+        Рахує розрахунок з поточних налаштувань цін і нічого не зберігає (ADR 0002). UI шле запит
+        після паузи в наборі; ключ запиту = введені значення, тож відповідь для старих значень
+        не показується (AC-06). POST, бо це обчислення над тілом, а не читання ресурсу; повтор
+        безпечний (без побічних ефектів), Idempotency-Key не потрібен.
+      operationId: quoteCost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuoteInput" }
+            example:
+              plastics:
+                - plastic_id: "01900000-0000-7000-8000-00000000a001"
+                  usage_cg: 12000
+              print_time_s: 12600
+      responses:
+        "200":
+          description: Мінімальний донат і 4 рядки розбивки (AC-06, AC-06b, AC-08, AC-08b)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+              example:
+                min_donation_kop: 11525
+                breakdown:
+                  plastic_kop: 7800
+                  electricity_kop: 227
+                  wear_kop: 2450
+                  scrap_kop: 1048
+        "409":
+          description: Бракує налаштувань цін (AC-09)
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/SettingsMissingProblem" }
+              example:
+                type: "about:blank"
+                title: "Conflict"
+                status: 409
+                detail: "Price settings are not set"
+                code: "costing.settings_missing"
+                missing: ["price_settings"]
+        "422":
+          description: |
+            Хибний вхід (AC-07): `validation_error` — порожній список пластиків, витрата ≤ 0,
+            час ≤ 0 чи не кратний 60 с, повтор пластику; `costing.plastic_not_found` — пластика
+            з таким id немає (видалено в іншій вкладці).
+          content:
+            application/problem+json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationProblem"
+                  - $ref: "#/components/schemas/FieldProblem"
+              examples:
+                duplicate_plastic:
+                  value:
+                    type: "about:blank"
+                    title: "Unprocessable Content"
+                    status: 422
+                    detail: "Request validation failed"
+                    code: "validation_error"
+                    errors:
+                      - loc: ["body", "plastics", 1, "plastic_id"]
+                        msg: "Value error, plastic is listed twice"
+                unknown_plastic:
+                  value:
+                    type: "about:blank"
+                    title: "Unprocessable Content"
+                    status: 422
+                    detail: "Plastic not found"
+                    code: "costing.plastic_not_found"
+                    field: "plastics.0.plastic_id"
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  # ───────────────────────────── catalog ─────────────────────────────
+  /api/catalog/items:
+    get:
+      tags: [catalog]
+      summary: Каталог з мінімальним донатом кожного виробу за поточними цінами
+      description: |
+        Читає всі вироби одним пакетом і перераховує мінімальний донат кожного з поточних
+        налаштувань цін (ADR 0003, AC-13). Фільтр `q` — підрядок назви без урахування регістру;
+        порядок — за назвою: латиниця, потім українська абетка (AC-12, ADR 0006). Без пагінації
+        (ADR 0003; тригер перегляду — SAD §7).
+      operationId: listItems
+      parameters:
+        - in: query
+          name: q
+          required: false
+          description: Частина назви виробу; порожнє чи відсутнє значення — без фільтра
+          schema: { type: string, maxLength: 100 }
+          example: "тризуб"
+      responses:
+        "200":
+          description: Відфільтрований і відсортований каталог (AC-12, AC-13)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItemList" }
+              example:
+                items:
+                  - id: "01900000-0000-7000-8000-00000000b001"
+                    name: "Брелок-тризуб"
+                    min_donation_kop: 13505
+        "409": { $ref: "#/components/responses/SettingsMissing" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+    post:
+      tags: [catalog]
+      summary: Зберегти розрахунок у каталог як виріб
+      description: |
+        Зберігає лише параметри (назву, витрату пластиків, час друку) — без ціни (AC-10, ADR 0003).
+        Виріб і всі його рядки витрати пишуться атомарно. Назву обрізають; унікальність —
+        без урахування регістру після обрізання (AC-11, ADR 0006).
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemInput" }
+            example:
+              name: "Брелок-тризуб"
+              plastics:
+                - plastic_id: "01900000-0000-7000-8000-00000000a001"
+                  usage_cg: 12000
+              print_time_s: 12600
+      responses:
+        "201":
+          description: Виріб у каталозі, без ціни (AC-10)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+              example:
+                id: "01900000-0000-7000-8000-00000000b001"
+                name: "Брелок-тризуб"
+                plastics:
+                  - plastic_id: "01900000-0000-7000-8000-00000000a001"
+                    usage_cg: 12000
+                print_time_s: 12600
+        "409": { $ref: "#/components/responses/ItemNameTaken" }
+        "422": { $ref: "#/components/responses/ItemInvalid" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/catalog/items/{item_id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [catalog]
+      summary: Відкрити виріб — параметри, мінімальний донат і розбивка
+      description: |
+        Параметри виробу плюс мінімальний донат і розбивка, перераховані тією самою формулою, що
+        й розрахунок (AC-14, ADR 0002, ADR 0003). Нічого не записує.
+      operationId: getItem
+      responses:
+        "200":
+          description: Виріб з розрахунком (AC-14)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItemDetail" }
+              example:
+                id: "01900000-0000-7000-8000-00000000b001"
+                name: "Брелок-тризуб"
+                plastics:
+                  - plastic_id: "01900000-0000-7000-8000-00000000a001"
+                    usage_cg: 12000
+                print_time_s: 12600
+                quote:
+                  min_donation_kop: 11525
+                  breakdown:
+                    plastic_kop: 7800
+                    electricity_kop: 227
+                    wear_kop: 2450
+                    scrap_kop: 1048
+        "404": { $ref: "#/components/responses/ItemNotFound" }
+        "409": { $ref: "#/components/responses/SettingsMissing" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+    put:
+      tags: [catalog]
+      summary: Змінити виріб (назву, набір пластиків, витрату, час)
+      description: |
+        Повна заміна параметрів: виріб і всі його рядки витрати перезаписуються в одній
+        транзакції; при помилці виріб лишається з попередніми параметрами (AC-14b, AC-14c).
+      operationId: updateItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemInput" }
+            example:
+              name: "Підставка"
+              plastics:
+                - plastic_id: "01900000-0000-7000-8000-00000000a002"
+                  usage_cg: 8000
+                - plastic_id: "01900000-0000-7000-8000-00000000a001"
+                  usage_cg: 4000
+              print_time_s: 7200
+      responses:
+        "200":
+          description: Виріб змінено (AC-14b)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+              example:
+                id: "01900000-0000-7000-8000-00000000b002"
+                name: "Підставка"
+                plastics:
+                  - plastic_id: "01900000-0000-7000-8000-00000000a002"
+                    usage_cg: 8000
+                  - plastic_id: "01900000-0000-7000-8000-00000000a001"
+                    usage_cg: 4000
+                print_time_s: 7200
+        "404": { $ref: "#/components/responses/ItemNotFound" }
+        "409": { $ref: "#/components/responses/ItemNameTaken" }
+        "422": { $ref: "#/components/responses/ItemInvalid" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+    delete:
+      tags: [catalog]
+      summary: Видалити виріб назавжди
+      description: |
+        Hard delete; рядки витрати зникають каскадно, тож пластики, які використовував лише цей
+        виріб, знову можна видалити (AC-15). Підтвердження — лише в UI.
+      operationId: deleteItem
+      responses:
+        "204":
+          description: Виріб видалено, тіла немає
+        "404": { $ref: "#/components/responses/ItemNotFound" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+components:
+  parameters:
+    PlasticId:
+      in: path
+      name: plastic_id
+      required: true
+      description: plastics.id (UUIDv7)
+      schema: { $ref: "#/components/schemas/Id" }
+    ItemId:
+      in: path
+      name: item_id
+      required: true
+      description: items.id (UUIDv7)
+      schema: { $ref: "#/components/schemas/Id" }
+
+  responses:
+    ValidationError:
+      description: Тіло чи параметри не пройшли перевірку типів і меж (FastAPI/Pydantic)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ValidationProblem" }
+          example:
+            type: "about:blank"
+            title: "Unprocessable Content"
+            status: 422
+            detail: "Request validation failed"
+            code: "validation_error"
+            errors:
+              - loc: ["body", "price_per_kg_kop"]
+                msg: "Input should be greater than 0"
+    ItemInvalid:
+      description: |
+        Хибні параметри виробу (AC-07 через AC-14c): `validation_error` — порожня назва, порожній
+        список пластиків, витрата ≤ 0, час ≤ 0 чи не кратний 60 с, повтор пластику;
+        `catalog.plastic_not_found` — пластика з таким id немає.
+      content:
+        application/problem+json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ValidationProblem"
+              - $ref: "#/components/schemas/FieldProblem"
+          example:
+            type: "about:blank"
+            title: "Unprocessable Content"
+            status: 422
+            detail: "Plastic not found"
+            code: "catalog.plastic_not_found"
+            field: "plastics.0.plastic_id"
+    PlasticNameTaken:
+      description: Назва вже є серед пластиків без урахування регістру (AC-02)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/FieldProblem" }
+          example:
+            type: "about:blank"
+            title: "Conflict"
+            status: 409
+            detail: "Plastic name is already taken"
+            code: "pricing.name_taken"
+            field: "name"
+    ItemNameTaken:
+      description: Назва вже є в каталозі без урахування регістру (AC-11, AC-14c)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/FieldProblem" }
+          example:
+            type: "about:blank"
+            title: "Conflict"
+            status: 409
+            detail: "Item name is already taken"
+            code: "catalog.name_taken"
+            field: "name"
+    PlasticNotFound:
+      description: Пластика з таким id немає
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Not Found"
+            status: 404
+            detail: "Plastic not found"
+            code: "pricing.plastic_not_found"
+    ItemNotFound:
+      description: Виробу з таким id немає (Відкрити виріб — «виріб не знайдено»)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Not Found"
+            status: 404
+            detail: "Item not found"
+            code: "catalog.item_not_found"
+    SettingsMissing:
+      description: Бракує налаштувань цін, тож мінімальний донат порахувати неможливо (AC-09)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/SettingsMissingProblem" }
+          example:
+            type: "about:blank"
+            title: "Conflict"
+            status: 409
+            detail: "Price settings are not set"
+            code: "costing.settings_missing"
+            missing: ["price_settings"]
+    HostNotAllowed:
+      description: Host поза переліком дозволених, зокрема DNS rebinding (AC-16, ADR 0007)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Bad Request"
+            status: 400
+            detail: "Host is not allowed"
+            code: "host_not_allowed"
+    CrossOriginForbidden:
+      description: Запит зі стороннього сайту — Sec-Fetch-Site cross-site/same-site або чужий Origin (AC-16b, ADR 0007)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Forbidden"
+            status: 403
+            detail: "Cross-origin request is forbidden"
+            code: "cross_origin_forbidden"
+    UnsupportedMediaType:
+      description: Змінний запит не у форматі application/json, напр. HTML-форма (AC-16b, ADR 0007)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Unsupported Media Type"
+            status: 415
+            detail: "Content-Type must be application/json"
+            code: "unsupported_media_type"
+    InternalError:
+      description: Неочікувана помилка сервера
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Internal Server Error"
+            status: 500
+            detail: "Internal server error"
+            code: "internal_error"
+
+  schemas:
+    # ── shared primitives ──
+    Id:
+      type: string
+      format: uuid
+      description: UUIDv7, generated by the app (core/ids.py::new_id), 36-char TEXT in SQLite
+    Name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      pattern: "\\S"
+      description: |
+        Назва пластику чи виробу. Сервер обрізає пробіли на краях, потім перевіряє 1–100 символів
+        і унікальність `casefold()` (ADR 0006). Показується лише як текст (PRD §6.1).
+
+    # ── error envelope: RFC 9457 problem+json (core/errors.py::problem) ──
+    Problem:
+      type: object
+      required: [type, title, status, detail, code]
+      properties:
+        type: { type: string, example: "about:blank" }
+        title: { type: string, description: HTTP reason phrase }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail:
+          type: string
+          description: Технічний текст англійською; людський текст UI формує за `code` (SAD §8)
+        code:
+          type: string
+          pattern: "^[a-z_]+(\\.[a-z_]+)?$"
+          description: "`<module>.<error_name>` для помилок модулів; без простору імен для core"
+    ValidationProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [errors]
+          properties:
+            code: { const: "validation_error" }
+            errors:
+              type: array
+              items: { $ref: "#/components/schemas/ValidationIssue" }
+    ValidationIssue:
+      type: object
+      required: [loc, msg]
+      additionalProperties: false
+      properties:
+        loc:
+          type: array
+          items: { type: [string, integer] }
+          description: Шлях до хибного поля, напр. ["body", "plastics", 0, "usage_cg"]
+        msg: { type: string }
+    FieldProblem:
+      description: Доменна помилка, прив'язана до одного поля форми (SAD §8 — розширення `field`)
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [field]
+          properties:
+            field:
+              type: string
+              description: Шлях поля через крапку, напр. "name" чи "plastics.0.plastic_id"
+    PlasticInUseProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [items]
+          properties:
+            code: { const: "pricing.plastic_in_use" }
+            items:
+              type: array
+              minItems: 1
+              items: { type: string }
+              description: Назви виробів, що використовують пластик (AC-03)
+    SettingsMissingProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [missing]
+          properties:
+            code: { const: "costing.settings_missing" }
+            missing:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items: { type: string, enum: [plastics, price_settings] }
+              description: Чого бракує (AC-09) — жодного пластику та/або налаштування цін не збережено
+
+    # ── pricing ──
+    Plastic:
+      type: object
+      required: [id, name, price_per_kg_kop]
+      additionalProperties: false
+      properties:
+        id: { $ref: "#/components/schemas/Id" }
+        name: { $ref: "#/components/schemas/Name" }
+        price_per_kg_kop:
+          type: integer
+          minimum: 1
+          description: Ціна за кілограм у копійках; 650 ₴ → 65000
+    PlasticInput:
+      type: object
+      required: [name, price_per_kg_kop]
+      additionalProperties: false
+      properties:
+        name: { $ref: "#/components/schemas/Name" }
+        price_per_kg_kop:
+          type: integer
+          minimum: 1
+          description: Ціна за кілограм у копійках, > 0 (AC-02)
+    PlasticList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Plastic" }
+    PriceSettingsInput:
+      type: object
+      required:
+        - tariff_per_kwh_kop
+        - printer_power_w
+        - printer_price_kop
+        - printer_lifetime_h
+        - parts_per_hour_kop
+        - scrap_rate_permille
+      additionalProperties: false
+      properties:
+        tariff_per_kwh_kop:
+          type: integer
+          minimum: 0
+          description: Тариф, копійок за кВт·год; 4,32 ₴ → 432; 0 допустимий (AC-05)
+        printer_power_w:
+          type: integer
+          minimum: 0
+          description: Середня потужність принтера, цілі вати
+        printer_price_kop:
+          type: integer
+          minimum: 0
+          description: Ціна принтера, копійки; 30 000 ₴ → 3000000
+        printer_lifetime_h:
+          type: integer
+          minimum: 1
+          description: Термін служби, цілі години друку, > 0
+        parts_per_hour_kop:
+          type: integer
+          minimum: 0
+          description: Деталі, що зношуються, копійок за годину друку; 1,00 ₴ → 100
+        scrap_rate_permille:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          description: Брак у десятих відсотка; 10 % → 100 (ADR 0004)
+    PriceSettings:
+      description: Збережені налаштування цін + похідний знос за годину для показу
+      type: object
+      required:
+        - tariff_per_kwh_kop
+        - printer_power_w
+        - printer_price_kop
+        - printer_lifetime_h
+        - parts_per_hour_kop
+        - scrap_rate_permille
+        - wear_per_hour_kop
+      additionalProperties: false
+      properties:
+        tariff_per_kwh_kop: { $ref: "#/components/schemas/PriceSettingsInput/properties/tariff_per_kwh_kop" }
+        printer_power_w: { $ref: "#/components/schemas/PriceSettingsInput/properties/printer_power_w" }
+        printer_price_kop: { $ref: "#/components/schemas/PriceSettingsInput/properties/printer_price_kop" }
+        printer_lifetime_h: { $ref: "#/components/schemas/PriceSettingsInput/properties/printer_lifetime_h" }
+        parts_per_hour_kop: { $ref: "#/components/schemas/PriceSettingsInput/properties/parts_per_hour_kop" }
+        scrap_rate_permille: { $ref: "#/components/schemas/PriceSettingsInput/properties/scrap_rate_permille" }
+        wear_per_hour_kop:
+          type: integer
+          minimum: 0
+          description: |
+            Знос за годину друку = printer_price ÷ printer_lifetime + parts_per_hour, округлено
+            до копійки ROUND_HALF_UP лише для показу; розрахунок іде з точного значення (AC-04).
+            Похідне, не зберігається.
+
+    # ── costing ──
+    PlasticUsage:
+      description: Витрата одного пластику на один друк (рядок item_plastics)
+      type: object
+      required: [plastic_id, usage_cg]
+      additionalProperties: false
+      properties:
+        plastic_id: { $ref: "#/components/schemas/Id" }
+        usage_cg:
+          type: integer
+          minimum: 1
+          description: Витрата в сотих грама, > 0, без верхньої межі; 120 г → 12000 (AC-07, ADR 0004)
+    PlasticUsageList:
+      type: array
+      minItems: 1
+      description: Хоча б один пластик; той самий plastic_id двічі — 422 (AC-07)
+      items: { $ref: "#/components/schemas/PlasticUsage" }
+    PrintTime:
+      type: integer
+      minimum: 60
+      multipleOf: 60
+      description: Час друку в секундах — цілі години й хвилини (AC-07); 3 год 30 хв → 12600
+    QuoteInput:
+      type: object
+      required: [plastics, print_time_s]
+      additionalProperties: false
+      properties:
+        plastics: { $ref: "#/components/schemas/PlasticUsageList" }
+        print_time_s: { $ref: "#/components/schemas/PrintTime" }
+    CostBreakdown:
+      description: Розбивка собівартості — 4 рядки, кожен ROUND_HALF_UP до копійки (AC-08)
+      type: object
+      required: [plastic_kop, electricity_kop, wear_kop, scrap_kop]
+      additionalProperties: false
+      properties:
+        plastic_kop:
+          type: integer
+          minimum: 0
+          description: Сума за кожним пластиком виробу (AC-06b)
+        electricity_kop: { type: integer, minimum: 0 }
+        wear_kop: { type: integer, minimum: 0 }
+        scrap_kop: { type: integer, minimum: 0 }
+    Quote:
+      description: Результат розрахунку; ніде не зберігається (ADR 0002, ADR 0003)
+      type: object
+      required: [min_donation_kop, breakdown]
+      additionalProperties: false
+      properties:
+        min_donation_kop:
+          type: integer
+          minimum: 0
+          description: |
+            Мінімальний донат — точна сума складових, округлена ROUND_CEILING до копійки; не
+            менший за собівартість і рахується не з округлених рядків розбивки (AC-08).
+        breakdown: { $ref: "#/components/schemas/CostBreakdown" }
+
+    # ── catalog ──
+    ItemInput:
+      type: object
+      required: [name, plastics, print_time_s]
+      additionalProperties: false
+      properties:
+        name: { $ref: "#/components/schemas/Name" }
+        plastics: { $ref: "#/components/schemas/PlasticUsageList" }
+        print_time_s: { $ref: "#/components/schemas/PrintTime" }
+    Item:
+      description: Виріб — лише параметри, без ціни (ADR 0003)
+      type: object
+      required: [id, name, plastics, print_time_s]
+      additionalProperties: false
+      properties:
+        id: { $ref: "#/components/schemas/Id" }
+        name: { $ref: "#/components/schemas/Name" }
+        plastics: { $ref: "#/components/schemas/PlasticUsageList" }
+        print_time_s: { $ref: "#/components/schemas/PrintTime" }
+    ItemDetail:
+      description: Виріб + розрахунок за поточними налаштуваннями цін (AC-14)
+      type: object
+      required: [id, name, plastics, print_time_s, quote]
+      additionalProperties: false
+      properties:
+        id: { $ref: "#/components/schemas/Id" }
+        name: { $ref: "#/components/schemas/Name" }
+        plastics: { $ref: "#/components/schemas/PlasticUsageList" }
+        print_time_s: { $ref: "#/components/schemas/PrintTime" }
+        quote: { $ref: "#/components/schemas/Quote" }
+    ItemSummary:
+      description: Рядок каталогу (AC-12, AC-13)
+      type: object
+      required: [id, name, min_donation_kop]
+      additionalProperties: false
+      properties:
+        id: { $ref: "#/components/schemas/Id" }
+        name: { $ref: "#/components/schemas/Name" }
+        min_donation_kop:
+          type: integer
+          minimum: 0
+          description: Перераховано з поточних налаштувань цін у момент запиту (ADR 0003)
+    ItemList:
+      type: object
+      required: [items]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ItemSummary" }

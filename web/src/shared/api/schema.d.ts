@@ -21,10 +21,79 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/pricing/plastics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Plastics */
+    get: operations['listPlastics']
+    put?: never
+    /** Create Plastic */
+    post: operations['createPlastic']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/pricing/plastics/{plastic_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** Update Plastic */
+    put: operations['updatePlastic']
+    post?: never
+    /** Delete Plastic */
+    delete: operations['deletePlastic']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/pricing/settings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Settings */
+    get: operations['getPriceSettings']
+    /** Replace Settings */
+    put: operations['replacePriceSettings']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    /** FieldProblem */
+    FieldProblem: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Status */
+      status: number
+      /** Detail */
+      detail: string
+      /** Code */
+      code: string
+      /** Field */
+      field: string
+    }
     /** HealthOut */
     HealthOut: {
       /**
@@ -37,6 +106,154 @@ export interface components {
        * @enum {string}
        */
       db: 'ok' | 'down'
+    }
+    /** Plastic */
+    Plastic: {
+      /** Id */
+      id: string
+      /** Name */
+      name: string
+      /** Price Per Kg Kop */
+      price_per_kg_kop: number
+    }
+    /** PlasticInUseProblem */
+    PlasticInUseProblem: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Status */
+      status: number
+      /** Detail */
+      detail: string
+      /** Code */
+      code: string
+      /**
+       * Items
+       * @description Назви виробів, що використовують пластик (AC-03)
+       */
+      items: string[]
+    }
+    /** PlasticInput */
+    PlasticInput: {
+      /** Name */
+      name: string
+      /**
+       * Price Per Kg Kop
+       * @description Ціна за кілограм у копійках; 650 ₴ → 65000
+       */
+      price_per_kg_kop: number
+    }
+    /** PlasticList */
+    PlasticList: {
+      /** Items */
+      items: components['schemas']['Plastic'][]
+    }
+    /** PriceSettings */
+    PriceSettings: {
+      /**
+       * Tariff Per Kwh Kop
+       * @description Тариф, копійок за кВт·год; 4,32 ₴ → 432
+       */
+      tariff_per_kwh_kop: number
+      /**
+       * Printer Power W
+       * @description Середня потужність принтера, цілі вати
+       */
+      printer_power_w: number
+      /**
+       * Printer Price Kop
+       * @description Ціна принтера, копійки
+       */
+      printer_price_kop: number
+      /**
+       * Printer Lifetime H
+       * @description Термін служби, цілі години друку
+       */
+      printer_lifetime_h: number
+      /**
+       * Parts Per Hour Kop
+       * @description Деталі, копійок за годину друку
+       */
+      parts_per_hour_kop: number
+      /**
+       * Scrap Rate Permille
+       * @description Брак у десятих відсотка; 10 % → 100
+       */
+      scrap_rate_permille: number
+      /**
+       * Wear Per Hour Kop
+       * @description Знос за годину друку, ROUND_HALF_UP до копійки лише для показу
+       */
+      wear_per_hour_kop: number
+    }
+    /** PriceSettingsInput */
+    PriceSettingsInput: {
+      /**
+       * Tariff Per Kwh Kop
+       * @description Тариф, копійок за кВт·год; 4,32 ₴ → 432
+       */
+      tariff_per_kwh_kop: number
+      /**
+       * Printer Power W
+       * @description Середня потужність принтера, цілі вати
+       */
+      printer_power_w: number
+      /**
+       * Printer Price Kop
+       * @description Ціна принтера, копійки
+       */
+      printer_price_kop: number
+      /**
+       * Printer Lifetime H
+       * @description Термін служби, цілі години друку
+       */
+      printer_lifetime_h: number
+      /**
+       * Parts Per Hour Kop
+       * @description Деталі, копійок за годину друку
+       */
+      parts_per_hour_kop: number
+      /**
+       * Scrap Rate Permille
+       * @description Брак у десятих відсотка; 10 % → 100
+       */
+      scrap_rate_permille: number
+    }
+    /** Problem */
+    Problem: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Status */
+      status: number
+      /** Detail */
+      detail: string
+      /** Code */
+      code: string
+    }
+    /** ValidationIssue */
+    ValidationIssue: {
+      /** Loc */
+      loc: (string | number)[]
+      /** Msg */
+      msg: string
+    }
+    /** ValidationProblem */
+    ValidationProblem: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Status */
+      status: number
+      /** Detail */
+      detail: string
+      /** Code */
+      code: string
+      /** Errors */
+      errors: components['schemas']['ValidationIssue'][]
     }
   }
   responses: never
@@ -63,6 +280,401 @@ export interface operations {
         }
         content: {
           'application/json': components['schemas']['HealthOut']
+        }
+      }
+    }
+  }
+  listPlastics: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PlasticList']
+        }
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+    }
+  }
+  createPlastic: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlasticInput']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Plastic']
+        }
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Назва вже є серед пластиків (AC-02) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['FieldProblem']
+        }
+      }
+      /** @description Змінний запит не у форматі application/json (ADR 0007) */
+      415: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Тіло чи параметри не пройшли перевірку типів і меж */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ValidationProblem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+    }
+  }
+  updatePlastic: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        plastic_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlasticInput']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Plastic']
+        }
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Пластика з таким id немає */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Назва вже є серед пластиків (AC-02) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['FieldProblem']
+        }
+      }
+      /** @description Змінний запит не у форматі application/json (ADR 0007) */
+      415: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Тіло чи параметри не пройшли перевірку типів і меж */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ValidationProblem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+    }
+  }
+  deletePlastic: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        plastic_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Пластика з таким id немає */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Пластик використовують вироби (AC-03) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['PlasticInUseProblem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+    }
+  }
+  getPriceSettings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PriceSettings'] | null
+        }
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+    }
+  }
+  replacePriceSettings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PriceSettingsInput']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PriceSettings']
+        }
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Змінний запит не у форматі application/json (ADR 0007) */
+      415: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Тіло чи параметри не пройшли перевірку типів і меж */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ValidationProblem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
         }
       }
     }

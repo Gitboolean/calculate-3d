@@ -7,7 +7,7 @@ acs: ["AC-01", "AC-02", "AC-04", "AC-05"]
 files_hint: ["backend/src/calculate3d/modules/pricing/router.py", "backend/src/calculate3d/main.py", "backend/tests/integration/test_pricing_api.py", "web/src/shared/api/schema.d.ts"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T7 — Відкрити /api/pricing: CRUD пластиків і GET/PUT налаштувань цін

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from calculate3d.core.problems import Problem
 from calculate3d.core.schemas import Name
 
 
@@ -39,3 +40,7 @@ class PriceSettings(PriceSettingsInput):
     wear_per_hour_kop: int = Field(
         ge=0, description="Знос за годину друку, ROUND_HALF_UP до копійки лише для показу"
     )
+
+
+class PlasticInUseProblem(Problem):
+    items: list[str] = Field(description="Назви виробів, що використовують пластик (AC-03)")

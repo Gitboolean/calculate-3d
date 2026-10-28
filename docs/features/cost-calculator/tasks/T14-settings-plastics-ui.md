@@ -7,7 +7,7 @@ acs: ["AC-01", "AC-02", "AC-03"]
 files_hint: ["web/src/pages/settings", "web/src/features/edit-plastic", "web/src/entities/plastic", "web/src/shared/ui/alert-dialog.tsx", "web/src/shared/ui/index.ts"]
 owner: "Anton Pohorielov"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T14 — Зібрати розділ пластиків на /settings: список, додавання, редагування, видалення з підтвердженням

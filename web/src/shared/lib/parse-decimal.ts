@@ -24,3 +24,13 @@ export function parseDecimal(input: string, scale: number): ParseDecimalResult {
   if (!Number.isSafeInteger(value)) return { ok: false, reason: 'not_a_number' }
   return { ok: true, value: sign && value !== 0 ? -value : value }
 }
+
+/** The inverse of `parseDecimal` for pre-filling inputs: 65050 with scale 2 → «650,50». */
+export function formatDecimal(value: number, scale: number): string {
+  const digits = Math.abs(value)
+    .toString()
+    .padStart(scale + 1, '0')
+  const whole = digits.slice(0, digits.length - scale)
+  const fraction = digits.slice(digits.length - scale)
+  return `${value < 0 ? '-' : ''}${whole}${scale > 0 ? `,${fraction}` : ''}`
+}

@@ -1,4 +1,4 @@
-import { parseDecimal } from './parse-decimal'
+import { formatDecimal, parseDecimal } from './parse-decimal'
 
 test.each([
   ['650', 2, 65000],
@@ -42,3 +42,15 @@ test.each(['abc', '1,2,3', '1.2.3', '1e5', '12г', '--1', ',', 'Infinity', '9999
     expect(parseDecimal(input, 2)).toEqual({ ok: false, reason: 'not_a_number' })
   },
 )
+
+test.each([
+  [65050, 2, '650,50'],
+  [40000, 2, '400,00'],
+  [5, 2, '0,05'],
+  [100, 1, '10,0'],
+  [150, 0, '150'],
+  [-1, 2, '-0,01'],
+])('formats %i with scale %i as %j, which parses back', (value, scale, text) => {
+  expect(formatDecimal(value, scale)).toBe(text)
+  expect(parseDecimal(text, scale)).toEqual({ ok: true, value })
+})

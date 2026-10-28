@@ -19,6 +19,7 @@
     "api:types:check": "f=$(mktemp) && trap 'rm -f \"$f\"' EXIT && trap 'exit 130' INT && trap 'exit 143' TERM && npm run -s api:openapi > \"$f\" && openapi-typescript \"$f\" | prettier --stdin-filepath src/shared/api/schema.d.ts | diff -u src/shared/api/schema.d.ts -"
   },
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "^1.2.1",
     "@radix-ui/react-label": "^2.1.17",
     "@radix-ui/react-slot": "^1.5.0",
     "@tanstack/react-query": "^5.105.0",

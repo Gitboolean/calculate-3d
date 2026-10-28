@@ -14,4 +14,21 @@ export default defineConfig([
     files: ['./src/app/providers/**'],
     rules: { 'fsd/segments-by-purpose': 'off' },
   },
+  {
+    // Entity slices are named after the domain glossary (CONTEXT.md): `plastic`, `item`,
+    // `quote`, `price-settings` (one settings record) and the uncountable `health`.
+    files: ['./src/entities/**'],
+    rules: { 'fsd/inconsistent-naming': 'off' },
+  },
+  {
+    // User actions from the cost-calculator SAD, kept as features even with one page using
+    // them so /settings stays a thin composition (tasks T14).
+    files: ['./src/features/edit-plastic/**'],
+    rules: { 'fsd/insignificant-slice': 'off' },
+  },
+  {
+    // TEMPORARY until T17: the quote form on /calculate becomes the second consumer.
+    files: ['./src/entities/plastic/**'],
+    rules: { 'fsd/insignificant-slice': 'off' },
+  },
 ])

@@ -9,7 +9,7 @@
 | [T1](./T1-promote-migrations.md) | Перенести 4 staged-міграції в ланцюжок Alembic і задокументувати суфікси одиниць | migration | Anton Pohorielov | S | — | done |
 | [T2](./T2-core-names-and-problem-extensions.md) | Додати core/text.py (trim, name_key, пошук, український порядок) і поля-розширення AppError | domain | Anton Pohorielov | M | — | done |
 | [T3](./T3-request-guard.md) | Додати middleware захисту запитів: allowlist Host, same-origin, JSON-only | wiring | Anton Pohorielov | M | — | done |
-| [T4](./T4-spa-fallback.md) | Віддавати index.html для будь-якого не-/api шляху (SPA fallback) | wiring | Anton Pohorielov | S | — | todo |
+| [T4](./T4-spa-fallback.md) | Віддавати index.html для будь-якого не-/api шляху (SPA fallback) | wiring | Anton Pohorielov | S | — | done |
 | [T5](./T5-costing-domain-formula.md) | Реалізувати чисту формулу собівартості costing.domain на Decimal з еталонною таблицею | domain | Anton Pohorielov | M | — | todo |
 | [T6](./T6-pricing-service.md) | Зібрати модуль pricing: tables, repo, service, schemas для пластиків і налаштувань цін | app | Anton Pohorielov | L | T1, T2, T5 | todo |
 | [T7](./T7-pricing-router.md) | Відкрити /api/pricing: CRUD пластиків і GET/PUT налаштувань цін | ports | Anton Pohorielov | M | T6 | todo |

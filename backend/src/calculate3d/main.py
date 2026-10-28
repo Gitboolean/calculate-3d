@@ -6,6 +6,9 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
+from starlette.responses import Response
+from starlette.types import Scope
 
 from calculate3d.core.config import Settings, get_settings
 from calculate3d.core.db import create_db_engine
@@ -15,6 +18,18 @@ from calculate3d.modules.health.router import router as health_router
 
 # Local-only, no auth (ADR 0004): the bind address is deliberately not configurable.
 HOST = "127.0.0.1"
+
+
+class SpaStaticFiles(StaticFiles):
+    """Built UI: real files as-is, any other non-/api path → index.html (feature ADR 0001)."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as exc:
+            if exc.status_code != 404 or path == "api" or path.startswith("api/"):
+                raise
+            return await super().get_response("index.html", scope)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -38,7 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     # Mounted last so every /api route wins over the static catch-all.
     if settings.web_dist_dir.is_dir():
-        app.mount("/", StaticFiles(directory=settings.web_dist_dir, html=True), name="web")
+        app.mount("/", SpaStaticFiles(directory=settings.web_dist_dir, html=True), name="web")
     return app
 
 

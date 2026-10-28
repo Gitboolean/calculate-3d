@@ -7,7 +7,7 @@ acs: ["AC-09", "AC-14"]
 files_hint: ["backend/src/calculate3d/main.py", "backend/tests/integration/test_static_ui.py"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T4 — Віддавати index.html для будь-якого не-/api шляху (SPA fallback)

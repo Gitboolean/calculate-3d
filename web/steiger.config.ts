@@ -27,8 +27,13 @@ export default defineConfig([
     rules: { 'fsd/insignificant-slice': 'off' },
   },
   {
-    // TEMPORARY until T17: the quote form on /calculate becomes the second consumer.
-    files: ['./src/entities/plastic/**', './src/entities/price-settings/**'],
+    // TEMPORARY until T17/T20: /calculate and /catalog/:itemId become their consumers.
+    files: [
+      './src/entities/plastic/**',
+      './src/entities/price-settings/**',
+      './src/entities/quote/**',
+      './src/widgets/cost-breakdown/**',
+    ],
     rules: { 'fsd/insignificant-slice': 'off' },
   },
 ])

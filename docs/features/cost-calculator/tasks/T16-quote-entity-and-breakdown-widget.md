@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-06b", "AC-08", "AC-08b"]
 files_hint: ["web/src/entities/quote", "web/src/widgets/cost-breakdown"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T16 — Додати entity quote (debounce + ключ запиту) і віджет cost-breakdown

@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from http import HTTPStatus
+from typing import TypedDict
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -11,14 +12,43 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 PROBLEM_JSON = "application/problem+json"
 
 
+class ProblemExtensions(TypedDict, total=False):
+    field: str
+    items: list[str]
+    missing: list[str]
+
+
 class AppError(Exception):
     """Base for domain errors; services raise subclasses, never HTTPException."""
 
-    def __init__(self, code: str, message: str, status: int = 400) -> None:
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        status: int = 400,
+        *,
+        field: str | None = None,
+        items: list[str] | None = None,
+        missing: list[str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.status = status
+        # Optional problem+json extension members (only rendered when set).
+        self.field = field
+        self.items = items
+        self.missing = missing
+
+    def extensions(self) -> ProblemExtensions:
+        ext = ProblemExtensions()
+        if self.field is not None:
+            ext["field"] = self.field
+        if self.items is not None:
+            ext["items"] = self.items
+        if self.missing is not None:
+            ext["missing"] = self.missing
+        return ext
 
 
 def _phrase(status: int) -> str:
@@ -49,7 +79,7 @@ def problem(
 
 async def _app_error(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, AppError)
-    return problem(exc.status, exc.message, exc.code)
+    return problem(exc.status, exc.message, exc.code, **exc.extensions())
 
 
 async def _http_error(_: Request, exc: Exception) -> JSONResponse:

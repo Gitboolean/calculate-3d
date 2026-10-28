@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-03", "AC-09", "AC-11", "AC-12"]
 files_hint: ["backend/src/calculate3d/core/text.py", "backend/src/calculate3d/core/errors.py", "backend/tests/unit/test_text.py", "backend/tests/integration/test_errors.py"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T2 — Додати core/text.py (trim, name_key, пошук, український порядок) і поля-розширення AppError

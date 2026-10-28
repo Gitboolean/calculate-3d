@@ -324,17 +324,19 @@ sequenceDiagram
 
 ## 9. Architecture decisions
 
-<!-- 🎯 Навіщо: ЗВОРОТНИЙ ІНДЕКС на папку adr/. `ls adr/` дає файли, §9 дає семантику —    -->
-<!--           чому вони існують, до якого зрізу SAD привʼязані, у якому статусі.           -->
-<!-- 📋 Що писати: таблиця з 4 колонками. Один рядок на ADR. Mixed status — це OK.         -->
-<!-- 📌 Приклад: «0001 | Зберігати урок як таблицю блоків | Accepted | §4».                -->
-
 | # | Title | Status | Section |
 |---|---|---|---|
-| <NNNN> | <imperative — e.g. "Use sliding window for rate limiting"> | Accepted | §<N> |
-| <NNNN> | <imperative — e.g. "Co-locate outbox worker in API process"> | Accepted | §<N> |
+| [0001](adr/0001-route-spa-screens-with-react-router.md) | Route SPA screens with React Router and serve index.html for every non-API path | Accepted | §4 |
+| [0002](adr/0002-compute-cost-on-server-only.md) | Compute cost on the server only; the UI re-requests a quote on every field change | Accepted | §4 |
+| [0003](adr/0003-recompute-catalog-prices-on-every-read.md) | Recompute catalog prices on every read in one batched pass, never cache them | Accepted | §4 |
+| [0004](adr/0004-exchange-quantities-as-scaled-integers.md) | Exchange every fractional quantity as an exact scaled integer named after its unit | Accepted | §4 |
+| [0005](adr/0005-split-feature-into-pricing-costing-catalog-modules.md) | Split the feature into pricing, costing and catalog modules; pricing gets item usage by parameter | Accepted | §5 |
+| [0006](adr/0006-enforce-name-uniqueness-via-casefolded-name-key.md) | Enforce name uniqueness via a casefolded name_key column; search and sort names in Python | Accepted | §8 |
+| [0007](adr/0007-guard-local-api-with-host-allowlist-and-same-origin-checks.md) | Guard the local API with a Host allowlist and same-origin checks instead of CSRF tokens | Accepted | §8 |
 
-ADR files live under `docs/features/<slug>/adr/NNNN-<title>.md`.
+ADR files live under `docs/features/cost-calculator/adr/NNNN-<title>.md`.
+
+**Project-level ADRs this feature builds on** (not re-decided here): [0001](../../adr/0001-use-python-fastapi-and-react-vite-stack.md) stack + surfaces · [0002](../../adr/0002-organize-as-modular-monolith-with-simple-layers.md) modular monolith · [0003](../../adr/0003-store-data-in-sqlite-via-sqlalchemy-core-and-alembic.md) SQLite, IDs, money · [0004](../../adr/0004-run-local-only-without-authentication.md) local-only, no auth.
 
 ## 10. Quality requirements
 

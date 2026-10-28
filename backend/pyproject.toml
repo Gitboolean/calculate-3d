@@ -47,6 +47,15 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF"]
+# UI copy and domain names are Ukrainian: Cyrillic look-alikes of Latin letters are intended.
+allowed-confusables = [
+    "а", "в", "е", "і", "к", "м", "н", "о", "р", "с", "т", "у", "х",
+    "А", "В", "Е", "І", "К", "М", "Н", "О", "Р", "С", "Т", "Х",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Promoted migrations carry the staged SQL (and its comments) verbatim.
+"migrations/versions/*" = ["E501"]
 
 [tool.mypy]
 strict = true

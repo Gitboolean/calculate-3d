@@ -49,8 +49,9 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
 - **Money (ADR 0003):** `INTEGER` kopecks with a `_kop` suffix (`price_per_kg_kop`); compute with
   `decimal.Decimal`; round the final cost / minimum donation **up** with `ROUND_CEILING` to whole
   kopecks. API exposes kopecks as ints. Never `float` for money.
-- **Physical units live in the column name:** grams `*_g`, seconds `*_s`, watts `*_w`, rates
-  `*_per_hour_kop`.
+- **Physical units live in the column name:** grams `*_g`, centigrams `*_cg`, seconds `*_s`,
+  whole hours `*_h`, watts `*_w`, tenths of a percent `*_permille`, rates `*_per_hour_kop`
+  (cost-calculator ADR 0004: every fractional quantity is a scaled integer).
 - **Persistence:** SQLAlchemy 2 Core only (`select/insert/update/delete` on `Table`s sharing
   `core.db.metadata`), no ORM sessions. DB is dumb storage: no CHECK, no TRIGGER, no business
   defaults — validation lives in Pydantic/service. Audit column `created_at` (UTC ISO-8601 `TEXT`)

@@ -7,7 +7,7 @@ acs: ["AC-03", "AC-09", "AC-15"]
 files_hint: ["docs/features/cost-calculator/migrations/20261028120000_create_plastics", "docs/features/cost-calculator/migrations/20261028120001_create_price_settings", "docs/features/cost-calculator/migrations/20261028120002_create_items", "docs/features/cost-calculator/migrations/20261028120003_create_item_plastics", "backend/tests/integration/test_migrations.py", "CLAUDE.md"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T1 — Перенести 4 staged-міграції в ланцюжок Alembic і задокументувати суфікси одиниць

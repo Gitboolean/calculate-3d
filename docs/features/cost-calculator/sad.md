@@ -113,49 +113,74 @@ Each tactical decision in later sections should be traceable to one of these str
 
 ## 5. Building block view
 
-<!-- 🎯 Навіщо: ВНУТРІШНЯ ДЕКОМПОЗИЦІЯ — модулі, контейнери, БД. Статична топологія:   -->
-<!--           хто з ким може говорити. Без §5 §6 (сценарії) не має словника учасників. -->
-<!-- 📋 Що писати: 1 абзац про стиль (шари/гексагональна/clean/на подіях) +            -->
-<!--           дерево папок + Mermaid C4Container.                                       -->
-<!-- 📌 ОДИН Container на кожну оголошену target_surface (frontmatter): fullstack        -->
-<!--           [backend-service, web-frontend] = backend-API container + web/SPA container; -->
-<!--           [backend-service, mobile-app] = API + mobile app. Container(web, …) нижче — -->
-<!--           лише приклад однієї поверхні; додай/заміни під оголошене у §4. → _shared/surfaces.md -->
-<!-- 📌 Приклад: «web-app, content-api, media-worker, postgres, s3, cdn».                -->
+Модульний моноліт із простими шарами (проєктний ADR 0002): кожен доменний модуль — вертикальний зріз `router · schemas · service · repo · tables` за зразком `modules/health/`, і модулі звертаються один до одного лише через `service.py`. Фіча додає три модулі (→ [ADR 0005](adr/0005-split-feature-into-pricing-costing-catalog-modules.md)) із залежностями `catalog → costing → pricing`. Єдиний зворотний зв'язок — перевірка використання пластику для AC-03: його підставляє **роутер** `pricing` як параметр, тож сервіс `pricing` про каталог не знає. Веб — FSD-слайси, що збирають екрани з наявних shadcn/ui-примітивів.
 
-<One paragraph: layered / hexagonal / clean / event-driven. Why.>
-
-**Internal decomposition:**
+**Internal decomposition (backend):**
 
 ```
-<e.g. internal/modules/goals/>
-├── domain/       <entities + sentinel errors>
-├── app/          <use cases / services>
-├── infra/        <repository + outbox impl>
-├── ports/        <HTTP handlers, DTOs, error mapping>
-└── module.go     <self-wiring>
+backend/src/calculate3d/
+├── main.py                 # + 3 routers, захист запитів (§8), SPA fallback (ADR 0001)
+├── core/                   # config · db · errors · ids (+ спільні утиліти назв — §8)
+└── modules/
+    ├── pricing/            # налаштування цін
+    │   ├── router.py       # /api/pricing — пластики CRUD, налаштування GET/PUT;
+    │   │                   #   підставляє catalog.service.item_names_using_plastic у delete (AC-03)
+    │   ├── schemas.py · service.py · repo.py
+    │   └── tables.py       # пластики; налаштування цін — ОДИН рядок (нема рядка = «не задано», AC-09)
+    ├── costing/            # розрахунок — нічого не зберігає
+    │   ├── domain.py       # чиста формула на Decimal; донат ROUND_CEILING з точної суми,
+    │   │                   #   рядки розбивки ROUND_HALF_UP (AC-08) — еталонна таблиця в tests/unit
+    │   ├── service.py      # quote(): поточні ціни з pricing.service → domain
+    │   └── router.py · schemas.py   # /api/costing
+    └── catalog/            # вироби
+        ├── router.py       # /api/catalog
+        ├── schemas.py · service.py  # пакетне читання + costing.service для цін (ADR 0003)
+        ├── repo.py
+        └── tables.py       # вироби; витрата пластиків виробу (FK → пластик ON DELETE RESTRICT,
+                            #   FK → виріб ON DELETE CASCADE)
 ```
+
+**Internal decomposition (web, FSD):**
+
+```
+web/src/
+├── app/            # BrowserRouter + Routes (ADR 0001), QueryProvider
+├── pages/          # settings · calculate · catalog · item
+├── widgets/        # cost-breakdown (мінімальний донат + 4 рядки; спільний для calculate та item)
+├── features/       # edit-plastic · edit-price-settings · quote-form · save-item · delete-item
+├── entities/       # plastic · price-settings · item · quote (TanStack Query хуки над @/shared/api)
+└── shared/         # api (openapi-fetch) · ui (shadcn) · lib: parse-decimal (ADR 0004), format-money
+```
+
+Налаштування цін (тариф, потужність, знос, брак) зберігаються в **одній таблиці з одним рядком**: відсутній рядок = «не задано» (AC-09); збереження — заміна всіх полів в одній транзакції запиту (AC-04/05), тож очистити їх назад неможливо за побудовою. Точні колонки й одиниці (ADR 0004) визначає `generate-data-model`.
 
 **C4 Container (L2):**
 
 ```mermaid
 C4Container
-    title <system> — Containers
+    title cost-calculator — Containers
 
-    Person(user, "<User>")
+    Person(author, "автор", "Єдиний користувач, браузер на 127.0.0.1")
 
-    Container_Boundary(boundary, "<Our System>") {
-        Container(web, "<Web/API container>", "<technology>", "<purpose>")
-        Container(svc, "<Service container>", "<technology>", "<purpose>")
-        ContainerDb(db, "<DB>", "<technology>", "<purpose>")
+    System_Boundary(calc, "calculate-3d — один процес на 127.0.0.1:8000") {
+        Container(spa, "Web SPA", "React 19, TypeScript, Vite, React Router, TanStack Query", "Екрани: налаштування цін, розрахунок, каталог, виріб; нічого не рахує")
+        Container(api, "API", "Python 3.14, FastAPI", "JSON під /api, problem+json, захист запитів, віддає зібраний SPA")
+        Container(pricing, "pricing", "модуль FastAPI", "Пластики й налаштування цін")
+        Container(costing, "costing", "модуль FastAPI", "Формула собівартості на Decimal; розрахунок не зберігає")
+        Container(catalog, "catalog", "модуль FastAPI", "Вироби з витратою пластиків; ціни перераховує при читанні")
+        ContainerDb(db, "SQLite", "файл backend/var/calculate3d.db, WAL", "Пластики, налаштування цін, вироби; без цін")
     }
 
-    System_Ext(ext, "<External>", "<purpose>")
-
-    Rel(user, web, "<interaction>", "<protocol>")
-    Rel(web, svc, "<service calls>")
-    Rel(svc, db, "<reads/writes>", "<driver>")
-    Rel(svc, ext, "<emits>", "<protocol>")
+    Rel(author, spa, "Вводить параметри, бачить мінімальний донат", "браузер")
+    Rel(spa, api, "Розрахунок, налаштування, каталог", "JSON over HTTP /api")
+    Rel(api, pricing, "Маршрутизує /api/pricing")
+    Rel(api, costing, "Маршрутизує /api/costing")
+    Rel(api, catalog, "Маршрутизує /api/catalog")
+    Rel(catalog, costing, "Рахує ціну кожного виробу", "service.py")
+    Rel(costing, pricing, "Бере поточні ціни", "service.py")
+    Rel(pricing, catalog, "Хто використовує пластик (AC-03)", "параметр від router")
+    Rel(pricing, db, "Читає і пише", "SQLAlchemy Core")
+    Rel(catalog, db, "Читає і пише", "SQLAlchemy Core")
 ```
 
 ## 6. Runtime view

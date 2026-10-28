@@ -15,7 +15,7 @@
 | [T7](./T7-pricing-router.md) | Відкрити /api/pricing: CRUD пластиків і GET/PUT налаштувань цін | ports | Anton Pohorielov | M | T6 | done |
 | [T8](./T8-costing-quote-endpoint.md) | Реалізувати costing.service.quote() і POST /api/costing/quote | ports | Anton Pohorielov | M | T5, T7 | done |
 | [T9](./T9-catalog-repo.md) | Додати catalog tables + repo: вироби з рядками витрати, пакетне читання без N+1 | infra | Anton Pohorielov | M | T1 | done |
-| [T10](./T10-catalog-service.md) | Реалізувати catalog.service: збереження, редагування, видалення, пошук і перерахунок цін | app | Anton Pohorielov | L | T2, T8, T9 | todo |
+| [T10](./T10-catalog-service.md) | Реалізувати catalog.service: збереження, редагування, видалення, пошук і перерахунок цін | app | Anton Pohorielov | L | T2, T8, T9 | done |
 | [T11](./T11-catalog-router-and-plastic-in-use.md) | Відкрити /api/catalog/items і підключити перевірку використання пластику в pricing (AC-03) | ports | Anton Pohorielov | L | T7, T8, T10 | todo |
 | [T12](./T12-nfr-and-contract-tests.md) | Додати тести NFR (латентність, збереженість, узгодженість цін) і контрактний тест OpenAPI | tests | Anton Pohorielov | M | T3, T11 | todo |
 | [T13](./T13-web-foundation.md) | Підключити React Router, оболонку з навігацією, parse-decimal і format-money | ui | Anton Pohorielov | M | — | done |

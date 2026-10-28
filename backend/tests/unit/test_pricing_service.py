@@ -1,10 +1,9 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import Connection, func, select
 
-from calculate3d.core.db import create_db_engine, metadata
 from calculate3d.core.errors import AppError
 from calculate3d.modules.pricing import service
 from calculate3d.modules.pricing.schemas import PlasticInput, PriceSettingsInput
@@ -18,16 +17,6 @@ AC04 = PriceSettingsInput(
     parts_per_hour_kop=100,
     scrap_rate_permille=100,
 )
-
-
-@pytest.fixture
-def conn() -> Iterator[Connection]:
-    """In-memory SQLite with the module's tables — no file I/O."""
-    engine = create_db_engine("sqlite://")
-    with engine.begin() as connection:
-        metadata.create_all(connection)
-        yield connection
-    engine.dispose()
 
 
 def no_items(_: str) -> list[str]:

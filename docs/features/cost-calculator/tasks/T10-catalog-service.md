@@ -7,7 +7,7 @@ acs: ["AC-10", "AC-11", "AC-12", "AC-13", "AC-14", "AC-14b", "AC-14c", "AC-15"]
 files_hint: ["backend/src/calculate3d/modules/catalog/service.py", "backend/src/calculate3d/modules/catalog/schemas.py", "backend/tests/unit/test_catalog_service.py"]
 owner: "Anton Pohorielov"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T10 — Реалізувати catalog.service: збереження, редагування, видалення, пошук і перерахунок цін

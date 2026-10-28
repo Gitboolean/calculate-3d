@@ -185,35 +185,103 @@ C4Container
 
 ## 6. Runtime view
 
-<!-- 🎯 Навіщо: ПОТІК У RUNTIME для 1-2 критичних сценаріїв. Хто з ким коли і у якому     -->
-<!--           порядку говорить. Без §6 §5 — лише купа коробок без життя.                  -->
-<!-- 📋 Що писати: Mermaid sequenceDiagram. Учасники — імена з §5 (не вигадуй нові!).      -->
-<!--           Повідомлення семантичні («складає чорновик»), БЕЗ HTTP-методів/шляхів —     -->
-<!--           ендпоінт-рівневі sequence-діаграми зʼявляться у stage 06 (api-forge).        -->
-<!-- ⏳ RESERVED FOR SEQUENCES: architecture-design сіє лише primary flow(s) тут.          -->
-<!--           complete-sequence-diagrams (stage 06) ДОПОВНЮЄ §6 кожним критичним flow /    -->
-<!--           кожним §5 AC — без обмеження. Не намагайся покрити все тут.                  -->
-<!-- 📌 Приклад: «methodist → web-app: складає чорновик → web-app → content-api: зберегти». -->
+<!-- Seeded by architecture-design (3 flows). complete-sequence-diagrams (stage 06) fills §6 with -->
+<!-- every critical flow / PRD §5 AC and closes with the US/AC → flow coverage table.              -->
 
-**Critical flow 1: <flow name>**
+**Critical flow 1: живий перерахунок мінімального донату** (AC-06, AC-07, AC-09; ADR 0002, ADR 0004)
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant API
-    participant Service
-    participant DB
-    User->>API: <request>
-    API->>Service: <call>
-    Service->>DB: <write tx>
-    DB-->>Service: ok
-    Service-->>API: result
-    API-->>User: 201
+    actor author as автор
+    participant spa as Web SPA
+    participant api as API
+    participant costing as costing
+    participant pricing as pricing
+    participant db as SQLite
+    author->>spa: змінює витрату пластику або час друку
+    spa->>spa: розбирає текст у масштабовані цілі
+    alt поле хибне (порожнє, нуль, зайва точність, повтор пластику)
+        spa-->>author: пояснення біля поля, донат не показано, зберегти не можна
+    else усі поля коректні
+        spa->>spa: чекає паузу в наборі, ключ запиту = введені значення
+        spa->>api: розрахувати собівартість для введених значень
+        api->>costing: quote з витратою пластиків і часом
+        costing->>pricing: поточні ціни пластиків і налаштування цін
+        pricing->>db: читає пластики та рядок налаштувань
+        db-->>pricing: дані або налаштувань немає
+        alt налаштувань цін бракує
+            pricing-->>costing: налаштування не задано
+            costing-->>api: помилка домену з переліком відсутнього
+            api-->>spa: problem+json з кодом і переліком
+            spa-->>author: що саме бракує і посилання на налаштування цін
+        else налаштування є
+            pricing-->>costing: ціни
+            costing->>costing: точна сума у Decimal, донат округлено вгору, рядки до копійки
+            costing-->>api: мінімальний донат і 4 рядки розбивки
+            api-->>spa: результат у копійках
+            spa-->>author: донат і розбивка, лише якщо ключ досі збігається з полями
+        end
+    end
 ```
 
-<!-- For XS/S: 1 flow above is enough. For M+: add 2-4 more (e.g. failure-mode flow, async flow). -->
+**Critical flow 2: відкриття каталогу з перерахунком цін** (AC-12, AC-13; ADR 0003)
 
-**Critical flow 2: <e.g. async event propagation>** — <if applicable, otherwise N/A>.
+```mermaid
+sequenceDiagram
+    actor author as автор
+    participant spa as Web SPA
+    participant api as API
+    participant catalog as catalog
+    participant costing as costing
+    participant pricing as pricing
+    participant db as SQLite
+    author->>spa: відкриває каталог, вводить частину назви
+    spa->>api: список виробів з фільтром за назвою
+    api->>catalog: list з рядком пошуку
+    catalog->>db: усі вироби та їхня витрата пластиків одним пакетом
+    db-->>catalog: вироби з рядками витрати
+    catalog->>catalog: фільтр без урахування регістру, абетковий порядок
+    catalog->>costing: порахувати мінімальний донат для пакета виробів
+    costing->>pricing: поточні ціни, один раз на весь пакет
+    pricing->>db: читає пластики та рядок налаштувань
+    db-->>pricing: ціни
+    pricing-->>costing: ціни
+    costing-->>catalog: мінімальний донат кожного виробу
+    catalog-->>api: відсортований список з донатами
+    api-->>spa: список у копійках
+    spa-->>author: вироби з актуальними цінами
+```
+
+**Critical flow 3: видалення пластику, який використовують вироби** (AC-03, failure mode; ADR 0005)
+
+```mermaid
+sequenceDiagram
+    actor author as автор
+    participant spa as Web SPA
+    participant api as API
+    participant pricing as pricing
+    participant catalog as catalog
+    participant db as SQLite
+    author->>spa: видаляє пластик PLA білий
+    spa->>api: видалити пластик
+    api->>pricing: delete_plastic з функцією used_by від роутера
+    pricing->>catalog: які вироби використовують цей пластик
+    catalog->>db: назви виробів із цим пластиком
+    db-->>catalog: Підставка, Органайзер
+    catalog-->>pricing: список назв
+    alt список не порожній
+        pricing-->>api: помилка домену пластик використовується, з назвами
+        api-->>spa: problem+json з кодом і назвами виробів
+        spa-->>author: видалити не можна, назви виробів, ціну змінити можна
+    else ніхто не використовує
+        pricing->>db: видаляє пластик
+        Note over pricing,db: FK RESTRICT відхилить видалення, якщо перевірку колись оминуть
+        db-->>pricing: видалено
+        pricing-->>api: готово
+        api-->>spa: успіх без тіла
+        spa-->>author: пластик зник зі списку
+    end
+```
 
 ## 7. Deployment view
 

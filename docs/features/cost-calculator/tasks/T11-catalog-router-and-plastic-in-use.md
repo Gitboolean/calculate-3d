@@ -7,7 +7,7 @@ acs: ["AC-03", "AC-10", "AC-11", "AC-12", "AC-13", "AC-14", "AC-14b", "AC-14c", 
 files_hint: ["backend/src/calculate3d/modules/catalog/router.py", "backend/src/calculate3d/modules/pricing/router.py", "backend/src/calculate3d/main.py", "backend/tests/integration/test_catalog_api.py", "backend/tests/integration/test_pricing_api.py", "web/src/shared/api/schema.d.ts"]
 owner: "Anton Pohorielov"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T11 — Відкрити /api/catalog/items і підключити перевірку використання пластику в pricing (AC-03)

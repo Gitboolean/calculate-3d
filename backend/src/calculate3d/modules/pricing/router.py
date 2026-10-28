@@ -9,6 +9,7 @@ from calculate3d.core.problems import (
     Problem,
     problem_response,
 )
+from calculate3d.modules.catalog import service as catalog_service
 from calculate3d.modules.pricing import service
 from calculate3d.modules.pricing.schemas import (
     Plastic,
@@ -62,7 +63,12 @@ def update_plastic(plastic_id: str, data: PlasticInput, conn: ConnectionDep) -> 
     responses={404: NOT_FOUND, 409: IN_USE},
 )
 def delete_plastic(plastic_id: str, conn: ConnectionDep) -> None:
-    service.delete_plastic(conn, plastic_id, item_names_using=lambda _: [])
+    # The only pricing → catalog edge, and only here in the router (ADR 0005).
+    service.delete_plastic(
+        conn,
+        plastic_id,
+        item_names_using=lambda pid: catalog_service.item_names_using_plastic(conn, pid),
+    )
 
 
 @router.get("/settings", operation_id="getPriceSettings")

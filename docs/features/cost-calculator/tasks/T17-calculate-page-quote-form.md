@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-06b", "AC-07", "AC-09"]
 files_hint: ["web/src/pages/calculate", "web/src/features/quote-form", "web/src/shared/ui/select.tsx", "web/src/shared/ui/index.ts"]
 owner: "Anton Pohorielov"
 estimate: "L"
-status: "todo"
+status: "done"
 ---
 
 # T17 — Зібрати сторінку /calculate з формою quote-form, валідацією AC-07 і станом «бракує налаштувань»

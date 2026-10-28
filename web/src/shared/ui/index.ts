@@ -23,3 +23,4 @@ export {
   AlertDialogTrigger,
 } from './alert-dialog'
 export { FormField } from './form-field'
+export { NativeSelect } from './select'

@@ -7,7 +7,7 @@ acs: ["AC-16b"]
 files_hint: ["backend/src/calculate3d/modules/catalog/router.py", "backend/src/calculate3d/modules/pricing/router.py", "backend/tests/integration/test_contract.py", "web/src/shared/api/schema.d.ts"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T31 — Типізувати id у path-параметрах як Id (format: uuid) і полагодити контрактний тест параметрів

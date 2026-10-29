@@ -259,12 +259,17 @@ def test_most_contract_schemas_are_compared_not_skipped(app_openapi: dict[str, A
         assert name in shared, f"{name} must exist in both specs so it is actually compared"
 
 
-def _path_id_params(spec: dict[str, Any], operation: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    params = [_resolve(spec, p) for p in operation.get("parameters", [])]
+def _path_id_params(spec: dict[str, Any], path: str, method: str) -> dict[str, dict[str, Any]]:
+    """Path-item-level and operation-level parameters merged; operation wins by (name, in)."""
+    item = spec["paths"][path]
+    merged: dict[tuple[str, str], dict[str, Any]] = {}
+    for raw in [*item.get("parameters", []), *item[method].get("parameters", [])]:
+        param = _resolve(spec, raw)
+        merged[(param["name"], param["in"])] = param
     return {
-        p["name"]: _normalise(spec, p["schema"])
-        for p in params
-        if p["in"] == "path" and (p["name"] == "id" or p["name"].endswith("_id"))
+        name: _normalise(spec, param["schema"])
+        for (name, location), param in merged.items()
+        if location == "path" and (name == "id" or name.endswith("_id"))
     }
 
 
@@ -272,14 +277,19 @@ def _path_id_params(spec: dict[str, Any], operation: dict[str, Any]) -> dict[str
 def test_id_path_parameters_keep_the_contract_uuid_format(
     app_openapi: dict[str, Any], path: str, method: str
 ) -> None:
-    contract_params = _path_id_params(CONTRACT, CONTRACT["paths"][path][method])
-    live_params = _path_id_params(app_openapi, app_openapi["paths"][path][method])
+    contract_params = _path_id_params(CONTRACT, path, method)
+    live_params = _path_id_params(app_openapi, path, method)
 
+    if "{" in path:  # never vacuous: a templated path must yield contract id params
+        assert contract_params, f"{method.upper()} {path}: no path id parameter read from contract"
+        assert set(contract_params) <= set(live_params), f"{path} {method}: live lacks id params"
     divergences = [
-        f"{path} {method} path param {name}: contract format {c.get('format')!r} "
-        f"vs live {live_params.get(name, {}).get('format')!r}"
+        f"{path} {method} path param {name}: contract "
+        f"type/format {c['_types']!r}/{c.get('format')!r} vs live "
+        f"{live_params.get(name, {}).get('_types')!r}/{live_params.get(name, {}).get('format')!r}"
         for name, c in contract_params.items()
-        if c.get("format") and live_params.get(name, {}).get("format") != c["format"]
+        if (c["_types"], c.get("format"))
+        != (live_params[name]["_types"], live_params[name].get("format"))
     ]
     assert not divergences, "\n" + "\n".join(divergences)
 

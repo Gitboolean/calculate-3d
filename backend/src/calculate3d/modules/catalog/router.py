@@ -12,6 +12,7 @@ from calculate3d.core.problems import (
     ValidationProblem,
     problem_response,
 )
+from calculate3d.core.schemas import Id
 from calculate3d.modules.catalog import service
 from calculate3d.modules.catalog.schemas import Item, ItemDetail, ItemInput, ItemList
 from calculate3d.modules.costing.service import SettingsMissingProblem
@@ -60,7 +61,7 @@ def create_item(data: ItemInput, conn: ConnectionDep) -> Item:
     operation_id="getItem",
     responses={404: NOT_FOUND, 409: SETTINGS_MISSING},
 )
-def get_item(item_id: str, conn: ConnectionDep) -> ItemDetail:
+def get_item(item_id: Id, conn: ConnectionDep) -> ItemDetail:
     return service.get_item(conn, item_id)
 
 
@@ -74,7 +75,7 @@ def get_item(item_id: str, conn: ConnectionDep) -> ItemDetail:
         422: ITEM_INVALID,
     },
 )
-def update_item(item_id: str, data: ItemInput, conn: ConnectionDep) -> Item:
+def update_item(item_id: Id, data: ItemInput, conn: ConnectionDep) -> Item:
     return service.update_item(conn, item_id, data)
 
 
@@ -84,5 +85,5 @@ def update_item(item_id: str, data: ItemInput, conn: ConnectionDep) -> Item:
     operation_id="deleteItem",
     responses={404: NOT_FOUND, 415: UNSUPPORTED_MEDIA_TYPE},
 )
-def delete_item(item_id: str, conn: ConnectionDep) -> None:
+def delete_item(item_id: Id, conn: ConnectionDep) -> None:
     service.delete_item(conn, item_id)

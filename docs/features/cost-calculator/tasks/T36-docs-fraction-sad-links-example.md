@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-08", "AC-08b"]
 files_hint: ["docs/features/cost-calculator/sad.md", "docs/features/cost-calculator/adr/0004-exchange-quantities-as-scaled-integers.md", "docs/features/cost-calculator/contracts/openapi.yaml"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T36 — Узгодити SAD з поправкою ADR 0004, повернути ## Links і оновити приклад msg у контракті

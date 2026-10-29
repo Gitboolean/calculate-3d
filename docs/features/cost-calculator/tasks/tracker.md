@@ -41,7 +41,7 @@
 | [T33](./T33-nfc-before-length.md) | Нормалізувати ім'я (NFC) до перевірки довжини, щоб довге після NFC ім'я давало 422 | app | Anton Pohorielov | S | — | todo |
 | [T34](./T34-caps-in-prd-and-ui.md) | Записати верхні межі в PRD і пояснювати їх біля поля в UI | ui | Anton Pohorielov | S | T33 | todo |
 | [T35](./T35-web-settings-evict-test-and-empty-state.md) | Покрити тестом скидання кешу цін після налаштувань і не показувати порожній стан поверх placeholder-даних | ui | Anton Pohorielov | S | — | todo |
-| [T36](./T36-docs-fraction-sad-links-example.md) | Узгодити SAD з поправкою ADR 0004, повернути ## Links і оновити приклад msg у контракті | docs | Anton Pohorielov | S | — | todo |
+| [T36](./T36-docs-fraction-sad-links-example.md) | Узгодити SAD з поправкою ADR 0004, повернути ## Links і оновити приклад msg у контракті | docs | Anton Pohorielov | S | — | done |
 | [T37](./T37-test-plan-literal-asserts.md) | Дописати асерти test-plan: quote не створює виріб, порожня назва при редагуванні не зберігається | tests | Anton Pohorielov | S | — | todo |
 
 **Total:** 37 tasks (20 + 17 review follow-ups), ~14.6 person-days (117 год).

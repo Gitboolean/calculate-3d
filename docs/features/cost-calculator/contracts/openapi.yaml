@@ -314,7 +314,7 @@ paths:
                     code: "validation_error"
                     errors:
                       - loc: ["body", "plastics", 1, "plastic_id"]
-                        msg: "Value error, plastic is listed twice"
+                        msg: "plastic is listed twice"
                 unknown_plastic:
                   value:
                     type: "about:blank"

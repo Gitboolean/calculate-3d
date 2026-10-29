@@ -85,6 +85,8 @@ def test_quote_returns_the_minimum_donation_and_breakdown(
 
     assert response.status_code == 200
     assert response.json() == expected
+    # AC-06: a quote is a calculation only; nothing lands in the catalog.
+    assert client.get("/api/catalog/items").json() == {"items": []}
 
 
 @pytest.mark.parametrize(

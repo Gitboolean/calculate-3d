@@ -170,8 +170,9 @@ def test_edited_item_shows_new_parameters_and_price(
             "catalog.plastic_not_found",
         ),
         (lambda ids: body("Підставка"), 422, "validation_error"),
+        (lambda ids: body("   ", (ids["petg"], 12000)), 422, "validation_error"),
     ],
-    ids=["name-taken", "unknown-plastic", "no-plastic"],
+    ids=["name-taken", "unknown-plastic", "no-plastic", "blank-name"],
 )
 def test_rejected_edit_leaves_the_item_unchanged(
     client: TestClient, ids: dict[str, str], payload_factory: Any, status: int, code: str

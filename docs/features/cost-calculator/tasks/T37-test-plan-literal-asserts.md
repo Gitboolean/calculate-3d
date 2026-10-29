@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-14c"]
 files_hint: ["backend/tests/integration/test_costing_api.py", "backend/tests/integration/test_catalog_api.py"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T37 — Дописати асерти test-plan: quote не створює виріб, порожня назва при редагуванні не зберігається

@@ -2,30 +2,25 @@
 
 from typing import Annotated
 
-from pydantic import AfterValidator, Field, StringConstraints
-from pydantic_core import PydanticCustomError
+from pydantic import BeforeValidator, Field, StringConstraints
 
 from calculate3d.core.text import normalize_name
 
 
-def _not_blank_after_normalisation(value: str) -> str:
-    # Names made only of invisible format characters (ZWSP, ZWJ…) pass `strip` but are blank.
-    if not normalize_name(value):
-        raise PydanticCustomError(
-            "string_too_short",
-            "String should have at least {min_length} character",
-            {"min_length": 1},
-        )
-    return value
+def _normalise(value: object) -> object:
+    # Non-str input passes through so type errors keep their usual shape.
+    return normalize_name(value) if isinstance(value, str) else value
 
 
-# Plastic and item names (cost-calculator ADR 0006): trimmed first, then 1 to 100 characters.
-# The `\S` pattern is schema-only: the strip + min_length already reject blank names with the
-# established error, so a runtime regex would only add a second error to the same input.
+# Plastic and item names (cost-calculator ADR 0006): normalised first (NFC, trimmed of whitespace
+# and invisible format characters), then measured 1 to 100 characters, so NFC expansion cannot
+# push an accepted name past the limit. The `\S` pattern is schema-only: the normalisation +
+# min_length already reject blank names with the established error, so a runtime regex would only
+# add a second error to the same input. The bounds sit on an inner `Annotated` so they stay
+# native string checks (`string_too_short` / `string_too_long`), not a generic post-validator.
 Name = Annotated[
-    str,
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
-    AfterValidator(_not_blank_after_normalisation),
+    Annotated[str, StringConstraints(min_length=1, max_length=100)],
+    BeforeValidator(_normalise),
     Field(json_schema_extra={"pattern": r"\S"}),
 ]
 

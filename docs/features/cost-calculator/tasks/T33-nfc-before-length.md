@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-11"]
 files_hint: ["backend/src/calculate3d/core/schemas.py", "backend/src/calculate3d/core/text.py", "backend/tests/integration/test_input_bounds.py"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T33 — Нормалізувати ім'я (NFC) до перевірки довжини, щоб довге після NFC ім'я давало 422

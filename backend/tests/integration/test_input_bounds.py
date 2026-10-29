@@ -136,3 +136,61 @@ def test_name_of_only_invisible_characters_is_a_422_on_name(client: TestClient, 
     response = client.post("/api/pricing/plastics", json={"name": name, "price_per_kg_kop": 65000})
 
     _assert_422_on(response, "name")
+
+
+# T33 (R2-4): the 1..100 name bound is measured on the NFC-normalised value. U+0344 is
+# composition-excluded: NFC expands it to U+0308 U+0301, so 100 of them become 200 characters.
+EXPANDING_CHAR = "\u0344"
+
+
+def test_plastic_name_that_exceeds_100_chars_after_nfc_is_a_422_on_name(client: TestClient) -> None:
+    response = client.post(
+        "/api/pricing/plastics",
+        json={"name": EXPANDING_CHAR * 100, "price_per_kg_kop": 65000},
+    )
+
+    _assert_422_on(response, "name")
+    assert any(error["loc"][-1] == "name" for error in response.json()["errors"])
+    assert client.get("/api/pricing/plastics").json() == {"items": []}
+
+
+def test_item_name_that_exceeds_100_chars_after_nfc_is_a_422_on_name(
+    client: TestClient, seeded: str
+) -> None:
+    response = client.post(
+        "/api/catalog/items",
+        json={
+            "name": EXPANDING_CHAR * 100,
+            "plastics": [{"plastic_id": seeded, "usage_cg": 100}],
+            "print_time_s": 12600,
+        },
+    )
+
+    _assert_422_on(response, "name")
+    assert any(error["loc"][-1] == "name" for error in response.json()["errors"])
+
+
+def test_plastic_name_of_exactly_100_chars_after_nfc_is_accepted(client: TestClient) -> None:
+    response = client.post(
+        "/api/pricing/plastics",
+        json={"name": EXPANDING_CHAR * 50, "price_per_kg_kop": 65000},
+    )
+
+    assert response.status_code == 201, response.text
+    assert len(response.json()["name"]) == 100
+
+
+@pytest.mark.parametrize(
+    ("name", "msg"),
+    [
+        ("   ", "String should have at least 1 character"),
+        ("​", "String should have at least 1 character"),
+        (EXPANDING_CHAR * 100, "String should have at most 100 characters"),
+    ],
+)
+def test_name_bound_errors_keep_the_string_length_message(
+    client: TestClient, name: str, msg: str
+) -> None:
+    response = client.post("/api/pricing/plastics", json={"name": name, "price_per_kg_kop": 65000})
+
+    assert [error["msg"] for error in response.json()["errors"]] == [msg]

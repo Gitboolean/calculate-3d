@@ -165,6 +165,7 @@ paths:
                 detail: "Plastic is used by catalog items"
                 code: "pricing.plastic_in_use"
                 items: ["Органайзер", "Підставка"]
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "400": { $ref: "#/components/responses/HostNotAllowed" }
         "403": { $ref: "#/components/responses/CrossOriginForbidden" }
         "500": { $ref: "#/components/responses/InternalError" }
@@ -491,6 +492,7 @@ paths:
         "204":
           description: Виріб видалено, тіла немає
         "404": { $ref: "#/components/responses/ItemNotFound" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "400": { $ref: "#/components/responses/HostNotAllowed" }
         "403": { $ref: "#/components/responses/CrossOriginForbidden" }
         "500": { $ref: "#/components/responses/InternalError" }

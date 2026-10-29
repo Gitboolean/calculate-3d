@@ -7,20 +7,24 @@ types know every error shape (`.claude/rules/openapi.md` § Repo adaptation).
 from typing import Any
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from calculate3d.core.errors import PROBLEM_JSON
 
 
 class Problem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: str
     title: str
-    status: int
+    status: int = Field(ge=400, le=599)
     detail: str
-    code: str
+    code: str = Field(pattern=r"^[a-z_]+(\.[a-z_]+)?$")
 
 
 class ValidationIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     loc: list[str | int]
     msg: str
 

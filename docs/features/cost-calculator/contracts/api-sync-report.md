@@ -112,3 +112,7 @@
 ## Reconcile 2026-10-29 (S1-1, T22)
 
 AC-10 тепер примусово виконується на сервері: `createItem` і `updateItem` повертають `409 costing.settings_missing` (з `missing`), якщо бракує налаштувань цін, і нічого не записують. У `openapi.yaml` відповідь `409` цих операцій — `oneOf` `FieldProblem` (`catalog.name_taken`) і `SettingsMissingProblem` (компонент `ItemNameTakenOrSettingsMissing`). Нотатку про «API-обхід прийнято» в §B 5(c) звужено до читання (`listItems`/`getItem`).
+
+## Reconcile 2026-10-29 (S1-4, S1-5, T23)
+
+Контракт не змінювався по суті: живий OpenAPI підігнано під нього. Моделі відповідей і problem-моделей мають `additionalProperties: false`; `*_kop` у відповідях — `minimum`; id — `format: uuid`; списки `PlasticInUseProblem.items`, `SettingsMissingProblem.missing` (ще й `uniqueItems`) і `plastics` у відповідях — `minItems: 1`; `Problem.status` — 400..599, `Problem.code` — `pattern`; `Name` і `print_time_s` у відповідях несуть ті самі межі, що й у запитах. `pattern: \S` для `Name` та `format: uuid` для id — лише в схемі (без runtime-регулярок, щоб не змінити помилки). До `deletePlastic` і `deleteItem` додано `415` (`UnsupportedMediaType`) у контракті та в роутерах.

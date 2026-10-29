@@ -153,7 +153,7 @@ PRICING_OPERATIONS = {
     ("get", "/api/pricing/plastics"): ("listPlastics", set()),
     ("post", "/api/pricing/plastics"): ("createPlastic", {"409", "415", "422"}),
     ("put", "/api/pricing/plastics/{plastic_id}"): ("updatePlastic", {"404", "409", "415", "422"}),
-    ("delete", "/api/pricing/plastics/{plastic_id}"): ("deletePlastic", {"404", "409"}),
+    ("delete", "/api/pricing/plastics/{plastic_id}"): ("deletePlastic", {"404", "409", "415"}),
     ("get", "/api/pricing/settings"): ("getPriceSettings", set()),
     ("put", "/api/pricing/settings"): ("replacePriceSettings", {"415", "422"}),
 }

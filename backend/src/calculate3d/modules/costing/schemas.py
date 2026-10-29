@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import InitErrorDetails, PydanticCustomError, ValidationError
 
 from calculate3d.core.problems import Problem
+from calculate3d.core.schemas import Id
 
 # Whole hours and minutes (AC-07): 3 год 30 хв → 12600.
 PrintTime = Annotated[
@@ -14,7 +15,7 @@ PrintTime = Annotated[
 class PlasticUsage(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    plastic_id: str
+    plastic_id: Id
     usage_cg: int = Field(ge=1, description="Витрата в сотих грама; 120 г → 12000")
 
 
@@ -41,16 +42,22 @@ class QuoteInput(BaseModel):
 
 
 class CostBreakdown(BaseModel):
-    plastic_kop: int
-    electricity_kop: int
-    wear_kop: int
-    scrap_kop: int
+    model_config = ConfigDict(extra="forbid")
+
+    plastic_kop: int = Field(ge=0)
+    electricity_kop: int = Field(ge=0)
+    wear_kop: int = Field(ge=0)
+    scrap_kop: int = Field(ge=0)
 
 
 class Quote(BaseModel):
-    min_donation_kop: int
+    model_config = ConfigDict(extra="forbid")
+
+    min_donation_kop: int = Field(ge=0)
     breakdown: CostBreakdown
 
 
 class SettingsMissingProblem(Problem):
-    missing: list[Literal["plastics", "price_settings"]]
+    missing: list[Literal["plastics", "price_settings"]] = Field(
+        min_length=1, json_schema_extra={"uniqueItems": True}
+    )

@@ -177,24 +177,36 @@ export interface components {
     }
     /** Item */
     Item: {
-      /** Id */
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string
       /** Name */
       name: string
       /** Plastics */
       plastics: components['schemas']['PlasticUsage'][]
-      /** Print Time S */
+      /**
+       * Print Time S
+       * @description Час друку в секундах, кратний 60
+       */
       print_time_s: number
     }
     /** ItemDetail */
     ItemDetail: {
-      /** Id */
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string
       /** Name */
       name: string
       /** Plastics */
       plastics: components['schemas']['PlasticUsage'][]
-      /** Print Time S */
+      /**
+       * Print Time S
+       * @description Час друку в секундах, кратний 60
+       */
       print_time_s: number
       quote: components['schemas']['Quote']
     }
@@ -220,7 +232,10 @@ export interface components {
     }
     /** ItemSummary */
     ItemSummary: {
-      /** Id */
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string
       /** Name */
       name: string
@@ -232,7 +247,10 @@ export interface components {
     }
     /** Plastic */
     Plastic: {
-      /** Id */
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string
       /** Name */
       name: string
@@ -274,7 +292,10 @@ export interface components {
     }
     /** PlasticUsage */
     PlasticUsage: {
-      /** Plastic Id */
+      /**
+       * Plastic Id
+       * Format: uuid
+       */
       plastic_id: string
       /**
        * Usage Cg
@@ -714,6 +735,15 @@ export interface operations {
         }
         content: {
           'application/problem+json': components['schemas']['PlasticInUseProblem']
+        }
+      }
+      /** @description Змінний запит не у форматі application/json (ADR 0007) */
+      415: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
         }
       }
       /** @description Неочікувана помилка сервера */
@@ -1266,6 +1296,15 @@ export interface operations {
       }
       /** @description Виробу з таким id немає */
       404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Змінний запит не у форматі application/json (ADR 0007) */
+      415: {
         headers: {
           [name: string]: unknown
         }

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from calculate3d.core.problems import Problem
-from calculate3d.core.schemas import Name
+from calculate3d.core.schemas import Id, Name
 
 
 class PlasticInput(BaseModel):
@@ -12,12 +12,16 @@ class PlasticInput(BaseModel):
 
 
 class Plastic(BaseModel):
-    id: str
-    name: str
-    price_per_kg_kop: int
+    model_config = ConfigDict(extra="forbid")
+
+    id: Id
+    name: Name
+    price_per_kg_kop: int = Field(ge=1)
 
 
 class PlasticList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     items: list[Plastic]
 
 
@@ -43,4 +47,6 @@ class PriceSettings(PriceSettingsInput):
 
 
 class PlasticInUseProblem(Problem):
-    items: list[str] = Field(description="Назви виробів, що використовують пластик (AC-03)")
+    items: list[str] = Field(
+        min_length=1, description="Назви виробів, що використовують пластик (AC-03)"
+    )

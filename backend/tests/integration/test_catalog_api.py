@@ -229,7 +229,7 @@ CATALOG_OPERATIONS = {
     ("post", "/api/catalog/items"): ("createItem", {"409", "415", "422"}),
     ("get", "/api/catalog/items/{item_id}"): ("getItem", {"404", "409"}),
     ("put", "/api/catalog/items/{item_id}"): ("updateItem", {"404", "409", "415", "422"}),
-    ("delete", "/api/catalog/items/{item_id}"): ("deleteItem", {"404"}),
+    ("delete", "/api/catalog/items/{item_id}"): ("deleteItem", {"404", "415"}),
 }
 
 

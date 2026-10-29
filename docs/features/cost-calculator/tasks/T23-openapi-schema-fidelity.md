@@ -7,7 +7,7 @@ acs: ["AC-16b"]
 files_hint: ["backend/src/calculate3d", "backend/tests/integration/test_contract.py", "docs/features/cost-calculator/contracts", "web/src/shared/api/schema.d.ts"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T23 — Звести живий OpenAPI з контрактом на рівні схем і задекларувати 415 на DELETE

@@ -6,6 +6,7 @@ from calculate3d.core.errors import AppError
 from calculate3d.modules.costing import domain
 from calculate3d.modules.costing.schemas import CostBreakdown
 from calculate3d.modules.costing.schemas import PlasticUsage as PlasticUsage
+from calculate3d.modules.costing.schemas import PrintTime as PrintTime
 from calculate3d.modules.costing.schemas import Quote as Quote
 from calculate3d.modules.costing.schemas import QuoteInput as QuoteInput
 from calculate3d.modules.costing.schemas import SettingsMissingProblem as SettingsMissingProblem

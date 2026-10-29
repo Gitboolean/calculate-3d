@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from calculate3d.core.schemas import Name
-from calculate3d.modules.costing.service import PlasticUsage, Quote, QuoteInput
+from calculate3d.core.schemas import Id, Name
+from calculate3d.modules.costing.service import PlasticUsage, PrintTime, Quote, QuoteInput
 
 
 class ItemInput(QuoteInput):
@@ -11,10 +11,12 @@ class ItemInput(QuoteInput):
 
 
 class Item(BaseModel):
-    id: str
-    name: str
-    plastics: list[PlasticUsage]
-    print_time_s: int
+    model_config = ConfigDict(extra="forbid")
+
+    id: Id
+    name: Name
+    plastics: list[PlasticUsage] = Field(min_length=1)
+    print_time_s: PrintTime
 
 
 class ItemDetail(Item):
@@ -22,10 +24,16 @@ class ItemDetail(Item):
 
 
 class ItemSummary(BaseModel):
-    id: str
-    name: str
-    min_donation_kop: int = Field(description="Перераховано з поточних налаштувань цін (ADR 0003)")
+    model_config = ConfigDict(extra="forbid")
+
+    id: Id
+    name: Name
+    min_donation_kop: int = Field(
+        ge=0, description="Перераховано з поточних налаштувань цін (ADR 0003)"
+    )
 
 
 class ItemList(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     items: list[ItemSummary]

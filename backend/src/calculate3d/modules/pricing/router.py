@@ -60,7 +60,7 @@ def update_plastic(plastic_id: str, data: PlasticInput, conn: ConnectionDep) -> 
     "/plastics/{plastic_id}",
     status_code=204,
     operation_id="deletePlastic",
-    responses={404: NOT_FOUND, 409: IN_USE},
+    responses={404: NOT_FOUND, 409: IN_USE, 415: UNSUPPORTED_MEDIA_TYPE},
 )
 def delete_plastic(plastic_id: str, conn: ConnectionDep) -> None:
     # The only pricing → catalog edge, and only here in the router (ADR 0005).

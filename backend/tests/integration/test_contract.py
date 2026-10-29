@@ -108,3 +108,195 @@ def test_error_code_registry_matches_the_contract() -> None:
 
     assert len(contract_codes) == 13
     assert _app_error_codes() | CORE_CODES == contract_codes
+
+
+# ── schema-level fidelity (T23, review findings S1-4 / S1-5) ──
+# The contract is the target: only keywords the CONTRACT states are compared; the live spec may add
+# titles, descriptions, examples. Every divergence is collected so one run shows the whole gap.
+
+_SCALAR_KEYWORDS = (
+    "format",
+    "minLength",
+    "maxLength",
+    "pattern",
+    "multipleOf",
+    "minItems",
+    "maxItems",
+    "uniqueItems",
+    "enum",
+)
+
+
+def _resolve(spec: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
+    """Follow `$ref`s and merge `allOf`; `ref` siblings (3.1) override the target."""
+    if "$ref" in node:
+        target: Any = spec
+        for part in node["$ref"].removeprefix("#/").split("/"):
+            target = target[part]
+        node = {**_resolve(spec, target), **{k: v for k, v in node.items() if k != "$ref"}}
+    if "allOf" in node:
+        merged: dict[str, Any] = {k: v for k, v in node.items() if k != "allOf"}
+        for part in node["allOf"]:
+            sub = _resolve(spec, part)
+            merged["properties"] = {**merged.get("properties", {}), **sub.get("properties", {})}
+            merged["required"] = [*merged.get("required", []), *sub.get("required", [])]
+            for key, value in sub.items():
+                if key not in ("properties", "required"):
+                    merged.setdefault(key, value)
+        node = merged
+    return node
+
+
+def _normalise(spec: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
+    """Reduce 3.1 `type: [x, null]` and pydantic `anyOf` with null to one comparable form."""
+    node = _resolve(spec, node)
+    types: set[str] = set()
+    raw = node.get("type")
+    if isinstance(raw, list):
+        types.update(raw)
+    elif isinstance(raw, str):
+        types.add(raw)
+    out = {k: v for k, v in node.items() if k not in ("anyOf", "type")}
+    variants = node.get("anyOf")
+    if variants:
+        non_null = []
+        for variant in variants:
+            if variant.get("type") == "null":
+                types.add("null")
+            else:
+                non_null.append(_normalise(spec, variant))
+        if len(non_null) == 1:
+            inner = non_null[0]
+            types |= set(inner.get("_types", ()))
+            out = {**{k: v for k, v in inner.items() if k != "_types"}, **out}
+        else:
+            for variant in non_null:
+                types |= set(variant.get("_types", ()))
+    out["_types"] = sorted(types)
+    return out
+
+
+def _int_bounds(node: dict[str, Any]) -> tuple[int | None, int | None]:
+    """Effective inclusive integer bounds: `exclusiveMinimum: 0` == `minimum: 1`."""
+    low, high = node.get("minimum"), node.get("maximum")
+    if "exclusiveMinimum" in node:
+        low = max(filter(None.__ne__, [low, node["exclusiveMinimum"] + 1]))
+    if "exclusiveMaximum" in node:
+        high = min(filter(None.__ne__, [high, node["exclusiveMaximum"] - 1]))
+    return low, high
+
+
+def _diff(
+    path: str,
+    c_spec: dict[str, Any],
+    l_spec: dict[str, Any],
+    c_raw: dict[str, Any],
+    l_raw: dict[str, Any],
+) -> list[str]:
+    contract, live = _normalise(c_spec, c_raw), _normalise(l_spec, l_raw)
+    found: list[str] = []
+
+    def compare(what: str, expected: Any, actual: Any) -> None:
+        if expected != actual:
+            found.append(f"{path}{what}: contract {expected!r} vs live {actual!r}")
+
+    if contract["_types"]:
+        compare(" type", contract["_types"], live["_types"])
+    if "integer" in contract["_types"]:
+        c_bounds, l_bounds = _int_bounds(contract), _int_bounds(live)
+        if c_bounds[0] is not None:
+            compare(" minimum", c_bounds[0], l_bounds[0])
+        if c_bounds[1] is not None:
+            compare(" maximum", c_bounds[1], l_bounds[1])
+    for keyword in _SCALAR_KEYWORDS:
+        if keyword in contract:
+            compare(f" {keyword}", contract[keyword], live.get(keyword))
+    if contract.get("additionalProperties") is False:
+        compare(" additionalProperties", False, live.get("additionalProperties"))
+    if "required" in contract or "properties" in contract:
+        compare(
+            " required",
+            sorted(set(contract.get("required", []))),
+            sorted(set(live.get("required", []))),
+        )
+    for name, c_prop in contract.get("properties", {}).items():
+        if name not in live.get("properties", {}):
+            found.append(f"{path}.{name}: contract defines it vs live missing")
+            continue
+        found += _diff(f"{path}.{name}", c_spec, l_spec, c_prop, live["properties"][name])
+    if isinstance(contract.get("items"), dict):
+        if isinstance(live.get("items"), dict):
+            found += _diff(f"{path}[]", c_spec, l_spec, contract["items"], live["items"])
+        else:
+            found.append(f"{path}[]: contract has items vs live none")
+    return found
+
+
+def _shared_schema_names(live: dict[str, Any]) -> list[str]:
+    return sorted(set(CONTRACT["components"]["schemas"]) & set(live["components"]["schemas"]))
+
+
+@pytest.mark.parametrize("name", sorted(CONTRACT["components"]["schemas"]))
+def test_live_schema_matches_the_contract_schema(app_openapi: dict[str, Any], name: str) -> None:
+    if name not in app_openapi["components"]["schemas"]:
+        pytest.skip(f"{name} is not a named schema in the live spec")
+
+    divergences = _diff(
+        name,
+        CONTRACT,
+        app_openapi,
+        {"$ref": f"#/components/schemas/{name}"},
+        {"$ref": f"#/components/schemas/{name}"},
+    )
+
+    assert not divergences, "\n" + "\n".join(divergences)
+
+
+def test_most_contract_schemas_are_compared_not_skipped(app_openapi: dict[str, Any]) -> None:
+    shared = _shared_schema_names(app_openapi)
+
+    for name in ("Plastic", "PlasticInput", "PriceSettings", "Quote", "Item", "ItemSummary"):
+        assert name in shared, f"{name} must exist in both specs so it is actually compared"
+
+
+def _path_id_params(spec: dict[str, Any], operation: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    params = [_resolve(spec, p) for p in operation.get("parameters", [])]
+    return {
+        p["name"]: _normalise(spec, p["schema"])
+        for p in params
+        if p["in"] == "path" and (p["name"] == "id" or p["name"].endswith("_id"))
+    }
+
+
+@pytest.mark.parametrize(("path", "method"), _contract_operations())
+def test_id_path_parameters_keep_the_contract_uuid_format(
+    app_openapi: dict[str, Any], path: str, method: str
+) -> None:
+    contract_params = _path_id_params(CONTRACT, CONTRACT["paths"][path][method])
+    live_params = _path_id_params(app_openapi, app_openapi["paths"][path][method])
+
+    divergences = [
+        f"{path} {method} path param {name}: contract format {c.get('format')!r} "
+        f"vs live {live_params.get(name, {}).get('format')!r}"
+        for name, c in contract_params.items()
+        if c.get("format") and live_params.get(name, {}).get("format") != c["format"]
+    ]
+    assert not divergences, "\n" + "\n".join(divergences)
+
+
+@pytest.mark.parametrize("operation_id", ["deletePlastic", "deleteItem"])
+def test_delete_operations_declare_415_problem_json(
+    app_openapi: dict[str, Any], operation_id: str
+) -> None:
+    for label, spec in (("contract", CONTRACT), ("live", app_openapi)):
+        operation = next(
+            op
+            for item in spec["paths"].values()
+            for method, op in item.items()
+            if method in METHODS and op["operationId"] == operation_id
+        )
+        response = operation["responses"].get("415")
+
+        assert response is not None, f"{label}: {operation_id} declares no 415"
+        content = _resolve(spec, response)["content"]
+        assert "application/problem+json" in content, f"{label}: {operation_id} 415 content"

@@ -82,7 +82,7 @@ def update_item(item_id: str, data: ItemInput, conn: ConnectionDep) -> Item:
     "/items/{item_id}",
     status_code=204,
     operation_id="deleteItem",
-    responses={404: NOT_FOUND},
+    responses={404: NOT_FOUND, 415: UNSUPPORTED_MEDIA_TYPE},
 )
 def delete_item(item_id: str, conn: ConnectionDep) -> None:
     service.delete_item(conn, item_id)

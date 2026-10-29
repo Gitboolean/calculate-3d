@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-12", "AC-13"]
 files_hint: ["web/src/entities/quote", "web/src/entities/item", "web/src/entities/plastic", "web/src/entities/price-settings", "web/src/pages/catalog"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T27 — Не показувати донат за старими цінами з кешу і не блимати списком під час пошуку

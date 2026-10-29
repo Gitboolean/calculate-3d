@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, unwrap, type Schemas } from '@/shared/api'
 
@@ -20,6 +20,7 @@ export function useItems(query: string) {
     queryKey: itemKeys.list(q),
     queryFn: async () =>
       (await unwrap(api.GET('/api/catalog/items', { params: { query: q ? { q } : {} } }))).items,
+    placeholderData: keepPreviousData,
     staleTime: 0,
     refetchOnMount: 'always',
   })

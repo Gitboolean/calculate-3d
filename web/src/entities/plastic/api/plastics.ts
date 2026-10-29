@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, unwrap, type Schemas } from '@/shared/api'
+import { evictPricedQueries } from '@/shared/lib'
 
 export type Plastic = Schemas['Plastic']
 export type PlasticInput = Schemas['PlasticInput']
@@ -16,7 +17,10 @@ export function usePlastics() {
 
 function useInvalidatePlastics() {
   const client = useQueryClient()
-  return () => client.invalidateQueries({ queryKey: plasticsKey })
+  return () => {
+    evictPricedQueries(client)
+    return client.invalidateQueries({ queryKey: plasticsKey })
+  }
 }
 
 export function useCreatePlastic() {

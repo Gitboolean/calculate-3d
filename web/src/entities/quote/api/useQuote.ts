@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 
 import { api, unwrap, type Schemas } from '@/shared/api'
+import { useDebouncedValue } from '@/shared/lib'
 
 export type QuoteInput = Schemas['QuoteInput']
 export type Quote = Schemas['Quote']
@@ -16,12 +16,7 @@ export const QUOTE_DEBOUNCE_MS = 200
  */
 export function useQuote(input: QuoteInput | null, delayMs = QUOTE_DEBOUNCE_MS) {
   const key = input ? JSON.stringify(input) : null
-  const [settledKey, setSettledKey] = useState(key)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSettledKey(key), delayMs)
-    return () => clearTimeout(timer)
-  }, [key, delayMs])
+  const settledKey = useDebouncedValue(key, delayMs)
 
   const query = useQuery({
     queryKey: ['quote', settledKey],

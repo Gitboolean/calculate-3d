@@ -88,3 +88,54 @@ test('missing price settings are explained (409 costing.settings_missing)', asyn
     ),
   ).toBeInTheDocument()
 })
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((r) => {
+    resolve = r
+  })
+  return { promise, resolve }
+}
+
+test('the table stays on screen while a filtered list is loading (no loading flash)', async () => {
+  const user = userEvent.setup()
+  const pending = deferred<Response>()
+  const api = mockApi({
+    'GET /api/catalog/items': (call) =>
+      new URLSearchParams(call.search).has('q') ? pending.promise : json({ items: ITEMS }),
+  })
+  renderAt('/catalog')
+  await screen.findByRole('table')
+
+  await user.type(screen.getByLabelText('Пошук за назвою'), 'б')
+
+  await vi.waitFor(() =>
+    expect(api.callsTo('GET', '/api/catalog/items').some((c) => c.search.includes('q='))).toBe(
+      true,
+    ),
+  )
+  expect(screen.getByRole('table')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Benchy тризуб' })).toBeInTheDocument()
+  expect(screen.queryByText('Завантажую каталог…')).not.toBeInTheDocument()
+  pending.resolve(json({ items: [ITEMS[0]] }))
+})
+
+test('typing "pe" quickly asks the server once, for the final query only (debounce)', async () => {
+  const user = userEvent.setup()
+  const api = mockApi({
+    'GET /api/catalog/items': (call) =>
+      json({ items: new URLSearchParams(call.search).has('q') ? [ITEMS[0]] : ITEMS }),
+  })
+  renderAt('/catalog')
+  await screen.findByRole('table')
+
+  await user.type(screen.getByLabelText('Пошук за назвою'), 'pe')
+  await vi.waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2))
+  await new Promise((r) => setTimeout(r, 600))
+
+  const qs = api
+    .callsTo('GET', '/api/catalog/items')
+    .map((c) => new URLSearchParams(c.search).get('q'))
+    .filter((q) => q !== null)
+  expect(qs).toEqual(['pe'])
+})

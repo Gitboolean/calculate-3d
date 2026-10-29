@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useItems } from '@/entities/item'
 import { MissingSettings } from '@/features/quote-form'
 import { isProblem } from '@/shared/api'
-import { formatMoney } from '@/shared/lib'
+import { formatMoney, useDebouncedValue } from '@/shared/lib'
 import {
   FormField,
   Table,
@@ -14,10 +14,13 @@ import {
   TableRow,
 } from '@/shared/ui'
 
+const CATALOG_SEARCH_DEBOUNCE_MS = 200
+
 export function CatalogPage() {
   const [params, setParams] = useSearchParams()
   const query = params.get('q') ?? ''
-  const items = useItems(query)
+  const settledQuery = useDebouncedValue(query, CATALOG_SEARCH_DEBOUNCE_MS)
+  const items = useItems(settledQuery)
 
   return (
     <section className="space-y-4">
@@ -32,7 +35,9 @@ export function CatalogPage() {
           }
         />
       </div>
-      {items.isPending && <p className="text-sm">Завантажую каталог…</p>}
+      {items.data === undefined && items.isPending && (
+        <p className="text-sm">Завантажую каталог…</p>
+      )}
       {isProblem(items.error, 'costing.settings_missing') ? (
         <MissingSettings missing={items.error.problem.missing ?? []} />
       ) : (
@@ -40,8 +45,8 @@ export function CatalogPage() {
       )}
       {items.data?.length === 0 && (
         <p className="text-muted-foreground text-sm">
-          {query.trim()
-            ? `Нічого не знайдено за запитом «${query.trim()}».`
+          {settledQuery.trim()
+            ? `Нічого не знайдено за запитом «${settledQuery.trim()}».`
             : 'Каталог порожній. Збережіть розрахунок на сторінці «Розрахунок».'}
         </p>
       )}

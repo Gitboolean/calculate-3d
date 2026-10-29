@@ -3,6 +3,8 @@
 SQLite folds case and sorts only ASCII, so all of this lives in Python.
 """
 
+import unicodedata
+
 UKRAINIAN_ALPHABET = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя"
 _UK_RANK = {letter: rank for rank, letter in enumerate(UKRAINIAN_ALPHABET)}
 
@@ -11,7 +13,18 @@ _LATIN, _CYRILLIC, _OTHER = 0, 1, 2
 
 
 def normalize_name(raw: str) -> str:
-    return raw.strip()
+    """NFC, then trim whitespace and invisible format characters (Cf) at both ends only."""
+    text = unicodedata.normalize("NFC", raw)
+    start, end = 0, len(text)
+    while start < end and _is_trimmable(text[start]):
+        start += 1
+    while end > start and _is_trimmable(text[end - 1]):
+        end -= 1
+    return text[start:end]
+
+
+def _is_trimmable(char: str) -> bool:
+    return char.isspace() or unicodedata.category(char) == "Cf"
 
 
 def name_key(name: str) -> str:

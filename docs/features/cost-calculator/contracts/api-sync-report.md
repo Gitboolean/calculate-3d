@@ -116,3 +116,7 @@ AC-10 тепер примусово виконується на сервері: 
 ## Reconcile 2026-10-29 (S1-4, S1-5, T23)
 
 Контракт не змінювався по суті: живий OpenAPI підігнано під нього. Моделі відповідей і problem-моделей мають `additionalProperties: false`; `*_kop` у відповідях — `minimum`; id — `format: uuid`; списки `PlasticInUseProblem.items`, `SettingsMissingProblem.missing` (ще й `uniqueItems`) і `plastics` у відповідях — `minItems: 1`; `Problem.status` — 400..599, `Problem.code` — `pattern`; `Name` і `print_time_s` у відповідях несуть ті самі межі, що й у запитах. `pattern: \S` для `Name` та `format: uuid` для id — лише в схемі (без runtime-регулярок, щоб не змінити помилки). До `deletePlastic` і `deleteItem` додано `415` (`UnsupportedMediaType`) у контракті та в роутерах.
+
+## Reconcile 2026-10-29 (S2-1, S2-3, T24)
+
+Усі масштабовані цілі входи мають верхню межу (`maximum`), `PlasticUsageList` — `maxItems: 32`; формулювання «без верхньої межі» для `usage_cg` замінено на межу з причиною (JS safe integer / SQLite INTEGER): `price_per_kg_kop` 10^9, `tariff_per_kwh_kop` 10^6, `printer_power_w` 10^6, `printer_price_kop` 10^10, `printer_lifetime_h` 10^6, `parts_per_hour_kop` 10^8, `usage_cg` 10^8, `print_time_s` 3,6·10^8. Найгірший випадок дає `min_donation_kop` ≈ 2,3·10^15 < 2^53 − 1. Живий OpenAPI віддає цілі межі цілими (`1000`, а не `1000.0`). `Name` після NFC і обрізання пробілів та невидимих символів (Cf) по краях не може бути порожнім — 422 на полі `name`.

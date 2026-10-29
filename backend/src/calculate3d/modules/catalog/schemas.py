@@ -1,7 +1,13 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from calculate3d.core.schemas import Id, Name
-from calculate3d.modules.costing.service import PlasticUsage, PrintTime, Quote, QuoteInput
+from calculate3d.modules.costing.service import (
+    MAX_PLASTICS,
+    PlasticUsage,
+    PrintTime,
+    Quote,
+    QuoteInput,
+)
 
 
 class ItemInput(QuoteInput):
@@ -15,7 +21,7 @@ class Item(BaseModel):
 
     id: Id
     name: Name
-    plastics: list[PlasticUsage] = Field(min_length=1)
+    plastics: list[PlasticUsage] = Field(min_length=1, max_length=MAX_PLASTICS)
     print_time_s: PrintTime
 
 

@@ -75,7 +75,7 @@ erDiagram
 | `id` | TEXT | PK, app-generated (UUIDv7) | |
 | `name` | TEXT | NOT NULL | як ввів автор, після trim; 1–100 символів (Pydantic). AC-01, AC-02 |
 | `name_key` | TEXT | NOT NULL, UNIQUE (`uq_plastics_name_key`) | `core/text.name_key(name)` = `casefold()`; оновлюється разом із `name` (ADR 0006) |
-| `price_per_kg_kop` | INTEGER | NOT NULL | ціна за кг у копійках, > 0 (Pydantic); 650 ₴ → `65000`. AC-01, AC-02 |
+| `price_per_kg_kop` | INTEGER | NOT NULL | ціна за кг у копійках, 1 … 1 000 000 000 (Pydantic); 650 ₴ → `65000`. AC-01, AC-02 |
 | `created_at` | TEXT | NOT NULL DEFAULT (UTC ISO-8601) | |
 
 **Aggregate root:** root (модуль `pricing`).
@@ -87,11 +87,11 @@ erDiagram
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | TEXT | PK | **завжди** константа `00000000-0000-7000-8000-000000000001` у `pricing` (не seed) |
-| `tariff_per_kwh_kop` | INTEGER | NOT NULL | тариф, коп за кВт·год, ≥ 0; 4,32 ₴ → `432`. AC-04, AC-05 |
-| `printer_power_w` | INTEGER | NOT NULL | середня потужність, цілі Вт, ≥ 0; `150` |
-| `printer_price_kop` | INTEGER | NOT NULL | ціна принтера, коп, ≥ 0; 30 000 ₴ → `3000000` |
-| `printer_lifetime_h` | INTEGER | NOT NULL | термін служби, цілі години друку, > 0; `5000`. Новий суфікс `_h`: див. «Відхилення від конвенцій» |
-| `parts_per_hour_kop` | INTEGER | NOT NULL | деталі, коп за годину друку, ≥ 0; 1,00 ₴ → `100` |
+| `tariff_per_kwh_kop` | INTEGER | NOT NULL | тариф, коп за кВт·год, 0 … 1 000 000; 4,32 ₴ → `432`. AC-04, AC-05 |
+| `printer_power_w` | INTEGER | NOT NULL | середня потужність, цілі Вт, 0 … 1 000 000; `150` |
+| `printer_price_kop` | INTEGER | NOT NULL | ціна принтера, коп, 0 … 10 000 000 000; 30 000 ₴ → `3000000` |
+| `printer_lifetime_h` | INTEGER | NOT NULL | термін служби, цілі години друку, 1 … 1 000 000; `5000`. Новий суфікс `_h`: див. «Відхилення від конвенцій» |
+| `parts_per_hour_kop` | INTEGER | NOT NULL | деталі, коп за годину друку, 0 … 100 000 000; 1,00 ₴ → `100` |
 | `scrap_rate_permille` | INTEGER | NOT NULL | брак у десятих відсотка, 0–1000; 10 % → `100` (ADR 0004) |
 | `created_at` | TEXT | NOT NULL DEFAULT (UTC ISO-8601) | момент **першого** збереження; upsert його не перезаписує |
 
@@ -107,7 +107,7 @@ erDiagram
 | `id` | TEXT | PK, app-generated (UUIDv7) | `/catalog/:itemId` (ADR 0001 фічі) |
 | `name` | TEXT | NOT NULL | після trim, 1–100 символів. AC-10, AC-11, AC-14b |
 | `name_key` | TEXT | NOT NULL, UNIQUE (`uq_items_name_key`) | casefold (ADR 0006) |
-| `print_time_s` | INTEGER | NOT NULL | час друку в секундах, > 0. UI вводить цілі год + хв, тож значення кратне 60 (AC-07); 3 год 30 хв → `12600` |
+| `print_time_s` | INTEGER | NOT NULL | час друку в секундах, 60 … 360 000 000 (100 000 год). UI вводить цілі год + хв, тож значення кратне 60 (AC-07); 3 год 30 хв → `12600` |
 | `created_at` | TEXT | NOT NULL DEFAULT (UTC ISO-8601) | |
 
 **Aggregate root:** root (модуль `catalog`), володіє `item_plastics`.
@@ -120,7 +120,7 @@ erDiagram
 |---|---|---|---|
 | `item_id` | TEXT | NOT NULL, PK (1), FK → `items(id)` ON DELETE CASCADE | AC-15: виріб зникає разом із рядками |
 | `plastic_id` | TEXT | NOT NULL, PK (2), FK → `plastics(id)` ON DELETE RESTRICT | AC-03: страховка під перевіркою `pricing.service` |
-| `usage_cg` | INTEGER | NOT NULL | витрата в сотих грама, > 0; 120 г → `12000`; 12,34 г → `1234` (ADR 0004) |
+| `usage_cg` | INTEGER | NOT NULL | витрата в сотих грама, 1 … 100 000 000 (до 32 пластиків на виріб); 120 г → `12000`; 12,34 г → `1234` (ADR 0004) |
 | `created_at` | TEXT | NOT NULL DEFAULT (UTC ISO-8601) | при збереженні виробу рядки перезаписуються, тож це момент останнього збереження |
 
 **Aggregate root:** `items`. Рядки пишуться лише разом із виробом: `DELETE … WHERE item_id = ?`, потім `INSERT` усіх рядків в одній транзакції (SAD §6 «Зберегти виріб», AC-14b, AC-14c).
@@ -166,3 +166,7 @@ PII guard: назви — товарні («PETG чорний», «Брелок-
 
 - **`printer_lifetime_h`**: новий суфікс одиниці `_h` (цілі години). AC-05 забороняє дробовий термін служби, тож найменша допустима одиниця — година (принцип ADR 0004). Запис у секундах (`_s`) дав би 18 000 000 і хибне враження, що можна вводити точніше. Додати `_h` до списку суфіксів у `CLAUDE.md` разом із боргом про `_cg` і `_permille` (SAD §11).
 - **`scrap_rate_permille`**, **`usage_cg`**: суфікси з ADR 0004.
+
+## Верхні межі числових входів (T24, S2-1)
+
+Верхні межі лише в Pydantic (БД «тупа»). Вони далеко за межами реального друку (AC-07), але найгірший випадок (усе на максимумі, `printer_lifetime_h = 1`, 32 пластики) дає `min_donation_kop` ≈ 2,3·10^15 < 2^53 − 1, тож сума безпечна для JS і кожне збережене значення вміщується в SQLite INTEGER (int64).

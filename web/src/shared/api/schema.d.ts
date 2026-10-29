@@ -188,7 +188,7 @@ export interface components {
       plastics: components['schemas']['PlasticUsage'][]
       /**
        * Print Time S
-       * @description Час друку в секундах, кратний 60
+       * @description Час друку в секундах, кратний 60, до 360 000 000 (100 000 год)
        */
       print_time_s: number
     }
@@ -205,7 +205,7 @@ export interface components {
       plastics: components['schemas']['PlasticUsage'][]
       /**
        * Print Time S
-       * @description Час друку в секундах, кратний 60
+       * @description Час друку в секундах, кратний 60, до 360 000 000 (100 000 год)
        */
       print_time_s: number
       quote: components['schemas']['Quote']
@@ -219,7 +219,7 @@ export interface components {
       plastics: components['schemas']['PlasticUsage'][]
       /**
        * Print Time S
-       * @description Час друку в секундах, кратний 60
+       * @description Час друку в секундах, кратний 60, до 360 000 000 (100 000 год)
        */
       print_time_s: number
       /** Name */
@@ -281,7 +281,7 @@ export interface components {
       name: string
       /**
        * Price Per Kg Kop
-       * @description Ціна за кілограм у копійках; 650 ₴ → 65000
+       * @description Ціна за кілограм у копійках; 650 ₴ → 65000; до 1 000 000 000
        */
       price_per_kg_kop: number
     }
@@ -299,7 +299,7 @@ export interface components {
       plastic_id: string
       /**
        * Usage Cg
-       * @description Витрата в сотих грама; 120 г → 12000
+       * @description Витрата в сотих грама; 120 г → 12000; до 100 000 000
        */
       usage_cg: number
     }
@@ -399,7 +399,7 @@ export interface components {
       plastics: components['schemas']['PlasticUsage'][]
       /**
        * Print Time S
-       * @description Час друку в секундах, кратний 60
+       * @description Час друку в секундах, кратний 60, до 360 000 000 (100 000 год)
        */
       print_time_s: number
     }

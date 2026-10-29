@@ -59,3 +59,18 @@ def test_sort_key_puts_other_scripts_after_cyrillic() -> None:
         "яблуко",
         "42 деталі",
     ]
+
+
+def test_normalize_name_applies_nfc() -> None:
+    assert normalize_name("é") == "é"
+    assert normalize_name("й") == "й"
+
+
+def test_name_key_matches_composed_and_decomposed_forms() -> None:
+    assert name_key("Café") == name_key("Café")
+    assert name_key("Йод") == name_key("Йод")
+
+
+def test_normalize_name_drops_format_characters() -> None:
+    assert normalize_name("​PETG‍") == "PETG"
+    assert normalize_name("​‍") == ""

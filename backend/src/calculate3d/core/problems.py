@@ -71,11 +71,27 @@ def use_problem_json_in_openapi(app: FastAPI) -> None:
                 for operation in path.values():
                     _rewrite_error_responses(operation.get("responses", {}))
             components = schema.get("components", {}).get("schemas", {})
+            _integral_bounds_as_int(components)
             for name in ("HTTPValidationError", "ValidationError"):
                 components.pop(name, None)
         return app.openapi_schema or generate()
 
     app.openapi = openapi  # type: ignore[method-assign]
+
+
+def _integral_bounds_as_int(node: Any) -> None:
+    """Pydantic renders `le=1000` as `maximum: 1000.0`; an integer field's bounds are integers."""
+    if isinstance(node, dict):
+        if node.get("type") == "integer":
+            for key in ("minimum", "maximum", "multipleOf"):
+                value = node.get(key)
+                if isinstance(value, float) and value.is_integer():
+                    node[key] = int(value)
+        for child in node.values():
+            _integral_bounds_as_int(child)
+    elif isinstance(node, list):
+        for child in node:
+            _integral_bounds_as_int(child)
 
 
 def _rewrite_error_responses(responses: dict[str, Any]) -> None:

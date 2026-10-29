@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-05", "AC-07", "AC-11"]
 files_hint: ["backend/src/calculate3d/core", "backend/src/calculate3d/modules", "backend/tests", "web/src/shared/api/schema.d.ts"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T24 — Обмежити масштабовані цілі зверху і нормалізувати імена (NFC, невидимі символи)

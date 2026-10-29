@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from calculate3d.core.errors import AppError
 from calculate3d.modules.costing import domain
+from calculate3d.modules.costing.schemas import MAX_PLASTICS as MAX_PLASTICS
 from calculate3d.modules.costing.schemas import CostBreakdown
 from calculate3d.modules.costing.schemas import PlasticUsage as PlasticUsage
 from calculate3d.modules.costing.schemas import PrintTime as PrintTime

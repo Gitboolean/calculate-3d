@@ -10,6 +10,8 @@ type FieldSpec = {
   scale: number
   min: number
   max?: number
+  /** Shown instead of `rule` when the value is over `max`. */
+  maxRule?: string
   /** Bounds + precision, shown whenever the value breaks them (AC-05). */
   rule: string
 }
@@ -20,6 +22,8 @@ export const FIELDS: readonly FieldSpec[] = [
     label: 'Тариф, ₴ за кВт·год',
     scale: 2,
     min: 0,
+    max: 1000000,
+    maxRule: 'Тариф — не більше 10 000 ₴ за кВт·год',
     rule: 'Тариф — число від 0 з точністю до копійки',
   },
   {
@@ -27,6 +31,8 @@ export const FIELDS: readonly FieldSpec[] = [
     label: 'Потужність принтера, Вт',
     scale: 0,
     min: 0,
+    max: 1000000,
+    maxRule: 'Потужність — не більше 1 000 000 Вт',
     rule: 'Потужність — ціле число ват від 0',
   },
   {
@@ -34,6 +40,8 @@ export const FIELDS: readonly FieldSpec[] = [
     label: 'Ціна принтера, ₴',
     scale: 2,
     min: 0,
+    max: 10000000000,
+    maxRule: 'Ціна принтера — не більше 100 000 000 ₴',
     rule: 'Ціна принтера — число від 0 з точністю до копійки',
   },
   {
@@ -41,6 +49,8 @@ export const FIELDS: readonly FieldSpec[] = [
     label: 'Термін служби, годин друку',
     scale: 0,
     min: 1,
+    max: 1000000,
+    maxRule: 'Термін служби — не більше 1 000 000 год',
     rule: 'Термін служби — ціле число годин, більше за 0',
   },
   {
@@ -48,6 +58,8 @@ export const FIELDS: readonly FieldSpec[] = [
     label: 'Деталі, ₴ за годину друку',
     scale: 2,
     min: 0,
+    max: 100000000,
+    maxRule: 'Деталі — не більше 1 000 000 ₴ за годину',
     rule: 'Деталі — число від 0 з точністю до копійки',
   },
   {
@@ -81,6 +93,8 @@ export function validate(
       parsed.value >= field.min &&
       (field.max === undefined || parsed.value <= field.max)
     if (parsed.ok && inRange) input[field.name] = parsed.value
+    else if (parsed.ok && field.maxRule && field.max !== undefined && parsed.value > field.max)
+      errors[field.name] = field.maxRule
     else errors[field.name] = field.rule
   }
   if (Object.keys(errors).length > 0) return { ok: false, errors }

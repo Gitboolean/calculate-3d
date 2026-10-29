@@ -9,7 +9,9 @@ export function QuoteError({ error }: { error: unknown }) {
   }
   const message = isProblem(error, 'costing.plastic_not_found')
     ? 'Один із пластиків уже видалено з налаштувань — оберіть інший'
-    : 'Не вдалося порахувати. Спробуйте ще раз.'
+    : isProblem(error, 'validation_error')
+      ? 'Перевірте поля: значення виходять за допустимі межі'
+      : 'Не вдалося порахувати. Спробуйте ще раз.'
   return (
     <p role="alert" className="text-destructive text-sm">
       {message}

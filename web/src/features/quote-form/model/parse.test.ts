@@ -59,11 +59,40 @@ test.each([
   expect(errors[field]).toBe(message)
 })
 
-test('there is no upper bound for grams or hours', () => {
-  expect(parseQuoteForm(form([['petg', '100000']], '500', '0')).input).toEqual({
-    plastics: [{ plastic_id: 'petg', usage_cg: 10000000 }],
-    print_time_s: 1800000,
+// Digit groups may be separated by a space, NBSP or narrow NBSP.
+const SEP = '[\\s\u00a0\u202f]?'
+const num = (...groups: string[]) => new RegExp(groups.join(SEP))
+
+test('usage and time exactly at the caps are accepted (AC-07)', () => {
+  expect(parseQuoteForm(form([['petg', '1000000']], '100000', '0')).input).toEqual({
+    plastics: [{ plastic_id: 'petg', usage_cg: 100000000 }],
+    print_time_s: 360000000,
   })
+})
+
+test('usage over 1 000 000 g is rejected on its row with a message naming the maximum (AC-07)', () => {
+  const { input, errors } = parseQuoteForm(form([['petg', '1000000,01']]))
+
+  expect(input).toBeNull()
+  expect(errors['rows.0.grams']).toMatch(num('1', '000', '000'))
+})
+
+test('print time over 100 000 h is rejected with a message naming the maximum (AC-07)', () => {
+  const { input, errors } = parseQuoteForm(form([['petg', '1']], '100000', '1'))
+
+  expect(input).toBeNull()
+  expect(Object.values(errors).join(' ')).toMatch(num('100', '000'))
+  expect(Object.values(errors).join(' ')).toMatch(/год/)
+})
+
+test('32 plastic rows are accepted, 33 are rejected with a message naming 32 (AC-07)', () => {
+  const rows = (n: number): [string, string][] =>
+    Array.from({ length: n }, (_, i) => [`p${i}`, '1'] as [string, string])
+
+  expect(parseQuoteForm(form(rows(32))).input?.plastics).toHaveLength(32)
+  const { input, errors } = parseQuoteForm(form(rows(33)))
+  expect(input).toBeNull()
+  expect(Object.values(errors).join(' ')).toMatch(/32/)
 })
 
 test('a saved input fills the form and parses back to itself', () => {

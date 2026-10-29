@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-05", "AC-07", "AC-14c"]
 files_hint: ["docs/features/cost-calculator/PRD.md", "web/src/features/quote-form", "web/src/features/edit-plastic/model/validate.ts", "web/src/features/edit-price-settings/model/fields.ts"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T34 — Записати верхні межі в PRD і пояснювати їх біля поля в UI

@@ -27,6 +27,10 @@ export function quoteFormFrom(input: QuoteInput): QuoteFormValue {
   }
 }
 
+const MAX_USAGE_CG = 100_000_000
+const MAX_PRINT_TIME_S = 360_000_000
+const MAX_ROWS = 32
+
 const GRAMS_ERRORS = {
   empty: 'Вкажіть витрату пластику',
   not_a_number: 'Витрата має бути числом',
@@ -50,6 +54,8 @@ export function parseQuoteForm(value: QuoteFormValue): {
   const seen = new Set<string>()
 
   if (value.rows.length === 0) errors.plastics = 'Додайте хоча б один пластик'
+  else if (value.rows.length > MAX_ROWS)
+    errors.plastics = `Не більше ${MAX_ROWS} пластиків в одному розрахунку`
   value.rows.forEach((row, i) => {
     if (!row.plasticId) errors[`rows.${i}.plastic`] = 'Оберіть пластик'
     else if (seen.has(row.plasticId))
@@ -60,6 +66,8 @@ export function parseQuoteForm(value: QuoteFormValue): {
     const grams = parseDecimal(row.grams, 2)
     if (!grams.ok) errors[`rows.${i}.grams`] = GRAMS_ERRORS[grams.reason]
     else if (grams.value <= 0) errors[`rows.${i}.grams`] = 'Витрата має бути більшою за нуль'
+    else if (grams.value > MAX_USAGE_CG)
+      errors[`rows.${i}.grams`] = 'Витрата — не більше 1 000 000 г'
     else plastics.push({ plastic_id: row.plasticId, usage_cg: grams.value })
   })
 
@@ -70,6 +78,7 @@ export function parseQuoteForm(value: QuoteFormValue): {
   const printTimeS = ((hours ?? 0) * 60 + (minutes ?? 0)) * 60
   if (hours !== null && minutes !== null && printTimeS === 0)
     errors.time = 'Час друку має бути більшим за нуль'
+  else if (printTimeS > MAX_PRINT_TIME_S) errors.time = 'Час друку — не більше 100 000 год'
 
   if (Object.keys(errors).length > 0) return { input: null, errors }
   return { input: { plastics, print_time_s: printTimeS }, errors }

@@ -5,6 +5,8 @@ import { parseDecimal } from '@/shared/lib'
 export type PlasticErrors = Partial<Record<'name' | 'price' | 'form', string>>
 
 const MAX_NAME = 100
+const MAX_PRICE_KOP = 1_000_000_000
+const PRICE_RANGE = 'більшою за нуль і не більшою за 10 000 000 ₴'
 
 export function validatePlastic(
   name: string,
@@ -24,6 +26,8 @@ export function validatePlastic(
     }[parsed.reason]
   } else if (parsed.value <= 0) {
     errors.price = 'Ціна має бути більшою за нуль'
+  } else if (parsed.value > MAX_PRICE_KOP) {
+    errors.price = `Ціна — не більше 10 000 000 ₴ за кг`
   }
 
   if (errors.name || errors.price || !parsed.ok) return { ok: false, errors }
@@ -37,7 +41,7 @@ export function serverErrors(error: unknown): PlasticErrors {
     const fields = new Set((error.problem.errors ?? []).map(issueField))
     return {
       name: fields.has('name') ? 'Назва обов’язкова' : undefined,
-      price: fields.has('price_per_kg_kop') ? 'Ціна має бути більшою за нуль' : undefined,
+      price: fields.has('price_per_kg_kop') ? `Ціна має бути ${PRICE_RANGE}` : undefined,
     }
   }
   return { form: 'Не вдалося зберегти пластик. Спробуйте ще раз.' }

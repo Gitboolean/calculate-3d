@@ -7,7 +7,7 @@ acs: ["AC-02"]
 files_hint: ["backend/tests/integration/test_pricing_api.py", "web/src/pages/settings/ui/PlasticsSection.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T26 — Покрити шлях редагування пластику з AC-02 integration- і UI-тестами

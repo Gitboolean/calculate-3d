@@ -159,6 +159,50 @@ test('a plastic price can be changed', async () => {
   })
 })
 
+test.each([
+  ['0', 'Ціна має бути більшою за нуль'],
+  ['abc', 'Ціна має бути числом'],
+])(
+  'editing a plastic with price %j is explained next to the field and not sent',
+  async (value, message) => {
+    const user = userEvent.setup()
+    const api = serve([PLA])
+    renderWithProviders(<PlasticsSection />)
+    const row = await findRow('PLA білий')
+
+    await user.click(within(row).getByRole('button', { name: 'Змінити' }))
+    const form = screen.getByRole('form', { name: 'Змінити пластик «PLA білий»' })
+    const price = within(form).getByLabelText('Ціна за кг, ₴')
+    await user.clear(price)
+    await user.type(price, value)
+    await user.click(within(form).getByRole('button', { name: 'Зберегти' }))
+
+    expect(await within(form).findByText(message)).toBeInTheDocument()
+    expect(price).toHaveAttribute('aria-invalid', 'true')
+    expect(api.callsTo('PUT', '/api/pricing/plastics/pla')).toHaveLength(0)
+  },
+)
+
+test('a taken name on edit is reported next to the name field', async () => {
+  const user = userEvent.setup()
+  mockApi({
+    'GET /api/pricing/plastics': json({ items: [PLA] }),
+    'PUT /api/pricing/plastics/pla': problem(409, 'pricing.name_taken', { field: 'name' }),
+  })
+  renderWithProviders(<PlasticsSection />)
+  const row = await findRow('PLA білий')
+
+  await user.click(within(row).getByRole('button', { name: 'Змінити' }))
+  const form = screen.getByRole('form', { name: 'Змінити пластик «PLA білий»' })
+  const name = within(form).getByLabelText('Назва')
+  await user.clear(name)
+  await user.type(name, 'petg')
+  await user.click(within(form).getByRole('button', { name: 'Зберегти' }))
+
+  expect(await within(form).findByText('Пластик з такою назвою вже є')).toBeInTheDocument()
+  expect(name).toHaveAttribute('aria-invalid', 'true')
+})
+
 test('names are rendered as plain text', async () => {
   serve([{ ...PLA, name: '<b>PLA</b>' }])
   renderWithProviders(<PlasticsSection />)

@@ -171,3 +171,44 @@ def test_openapi_declares_pricing_operations_with_problem_json_errors(
     assert errors == own_errors | {"400", "403", "500"}
     for status in errors:
         assert list(operation["responses"][status]["content"]) == ["application/problem+json"]
+
+
+def _two_plastics(client: TestClient) -> tuple[dict[str, Any], dict[str, Any]]:
+    petg = client.post("/api/pricing/plastics", json={"name": "PETG", "price_per_kg_kop": 65000})
+    pla = client.post("/api/pricing/plastics", json={"name": "PLA", "price_per_kg_kop": 40000})
+    return petg.json(), pla.json()
+
+
+def _listed(client: TestClient) -> dict[str, dict[str, Any]]:
+    return {p["id"]: p for p in client.get("/api/pricing/plastics").json()["items"]}
+
+
+def test_renaming_a_plastic_to_a_taken_name_is_a_409_and_keeps_the_old_values(
+    client: TestClient,
+) -> None:
+    petg, pla = _two_plastics(client)
+
+    response = client.put(
+        f"/api/pricing/plastics/{pla['id']}", json={"name": "petg", "price_per_kg_kop": 99900}
+    )
+
+    assert _problem(response, 409, "pricing.name_taken")["field"] == "name"
+    listed = _listed(client)
+    assert listed[pla["id"]] == pla
+    assert listed[petg["id"]] == petg
+
+
+def test_changing_a_plastic_price_to_zero_is_a_422_on_the_price_and_keeps_the_old_values(
+    client: TestClient,
+) -> None:
+    petg, pla = _two_plastics(client)
+
+    response = client.put(
+        f"/api/pricing/plastics/{pla['id']}", json={"name": "PLA", "price_per_kg_kop": 0}
+    )
+
+    errors = _problem(response, 422, "validation_error")["errors"]
+    assert any("price_per_kg_kop" in e["loc"] for e in errors), errors
+    listed = _listed(client)
+    assert listed[pla["id"]] == pla
+    assert listed[petg["id"]] == petg

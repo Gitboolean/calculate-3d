@@ -30,7 +30,7 @@
 | [T22](./T22-server-side-ac10.md) | Перевіряти на сервері, що виріб має ціну, перед збереженням (AC-10) | app | Anton Pohorielov | S | T21 | done |
 | [T23](./T23-openapi-schema-fidelity.md) | Звести живий OpenAPI з контрактом на рівні схем і задекларувати 415 на DELETE | ports | Anton Pohorielov | S | T22 | done |
 | [T24](./T24-input-bounds-and-names.md) | Обмежити масштабовані цілі зверху і нормалізувати імена (NFC, невидимі символи) | app | Anton Pohorielov | S | T23 | done |
-| [T25](./T25-tx-serialization-fk.md) | Серіалізувати перевірку і запис у транзакції та перекладати FK IntegrityError у доменні помилки | infra | Anton Pohorielov | S | T22 | todo |
+| [T25](./T25-tx-serialization-fk.md) | Серіалізувати перевірку і запис у транзакції та перекладати FK IntegrityError у доменні помилки | infra | Anton Pohorielov | S | T22 | done |
 | [T26](./T26-ac02-edit-tests.md) | Покрити шлях редагування пластику з AC-02 integration- і UI-тестами | tests | Anton Pohorielov | S | T24 | todo |
 | [T27](./T27-web-cache-freshness.md) | Не показувати донат за старими цінами з кешу і не блимати списком під час пошуку | ui | Anton Pohorielov | S | — | todo |
 | [T28](./T28-web-problem-types-and-quote-errors.md) | Типізувати problem-розширення зі згенерованих схем і показувати помилки quote на обох екранах | ui | Anton Pohorielov | S | T23, T27 | todo |

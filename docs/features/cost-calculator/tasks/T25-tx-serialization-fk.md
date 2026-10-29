@@ -7,7 +7,7 @@ acs: ["AC-03", "AC-14b"]
 files_hint: ["backend/src/calculate3d/core/db.py", "backend/src/calculate3d/modules/pricing", "backend/src/calculate3d/modules/catalog", "backend/tests"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T25 — Серіалізувати перевірку і запис у транзакції та перекладати FK IntegrityError у доменні помилки

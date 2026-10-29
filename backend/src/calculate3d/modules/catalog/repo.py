@@ -17,6 +17,10 @@ class NameKeyTaken(Exception):
     """The UNIQUE name_key index rejected a write (the service pre-checks; this is the backstop)."""
 
 
+class PlasticMissing(Exception):
+    """The FK on item_plastics.plastic_id rejected a usage row (the service pre-checks)."""
+
+
 @dataclass(frozen=True, order=True)
 class UsageRecord:
     plastic_id: str
@@ -58,10 +62,16 @@ def update_item(conn: Connection, record: ItemRecord, name_key: str) -> None:
 def replace_usage(conn: Connection, item_id: str, rows: Sequence[UsageRecord]) -> None:
     """Rewrite all usage rows of an item; the caller's transaction makes it atomic."""
     conn.execute(delete(item_plastics).where(item_plastics.c.item_id == item_id))
-    conn.execute(
-        insert(item_plastics),
-        [{"item_id": item_id, "plastic_id": r.plastic_id, "usage_cg": r.usage_cg} for r in rows],
-    )
+    try:
+        conn.execute(
+            insert(item_plastics),
+            [
+                {"item_id": item_id, "plastic_id": r.plastic_id, "usage_cg": r.usage_cg}
+                for r in rows
+            ],
+        )
+    except IntegrityError as exc:
+        raise PlasticMissing from exc
 
 
 def get_item(conn: Connection, item_id: str) -> ItemRecord | None:

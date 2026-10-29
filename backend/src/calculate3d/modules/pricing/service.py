@@ -89,7 +89,11 @@ def delete_plastic(
         raise PlasticNotFound
     if names := item_names_using(plastic_id):
         raise PlasticInUse(sorted(names, key=sort_key))
-    repo.delete_plastic(conn, plastic_id)
+    try:
+        repo.delete_plastic(conn, plastic_id)
+    except repo.PlasticStillReferenced as exc:
+        # The pre-check missed a usage; the statement was rolled back, the transaction is usable.
+        raise PlasticInUse(sorted(item_names_using(plastic_id), key=sort_key)) from exc
 
 
 def _with_wear(values: dict[str, int]) -> PriceSettings:

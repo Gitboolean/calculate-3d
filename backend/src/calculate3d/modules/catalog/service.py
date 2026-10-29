@@ -69,7 +69,18 @@ def _save(conn: repo.DbConnection, item_id: str, data: ItemInput, *, is_new: boo
         write(conn, record, key)
     except repo.NameKeyTaken as exc:
         raise ItemNameTaken from exc
-    repo.replace_usage(conn, item_id, usage_rows)
+    try:
+        repo.replace_usage(conn, item_id, usage_rows)
+    except repo.PlasticMissing as exc:
+        # A plastic vanished after the pre-check; point at the first one that is gone now.
+        now_known = {
+            p.id
+            for p in pricing_service.list_plastics_by_ids(
+                conn, {u.plastic_id for u in data.plastics}
+            )
+        }
+        index = next((i for i, u in enumerate(data.plastics) if u.plastic_id not in now_known), 0)
+        raise PlasticNotFound(index) from exc
     return _to_item(record)
 
 

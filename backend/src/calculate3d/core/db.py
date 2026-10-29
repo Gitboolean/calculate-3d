@@ -21,16 +21,26 @@ def created_at_column() -> Column[str]:
 
 
 def _set_sqlite_pragmas(dbapi_conn: Any, _record: Any) -> None:
+    # Autocommit at the driver level: pysqlite's implicit BEGIN would defer the write lock.
+    # SQLAlchemy emits the explicit BEGIN IMMEDIATE below instead.
+    dbapi_conn.isolation_level = None
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.close()
 
 
+def _begin_immediate(conn: Connection) -> None:
+    # Take the write lock up front so a pre-check read and its write are one serialized unit.
+    # Straight on the driver: not a query, so it stays out of cursor-execute statement counts.
+    conn.connection.driver_connection.execute("BEGIN IMMEDIATE")  # type: ignore[union-attr]
+
+
 def create_db_engine(url: str) -> Engine:
     engine = create_engine(url)
     if engine.dialect.name == "sqlite":
         event.listen(engine, "connect", _set_sqlite_pragmas)
+        event.listen(engine, "begin", _begin_immediate)
     return engine
 
 

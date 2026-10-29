@@ -29,6 +29,10 @@ class NameKeyTaken(Exception):
     """The UNIQUE name_key index rejected a write (the service pre-checks; this is the backstop)."""
 
 
+class PlasticStillReferenced(Exception):
+    """The FK RESTRICT from item_plastics rejected the delete (the service pre-checks usage)."""
+
+
 @dataclass(frozen=True)
 class PlasticRecord:
     id: str
@@ -87,7 +91,10 @@ def update_plastic(conn: Connection, record: PlasticRecord, name_key: str) -> No
 
 
 def delete_plastic(conn: Connection, plastic_id: str) -> None:
-    conn.execute(delete(plastics).where(plastics.c.id == plastic_id))
+    try:
+        conn.execute(delete(plastics).where(plastics.c.id == plastic_id))
+    except IntegrityError as exc:
+        raise PlasticStillReferenced from exc
 
 
 def get_settings(conn: Connection) -> dict[str, int] | None:

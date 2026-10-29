@@ -56,7 +56,9 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
   `core.db.metadata`), no ORM sessions. DB is dumb storage: no CHECK, no TRIGGER, no business
   defaults — validation lives in Pydantic/service. Audit column `created_at` (UTC ISO-8601 `TEXT`)
   only; hard delete. Pragmas `foreign_keys=ON` + WAL are set on every connection by
-  `create_db_engine()`. DB file: `CALC3D_DATABASE_URL` (default `backend/var/calculate3d.db`, gitignored).
+  `create_db_engine()`, and every transaction opens with `BEGIN IMMEDIATE` (driver autocommit +
+  a `begin` listener) so a service's pre-check read and its write are serialized; repos translate
+  a FK/UNIQUE `IntegrityError` into a repo exception the service maps to a domain error. DB file: `CALC3D_DATABASE_URL` (default `backend/var/calculate3d.db`, gitignored).
 - **Migrations:** Alembic in `backend/migrations/`, timestamped file names
   (`YYYYMMDD_HHMM_<slug>.py`), **SQL-first** — `op.execute("""<SQL>""")` in `upgrade()`/`downgrade()`,
   no autogenerate. Staged `docs/features/<slug>/migrations/<NN>_*.up.sql`/`.down.sql` are copied

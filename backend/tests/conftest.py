@@ -7,7 +7,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine
 
 from calculate3d.core.config import BACKEND_DIR, Settings
 from calculate3d.core.db import create_db_engine
@@ -32,8 +32,12 @@ def migrated_db_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
     command.upgrade(alembic_config(url), "head")
     # WAL may still hold pages: fold them into the main file so a plain copy is complete.
     eng = create_db_engine(url)
-    with eng.connect() as conn:
-        conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+    # Raw connection: pooled ones open BEGIN IMMEDIATE, which blocks a checkpoint.
+    raw = eng.raw_connection()
+    try:
+        raw.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    finally:
+        raw.close()
     eng.dispose()
     return db_path
 

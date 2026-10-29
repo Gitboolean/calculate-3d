@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-14b"]
 files_hint: ["web/src/features/quote-form", "web/src/pages/item/ui/ItemPage.test.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T29 — Зв'язати помилки годин/хвилин через aria-describedby і посилити тести AC-14b та моки quote

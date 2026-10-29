@@ -93,6 +93,10 @@ test('an edit saves new parameters and shows the new donation (AC-14b)', async (
   await user.click(screen.getByRole('button', { name: 'Зберегти зміни' }))
 
   expect(await screen.findByRole('heading', { level: 1, name: 'Підставка XL' })).toBeInTheDocument()
+  // the donation shown after saving is the refetched one, not the pre-save preview
+  expect(
+    within(screen.getByRole('status', { name: 'Мінімальний донат' })).getByText('77,77 ₴'),
+  ).toBeInTheDocument()
   expect(await screen.findByText('PLA білий — 80,00 г')).toBeInTheDocument()
   expect(api.callsTo('PUT', '/api/catalog/items/i1')[0]?.body).toEqual({
     name: 'Підставка XL',

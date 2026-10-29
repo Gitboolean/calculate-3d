@@ -115,6 +115,11 @@ export function QuoteForm({ value, onChange, plastics, errors, showAllErrors }: 
                 inputMode="numeric"
                 value={value[field]}
                 aria-invalid={shown(field) || timeError ? true : undefined}
+                aria-describedby={
+                  [shown(field) && `${id}-${field}-error`, timeError && `${id}-time-error`]
+                    .filter(Boolean)
+                    .join(' ') || undefined
+                }
                 onChange={(e) => {
                   touch(field)
                   onChange({ ...value, [field]: e.target.value })

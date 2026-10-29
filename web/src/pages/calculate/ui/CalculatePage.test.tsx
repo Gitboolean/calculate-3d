@@ -38,9 +38,9 @@ function serve({ plastics = PLASTICS, settings = SETTINGS as typeof SETTINGS | n
     'POST /api/costing/quote': (call: ApiCall) => {
       const body = call.body as Body
       const key = `${JSON.stringify(body.plastics.map((p) => [p.plastic_id, p.usage_cg]))}|${body.print_time_s}`
-      return json(
-        QUOTES[key] ?? { min_donation_kop: 1, breakdown: QUOTES['[["petg",12000]]|12600'] },
-      )
+      const quote = QUOTES[key]
+      // A stray request (unexpected body) must fail loudly, not get a made-up quote.
+      return quote ? json(quote) : problem(500, 'internal_error')
     },
   })
 }
@@ -241,4 +241,36 @@ test.each([
 
   expect(await screen.findByText('Не вдалося порахувати. Спробуйте ще раз.')).toBeInTheDocument()
   expect(screen.queryByText(/Перевірте поля/)).not.toBeInTheDocument()
+})
+
+test.each([
+  ['hours', '2,5', '0', 'Години', 'Години — ціле невід’ємне число'],
+  ['minutes', '3', '60', 'Хвилини', 'Хвилини — ціле число від 0 до 59'],
+])(
+  'the %s error is announced on its input via aria-describedby (a11y)',
+  async (_field, hours, minutes, label, message) => {
+    serve()
+    renderWithProviders(<CalculatePage />)
+    await screen.findByRole('option', { name: 'PETG чорний' })
+
+    await fillRow(0, 'PETG чорний', '120')
+    await fillTime(hours, minutes)
+
+    await screen.findByText(message)
+    expect(screen.getByLabelText(label)).toHaveAccessibleDescription(message)
+  },
+)
+
+test('the combined time error describes both time inputs (a11y)', async () => {
+  serve()
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('0', '0')
+
+  const message = 'Час друку має бути більшим за нуль'
+  await screen.findByText(message)
+  expect(screen.getByLabelText('Години')).toHaveAccessibleDescription(message)
+  expect(screen.getByLabelText('Хвилини')).toHaveAccessibleDescription(message)
 })

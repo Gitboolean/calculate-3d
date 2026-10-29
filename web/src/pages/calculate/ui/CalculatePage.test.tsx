@@ -204,3 +204,41 @@ test('saving to the catalog becomes available once the donation is shown (AC-10)
   await screen.findByRole('status', { name: 'Мінімальний донат' })
   expect(save).toBeEnabled()
 })
+
+async function enterValidParams() {
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('1', '0')
+}
+
+test('a quote for a plastic deleted meanwhile says so, not "check the fields" (AC-07)', async () => {
+  mockApi({
+    'GET /api/pricing/plastics': json({ items: PLASTICS }),
+    'GET /api/pricing/settings': json(SETTINGS),
+    'POST /api/costing/quote': problem(422, 'costing.plastic_not_found', { field: 'plastics.0' }),
+  })
+  renderWithProviders(<CalculatePage />)
+  await enterValidParams()
+
+  expect(
+    await screen.findByText('Один із пластиків уже видалено з налаштувань — оберіть інший'),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/Перевірте поля/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
+})
+
+test.each([
+  ['a 500', () => problem(500, 'internal_error')],
+  ['a network error', () => Promise.reject(new TypeError('Failed to fetch'))],
+])('%s from the quote shows a neutral retry message (AC-07)', async (_name, reply) => {
+  mockApi({
+    'GET /api/pricing/plastics': json({ items: PLASTICS }),
+    'GET /api/pricing/settings': json(SETTINGS),
+    'POST /api/costing/quote': reply as () => Response,
+  })
+  renderWithProviders(<CalculatePage />)
+  await enterValidParams()
+
+  expect(await screen.findByText('Не вдалося порахувати. Спробуйте ще раз.')).toBeInTheDocument()
+  expect(screen.queryByText(/Перевірте поля/)).not.toBeInTheDocument()
+})

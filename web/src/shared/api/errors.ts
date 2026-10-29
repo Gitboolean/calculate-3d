@@ -3,12 +3,13 @@ import type { Schemas } from './client'
 export type ValidationIssue = Schemas['ValidationIssue']
 
 /** RFC 9457 body the API sends for every error, with the optional extension members. */
-export type Problem = Schemas['Problem'] & {
-  field?: string
-  items?: string[]
-  missing?: string[]
-  errors?: ValidationIssue[]
-}
+export type Problem = Schemas['Problem'] &
+  Partial<
+    Pick<Schemas['FieldProblem'], 'field'> &
+      Pick<Schemas['PlasticInUseProblem'], 'items'> &
+      Pick<Schemas['SettingsMissingProblem'], 'missing'> &
+      Pick<Schemas['ValidationProblem'], 'errors'>
+  >
 
 export class ApiError extends Error {
   readonly status: number

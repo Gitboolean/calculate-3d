@@ -35,9 +35,17 @@ export function ItemPage() {
     )
   }
   if (isProblem(item.error, 'costing.settings_missing')) {
-    return <MissingSettings missing={item.error.problem.missing ?? []} />
+    return (
+      <section className="space-y-4">
+        <h1 className="text-2xl font-semibold">Виріб</h1>
+        <MissingSettings missing={item.error.problem.missing ?? []} />
+      </section>
+    )
   }
   if (item.isError) return <p className="text-destructive text-sm">Не вдалося завантажити виріб.</p>
+  if (plastics.isError) {
+    return <p className="text-destructive text-sm">Не вдалося завантажити пластики.</p>
+  }
   if (!item.data || !plastics.data) return <p className="text-sm">Завантажую виріб…</p>
 
   const detail = item.data

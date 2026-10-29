@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-09", "AC-14"]
 files_hint: ["web/src/shared/api", "web/src/widgets/cost-breakdown", "web/src/features/quote-form", "web/src/pages/calculate", "web/src/pages/item"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T28 — Типізувати problem-розширення зі згенерованих схем і показувати помилки quote на обох екранах

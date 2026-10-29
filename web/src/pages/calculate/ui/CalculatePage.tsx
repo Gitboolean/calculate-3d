@@ -3,9 +3,14 @@ import { useState } from 'react'
 import { usePlastics } from '@/entities/plastic'
 import { usePriceSettings } from '@/entities/price-settings'
 import { useQuote } from '@/entities/quote'
-import { emptyQuoteForm, MissingSettings, parseQuoteForm, QuoteForm } from '@/features/quote-form'
+import {
+  emptyQuoteForm,
+  MissingSettings,
+  parseQuoteForm,
+  QuoteError,
+  QuoteForm,
+} from '@/features/quote-form'
 import { SaveItemForm } from '@/features/save-item'
-import { isProblem } from '@/shared/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
@@ -34,9 +39,9 @@ export function CalculatePage() {
     )
   }
 
-  const missing = [
-    ...(plastics.data.length === 0 ? ['plastics'] : []),
-    ...(settings.data === null ? ['price_settings'] : []),
+  const missing: ('plastics' | 'price_settings')[] = [
+    ...(plastics.data.length === 0 ? (['plastics'] as const) : []),
+    ...(settings.data === null ? (['price_settings'] as const) : []),
   ]
   if (missing.length > 0) {
     return (
@@ -47,9 +52,6 @@ export function CalculatePage() {
     )
   }
 
-  const serverMissing = isProblem(error, 'costing.settings_missing')
-    ? (error.problem.missing ?? [])
-    : null
   return (
     <section className="space-y-6">
       {heading}
@@ -67,10 +69,8 @@ export function CalculatePage() {
             <CardTitle>Собівартість</CardTitle>
           </CardHeader>
           <CardContent>
-            {serverMissing ? (
-              <MissingSettings missing={serverMissing} />
-            ) : error ? (
-              <p className="text-destructive text-sm">Не вдалося порахувати. Перевірте поля.</p>
+            {error ? (
+              <QuoteError error={error} />
             ) : quote || isCalculating ? (
               <CostBreakdown quote={quote} isCalculating={isCalculating} />
             ) : (

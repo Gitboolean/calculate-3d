@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { useUpdateItem, type ItemDetail } from '@/entities/item'
 import type { Plastic } from '@/entities/plastic'
 import { useQuote } from '@/entities/quote'
-import { parseQuoteForm, QuoteForm, quoteFormFrom } from '@/features/quote-form'
+import { parseQuoteForm, QuoteError, QuoteForm, quoteFormFrom } from '@/features/quote-form'
 import { saveError, validateItemName } from '@/features/save-item'
 import { Button, FormField } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
@@ -18,7 +18,7 @@ export function ItemEditor({ item, plastics, onDone }: ItemEditorProps) {
   const [errors, setErrors] = useState<{ name?: string; form?: string }>({})
   const update = useUpdateItem()
   const { input, errors: formErrors } = parseQuoteForm(value)
-  const { quote, isCalculating } = useQuote(input)
+  const { quote, error, isCalculating } = useQuote(input)
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -54,11 +54,15 @@ export function ItemEditor({ item, plastics, onDone }: ItemEditorProps) {
           errors={formErrors}
           showAllErrors={showAllErrors}
         />
-        <CostBreakdown quote={quote} isCalculating={isCalculating} />
+        {error ? (
+          <QuoteError error={error} />
+        ) : (
+          <CostBreakdown quote={quote} isCalculating={isCalculating} />
+        )}
       </div>
       {errors.form && <p className="text-destructive text-sm">{errors.form}</p>}
       <div className="flex gap-2">
-        <Button type="submit" disabled={update.isPending}>
+        <Button type="submit" disabled={update.isPending || !!error || (input !== null && !quote)}>
           Зберегти зміни
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>

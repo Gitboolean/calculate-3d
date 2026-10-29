@@ -159,3 +159,63 @@ test('cancelling the deletion keeps the item (AC-15)', async () => {
   expect(screen.getByRole('heading', { level: 1, name: 'Підставка' })).toBeInTheDocument()
   expect(api.callsTo('DELETE', '/api/catalog/items/i1')).toHaveLength(0)
 })
+
+function serveWithQuote(quote: () => Response) {
+  return mockApi({
+    'GET /api/pricing/plastics': json({ items: PLASTICS }),
+    'GET /api/pricing/settings': json({ wear_per_hour_kop: 700 }),
+    'GET /api/catalog/items/i1': () =>
+      json({ ...ITEM, quote: { min_donation_kop: 11525, breakdown: BREAKDOWN } }),
+    'POST /api/costing/quote': quote,
+  })
+}
+
+test.each([
+  [
+    '409 settings_missing',
+    () => problem(409, 'costing.settings_missing', { missing: ['price_settings'] }),
+    'Бракує налаштувань цін: тариф, потужність, знос і брак ще не збережено.',
+  ],
+  [
+    '422 plastic_not_found',
+    () => problem(422, 'costing.plastic_not_found', { field: 'plastics.0' }),
+    'Один із пластиків уже видалено з налаштувань — оберіть інший',
+  ],
+])('editing: a quote %s is shown and blocks saving (AC-07, AC-09)', async (_n, reply, message) => {
+  serveWithQuote(reply)
+  renderItem()
+  await startEditing()
+
+  expect(await screen.findByText(message)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Зберегти зміни' })).toBeDisabled()
+})
+
+test('failing to load plastics shows an error, not an endless loading text', async () => {
+  mockApi({
+    'GET /api/pricing/plastics': problem(500, 'internal_error'),
+    'GET /api/catalog/items/i1': () =>
+      json({ ...ITEM, quote: { min_donation_kop: 11525, breakdown: BREAKDOWN } }),
+  })
+  renderItem()
+
+  expect(await screen.findByText('Не вдалося завантажити пластики.')).toBeInTheDocument()
+  expect(screen.queryByText('Завантажую виріб…')).not.toBeInTheDocument()
+})
+
+test('missing settings on the item page render inside the page section with a heading (AC-09)', async () => {
+  mockApi({
+    'GET /api/pricing/plastics': json({ items: PLASTICS }),
+    'GET /api/catalog/items/i1': problem(409, 'costing.settings_missing', {
+      missing: ['plastics'],
+    }),
+  })
+  renderItem()
+
+  expect(
+    await screen.findByText('Бракує налаштувань цін: жодного пластику ще не додано.'),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+  expect(
+    screen.getByText('Бракує налаштувань цін: жодного пластику ще не додано.').closest('section'),
+  ).toContainElement(screen.getByRole('heading', { level: 1 }))
+})

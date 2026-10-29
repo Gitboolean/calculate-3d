@@ -5,6 +5,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from sqlalchemy import Column, Connection, Engine, MetaData, Text, create_engine, event, text
+from sqlalchemy.exc import DBAPIError
 
 # Shared MetaData for every module's `tables.py`.
 metadata = MetaData()
@@ -33,7 +34,15 @@ def _set_sqlite_pragmas(dbapi_conn: Any, _record: Any) -> None:
 def _begin_immediate(conn: Connection) -> None:
     # Take the write lock up front so a pre-check read and its write are one serialized unit.
     # Straight on the driver: not a query, so it stays out of cursor-execute statement counts.
-    conn.connection.driver_connection.execute("BEGIN IMMEDIATE")  # type: ignore[union-attr]
+    # `deferred_begin` (health ping) keeps a plain deferred transaction: readers never lock.
+    if conn.get_execution_options().get("deferred_begin"):
+        return
+    dbapi = conn.dialect.loaded_dbapi
+    try:
+        conn.connection.driver_connection.execute("BEGIN IMMEDIATE")  # type: ignore[union-attr]
+    except dbapi.Error as e:
+        # Raise SQLAlchemy's wrapper (OperationalError when locked), not the raw driver error.
+        raise DBAPIError.instance("BEGIN IMMEDIATE", None, e, dbapi.Error) from e
 
 
 def create_db_engine(url: str) -> Engine:

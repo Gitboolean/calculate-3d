@@ -37,7 +37,7 @@
 | [T29](./T29-a11y-and-test-tightening.md) | Зв'язати помилки годин/хвилин через aria-describedby і посилити тести AC-14b та моки quote | ui | Anton Pohorielov | S | T28 | done |
 | [T30](./T30-fraction-adr-amendment.md) | Задокументувати точні Fraction-проміжні обчислення в ADR 0004 і CLAUDE.md | docs | Anton Pohorielov | S | — | done |
 | [T31](./T31-path-param-uuid-format.md) | Типізувати id у path-параметрах як Id (format: uuid) і полагодити контрактний тест параметрів | ports | Anton Pohorielov | S | — | done |
-| [T32](./T32-tx-begin-wrapped-and-health.md) | Брати BEGIN IMMEDIATE через SQLAlchemy і не блокувати health-ping | infra | Anton Pohorielov | S | — | todo |
+| [T32](./T32-tx-begin-wrapped-and-health.md) | Брати BEGIN IMMEDIATE через SQLAlchemy і не блокувати health-ping | infra | Anton Pohorielov | S | — | done |
 | [T33](./T33-nfc-before-length.md) | Нормалізувати ім'я (NFC) до перевірки довжини, щоб довге після NFC ім'я давало 422 | app | Anton Pohorielov | S | — | todo |
 | [T34](./T34-caps-in-prd-and-ui.md) | Записати верхні межі в PRD і пояснювати їх біля поля в UI | ui | Anton Pohorielov | S | T33 | todo |
 | [T35](./T35-web-settings-evict-test-and-empty-state.md) | Покрити тестом скидання кешу цін після налаштувань і не показувати порожній стан поверх placeholder-даних | ui | Anton Pohorielov | S | — | todo |

@@ -630,6 +630,124 @@
         "backend/CLAUDE.md",
         "docs/features/cost-calculator/sad.md"
       ]
+    },
+    {
+      "id": "T31",
+      "title": "Типізувати id у path-параметрах як Id (format: uuid) і полагодити контрактний тест параметрів",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-16b"
+      ],
+      "dod": "item_id/plastic_id у catalog/router.py і pricing/router.py типізовані через core/schemas.py Id, живий OpenAPI емітить format: uuid; _path_id_params у test_contract.py зливає path-item- і operation-рівневі parameters і падає, якщо format прибрати; make api-types без ручних правок; make check зелений. Знахідка R2-1 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/router.py",
+        "backend/src/calculate3d/modules/pricing/router.py",
+        "backend/tests/integration/test_contract.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T32",
+      "title": "Брати BEGIN IMMEDIATE через SQLAlchemy і не блокувати health-ping",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-03",
+        "AC-14b"
+      ],
+      "dod": "Помилка BEGIN IMMEDIATE (зайнятий lock, read-only файл) приходить як SQLAlchemyError; health-ping не бере write-lock; integration-тест: друге з'єднання тримає BEGIN IMMEDIATE → GET /api/health повертає db: \"down\" (не 500); тести статистики запитів і test_tx_serialization лишаються зеленими; make api-check зелений. Знахідка R2-3 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core/db.py",
+        "backend/src/calculate3d/modules/health/repo.py",
+        "backend/tests/integration"
+      ]
+    },
+    {
+      "id": "T33",
+      "title": "Нормалізувати ім'я (NFC) до перевірки довжини, щоб довге після NFC ім'я давало 422",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "Name у core/schemas.py міряє 1..100 після normalize_name; POST /api/pricing/plastics і POST /api/catalog/items з \"\\u0344\"*100 повертають 422 validation_error з loc на name (не 500); unit-тест у test_text.py або test_input_bounds.py; make api-check зелений. Знахідка R2-4 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core/schemas.py",
+        "backend/src/calculate3d/core/text.py",
+        "backend/tests/integration/test_input_bounds.py"
+      ]
+    },
+    {
+      "id": "T34",
+      "title": "Записати верхні межі в PRD і пояснювати їх біля поля в UI",
+      "layer": "ui",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-14c"
+      ],
+      "dod": "PRD AC-02/AC-05/AC-07 називають верхні межі з data-model.md §«Верхні межі» (замість «верхньої межі немає»); parseQuoteForm, validate.ts пластику і fields.ts налаштувань відхиляють значення понад межу з повідомленням, що називає максимум; QuoteError на validation_error показує «Перевірте поля», а не «Спробуйте ще раз»; Vitest-тести на кожне поле з межею; make web-check зелений. Знахідка R2-2 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/PRD.md",
+        "web/src/features/quote-form",
+        "web/src/features/edit-plastic/model/validate.ts",
+        "web/src/features/edit-price-settings/model/fields.ts"
+      ]
+    },
+    {
+      "id": "T35",
+      "title": "Покрити тестом скидання кешу цін після налаштувань і не показувати порожній стан поверх placeholder-даних",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "AppRoutes.cache.test.tsx має кейс: зміна тарифу в PriceSettingsSection → у каталозі не видно старого донату до свіжої відповіді (падає без evictPricedQueries у useReplacePriceSettings); CatalogPage не показує «Каталог порожній»/«Нічого не знайдено», поки items.isPlaceholderData; тест: порожній результат ?q=xyz → очищення пошуку до некешованого запиту; make web-check зелений. Знахідки R2-8, R2-9 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "web/src/app/layout/AppRoutes.cache.test.tsx",
+        "web/src/pages/catalog/ui/CatalogPage.tsx",
+        "web/src/pages/catalog/ui/CatalogPage.test.tsx"
+      ]
+    },
+    {
+      "id": "T36",
+      "title": "Узгодити SAD з поправкою ADR 0004, повернути ## Links і оновити приклад msg у контракті",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-08b"
+      ],
+      "dod": "sad.md (рядки ~110, 133, 171, 330, 522) описує точні Fraction-проміжні і округлення через Decimal; ADR 0004 знову має розділ ## Links після поправки; приклад msg дубля пластику в contracts/openapi.yaml = \"plastic is listed twice\" (як у живому API); make check зелений. Знахідки R2-5, R2-6, R2-7 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/sad.md",
+        "docs/features/cost-calculator/adr/0004-exchange-quantities-as-scaled-integers.md",
+        "docs/features/cost-calculator/contracts/openapi.yaml"
+      ]
+    },
+    {
+      "id": "T37",
+      "title": "Дописати асерти test-plan: quote не створює виріб, порожня назва при редагуванні не зберігається",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-14c"
+      ],
+      "dod": "test_costing_api.py після успішного quote перевіряє GET /api/catalog/items == {\"items\": []}; test_rejected_edit_leaves_the_item_unchanged має кейс blank-name (422, GET незмінний); make api-check зелений. Знахідка R2-10 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/tests/integration/test_costing_api.py",
+        "backend/tests/integration/test_catalog_api.py"
+      ]
     }
   ]
 }

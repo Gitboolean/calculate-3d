@@ -18,9 +18,15 @@ from calculate3d.modules.costing.service import SettingsMissingProblem
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"], responses=GUARD_RESPONSES)
 
-NAME_TAKEN = problem_response(FieldProblem, "Назва вже є в каталозі (AC-11, AC-14c)")
 NOT_FOUND = problem_response(Problem, "Виробу з таким id немає")
 SETTINGS_MISSING = problem_response(SettingsMissingProblem, "Бракує налаштувань цін (AC-09)")
+NAME_TAKEN_OR_SETTINGS_MISSING = {
+    "model": FieldProblem | SettingsMissingProblem,
+    "description": (
+        "Назва вже є в каталозі (AC-11, AC-14c) або бракує налаштувань цін — "
+        "виріб без мінімального донату не зберегти (AC-10)"
+    ),
+}
 ITEM_INVALID = {
     "model": ValidationProblem | FieldProblem,
     "description": "Хибні параметри виробу (AC-07, AC-14c) або пластика з таким id немає",
@@ -43,7 +49,7 @@ def list_items(
     "/items",
     status_code=201,
     operation_id="createItem",
-    responses={409: NAME_TAKEN, 415: UNSUPPORTED_MEDIA_TYPE, 422: ITEM_INVALID},
+    responses={409: NAME_TAKEN_OR_SETTINGS_MISSING, 415: UNSUPPORTED_MEDIA_TYPE, 422: ITEM_INVALID},
 )
 def create_item(data: ItemInput, conn: ConnectionDep) -> Item:
     return service.create_item(conn, data)
@@ -63,7 +69,7 @@ def get_item(item_id: str, conn: ConnectionDep) -> ItemDetail:
     operation_id="updateItem",
     responses={
         404: NOT_FOUND,
-        409: NAME_TAKEN,
+        409: NAME_TAKEN_OR_SETTINGS_MISSING,
         415: UNSUPPORTED_MEDIA_TYPE,
         422: ITEM_INVALID,
     },

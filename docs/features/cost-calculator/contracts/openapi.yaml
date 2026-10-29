@@ -394,7 +394,7 @@ paths:
                   - plastic_id: "01900000-0000-7000-8000-00000000a001"
                     usage_cg: 12000
                 print_time_s: 12600
-        "409": { $ref: "#/components/responses/ItemNameTaken" }
+        "409": { $ref: "#/components/responses/ItemNameTakenOrSettingsMissing" }
         "422": { $ref: "#/components/responses/ItemInvalid" }
         "400": { $ref: "#/components/responses/HostNotAllowed" }
         "403": { $ref: "#/components/responses/CrossOriginForbidden" }
@@ -473,7 +473,7 @@ paths:
                     usage_cg: 4000
                 print_time_s: 7200
         "404": { $ref: "#/components/responses/ItemNotFound" }
-        "409": { $ref: "#/components/responses/ItemNameTaken" }
+        "409": { $ref: "#/components/responses/ItemNameTakenOrSettingsMissing" }
         "422": { $ref: "#/components/responses/ItemInvalid" }
         "400": { $ref: "#/components/responses/HostNotAllowed" }
         "403": { $ref: "#/components/responses/CrossOriginForbidden" }
@@ -555,18 +555,31 @@ components:
             detail: "Plastic name is already taken"
             code: "pricing.name_taken"
             field: "name"
-    ItemNameTaken:
-      description: Назва вже є в каталозі без урахування регістру (AC-11, AC-14c)
+    ItemNameTakenOrSettingsMissing:
+      description: Назва вже є в каталозі без урахування регістру (AC-11, AC-14c) або бракує налаштувань цін, тож виріб без мінімального донату не зберегти (AC-10)
       content:
         application/problem+json:
-          schema: { $ref: "#/components/schemas/FieldProblem" }
-          example:
-            type: "about:blank"
-            title: "Conflict"
-            status: 409
-            detail: "Item name is already taken"
-            code: "catalog.name_taken"
-            field: "name"
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/FieldProblem"
+              - $ref: "#/components/schemas/SettingsMissingProblem"
+          examples:
+            name_taken:
+              value:
+                type: "about:blank"
+                title: "Conflict"
+                status: 409
+                detail: "Item name is already taken"
+                code: "catalog.name_taken"
+                field: "name"
+            settings_missing:
+              value:
+                type: "about:blank"
+                title: "Conflict"
+                status: 409
+                detail: "Price settings are not set"
+                code: "costing.settings_missing"
+                missing: ["price_settings"]
     PlasticNotFound:
       description: Пластика з таким id немає
       content:

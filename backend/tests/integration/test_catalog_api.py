@@ -2,9 +2,11 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, func, select
 
-from tests.factories import make_plastic, make_price_settings
+from calculate3d.modules.catalog.tables import item_plastics
+from calculate3d.modules.catalog.tables import items as items_table
+from tests.factories import make_item, make_plastic, make_price_settings
 
 
 @pytest.fixture
@@ -249,3 +251,52 @@ def test_duplicate_plastic_is_a_422_on_the_second_occurrence(
     payload = problem(response, 422, "validation_error")
     assert payload["errors"][0]["loc"] == ["body", "plastics", 1, "plastic_id"]
     assert client.get("/api/catalog/items").json() == {"items": []}
+
+
+def test_create_without_price_settings_is_a_409_and_saves_nothing(
+    client: TestClient, engine: Engine
+) -> None:
+    with engine.begin() as conn:
+        petg = make_plastic(conn)
+
+    response = client.post("/api/catalog/items", json=body("Брелок-тризуб", (petg, 12000)))
+
+    assert problem(response, 409, "costing.settings_missing")["missing"] == ["price_settings"]
+    with engine.connect() as conn:
+        assert conn.execute(select(func.count()).select_from(items_table)).scalar_one() == 0
+        assert conn.execute(select(func.count()).select_from(item_plastics)).scalar_one() == 0
+
+
+def test_update_without_price_settings_is_a_409_and_leaves_the_item_unchanged(
+    client: TestClient, engine: Engine
+) -> None:
+    with engine.begin() as conn:
+        petg = make_plastic(conn)
+        pla = make_plastic(conn, name="PLA білий", price_per_kg_kop=40000)
+        item_id = make_item(conn, name="Підставка", usage={petg: 12000})
+
+    response = client.put(
+        f"/api/catalog/items/{item_id}", json=body("Підставка XL", (pla, 50), print_time_s=60)
+    )
+
+    assert problem(response, 409, "costing.settings_missing")["missing"] == ["price_settings"]
+    with engine.connect() as conn:
+        row = conn.execute(select(items_table).where(items_table.c.id == item_id)).one()
+        usage = conn.execute(select(item_plastics.c.plastic_id, item_plastics.c.usage_cg)).all()
+    assert (row.name, row.print_time_s) == ("Підставка", 12600)
+    assert [tuple(u) for u in usage] == [(petg, 12000)]
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("post", "/api/catalog/items"), ("put", "/api/catalog/items/{item_id}")],
+)
+def test_openapi_declares_409_on_create_and_update(
+    client: TestClient, method: str, path: str
+) -> None:
+    operation = client.get("/openapi.json").json()["paths"][path][method]
+
+    assert "409" in operation["responses"]
+    schema = operation["responses"]["409"]["content"]["application/problem+json"]["schema"]
+    refs = {variant["$ref"].rsplit("/", 1)[-1] for variant in schema.get("anyOf", [schema])}
+    assert {"FieldProblem", "SettingsMissingProblem"} <= refs

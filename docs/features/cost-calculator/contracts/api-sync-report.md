@@ -90,7 +90,7 @@
 5. **OpenAPI ↔ sequence** *(supporting)* — ✓ (deferred: прогалини в послідовностях). Кожна `alt`-гілка §6 має відповідь: UI-гілки (порожнє поле, зайва точність, скасування видалення) запиту не шлють; «ціна поза межами» / «хоч одне поле поза межами» → `422`; «назва вже є» → `409 *.name_taken`; «список не порожній» → `409 pricing.plastic_in_use`; «налаштувань бракує» → `409 costing.settings_missing`; «пластику не існує» → `422 catalog.plastic_not_found`; «виробу немає» → `404 catalog.item_not_found`; cross-cutting → `400`/`403`/`415`. **Прогалини (контракту ці відповіді потрібні, але §6 їх не показує):**
    - (a) невідомий id під час зміни чи видалення: `404 pricing.plastic_not_found` (update/delete plastic), `404 catalog.item_not_found` (update/delete item);
    - (b) `422 costing.plastic_not_found` у `quoteCost`: пластик видалили в іншій вкладці;
-   - (c) `409 costing.settings_missing` у `listItems`/`getItem`: через UI недосяжне (виріб не зберегти без донату, а налаштування не можна очистити), але API-обхід можливий.
+   - (c) `409 costing.settings_missing` у `listItems`/`getItem`: через UI недосяжне (виріб не зберегти без донату, а налаштування не можна очистити), але API-обхід можливий для читання. Для запису (`createItem`/`updateItem`) обхід закрито: див. «Reconcile 2026-10-29».
 
    Розбіжність форми, прийнята як є: §6 «Зберегти виріб» називає порожню назву «помилкою домену», а контракт відповідає на неї `422 validation_error` (Pydantic, trim + `min_length=1`). Зайнята назва — доменна `409`.
 
@@ -108,3 +108,7 @@
 | Реєстр кодів помилок (пункт 2) | Модулів і підкласів `AppError` ще немає | `implement-tasks`: 13 кодів із контракту = рядки, які повертає бекенд; перевірити на `review-feature` |
 | Згенерований FastAPI OpenAPI ≠ цей файл | `make api-types` бере типи з робочого застосунку; FastAPI сам не оголошує `problem+json`-відповіді | `implement-tasks`: роутери оголошують `responses=` із цими схемами; дифф `/openapi.json` ↔ контракт — у DoD задач API |
 | `spectral lint` не підключено до `make check` | Spectral не встановлено; зараз перевірено лише `openapi-spec-validator` | Власник — автор: вирішити, чи додати `npx @stoplight/spectral-cli lint` до `web-check`/`api-check` |
+
+## Reconcile 2026-10-29 (S1-1, T22)
+
+AC-10 тепер примусово виконується на сервері: `createItem` і `updateItem` повертають `409 costing.settings_missing` (з `missing`), якщо бракує налаштувань цін, і нічого не записують. У `openapi.yaml` відповідь `409` цих операцій — `oneOf` `FieldProblem` (`catalog.name_taken`) і `SettingsMissingProblem` (компонент `ItemNameTakenOrSettingsMissing`). Нотатку про «API-обхід прийнято» в §B 5(c) звужено до читання (`listItems`/`getItem`).

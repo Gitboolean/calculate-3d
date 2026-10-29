@@ -56,6 +56,12 @@ def _save(conn: repo.DbConnection, item_id: str, data: ItemInput, *, is_new: boo
         if usage.plastic_id not in known:
             raise PlasticNotFound(index)
 
+    # AC-10: an item is saved only if its minimum donation can be computed right now.
+    costing_service.quote(
+        conn,
+        QuoteInput(plastics=list(data.plastics), print_time_s=data.print_time_s),
+    )
+
     usage_rows = tuple(repo.UsageRecord(u.plastic_id, u.usage_cg) for u in data.plastics)
     record = repo.ItemRecord(item_id, name, data.print_time_s, usage_rows)
     write = repo.insert_item if is_new else repo.update_item

@@ -7,7 +7,7 @@ acs: ["AC-10"]
 files_hint: ["backend/src/calculate3d/modules/catalog", "backend/tests", "docs/features/cost-calculator/contracts"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T22 — Перевіряти на сервері, що виріб має ціну, перед збереженням (AC-10)

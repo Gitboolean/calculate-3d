@@ -1030,13 +1030,14 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem']
         }
       }
-      /** @description Назва вже є в каталозі (AC-11, AC-14c) */
+      /** @description Назва вже є в каталозі (AC-11, AC-14c) або бракує налаштувань цін — виріб без мінімального донату не зберегти (AC-10) */
       409: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['FieldProblem']
+          'application/problem+json':
+            components['schemas']['FieldProblem'] | components['schemas']['SettingsMissingProblem']
         }
       }
       /** @description Змінний запит не у форматі application/json (ADR 0007) */
@@ -1187,13 +1188,14 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem']
         }
       }
-      /** @description Назва вже є в каталозі (AC-11, AC-14c) */
+      /** @description Назва вже є в каталозі (AC-11, AC-14c) або бракує налаштувань цін — виріб без мінімального донату не зберегти (AC-10) */
       409: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['FieldProblem']
+          'application/problem+json':
+            components['schemas']['FieldProblem'] | components['schemas']['SettingsMissingProblem']
         }
       }
       /** @description Змінний запит не у форматі application/json (ADR 0007) */

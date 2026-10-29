@@ -7,7 +7,7 @@ acs: ["AC-08", "AC-08b"]
 files_hint: ["docs/features/cost-calculator/adr", "CLAUDE.md", "backend/CLAUDE.md", "docs/features/cost-calculator/sad.md"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T30 — Задокументувати точні Fraction-проміжні обчислення в ADR 0004 і CLAUDE.md

@@ -35,6 +35,6 @@
 | [T27](./T27-web-cache-freshness.md) | Не показувати донат за старими цінами з кешу і не блимати списком під час пошуку | ui | Anton Pohorielov | S | — | done |
 | [T28](./T28-web-problem-types-and-quote-errors.md) | Типізувати problem-розширення зі згенерованих схем і показувати помилки quote на обох екранах | ui | Anton Pohorielov | S | T23, T27 | done |
 | [T29](./T29-a11y-and-test-tightening.md) | Зв'язати помилки годин/хвилин через aria-describedby і посилити тести AC-14b та моки quote | ui | Anton Pohorielov | S | T28 | todo |
-| [T30](./T30-fraction-adr-amendment.md) | Задокументувати точні Fraction-проміжні обчислення в ADR 0004 і CLAUDE.md | docs | Anton Pohorielov | S | — | todo |
+| [T30](./T30-fraction-adr-amendment.md) | Задокументувати точні Fraction-проміжні обчислення в ADR 0004 і CLAUDE.md | docs | Anton Pohorielov | S | — | done |
 
 **Total:** 30 tasks (20 + 10 review follow-ups), ~13.75 person-days (110 год).

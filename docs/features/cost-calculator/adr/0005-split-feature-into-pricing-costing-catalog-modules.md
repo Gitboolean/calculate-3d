@@ -36,7 +36,7 @@ ticket: ""
 **Chosen:** Option 1.
 
 - `modules/pricing/` — пластики (CRUD) і налаштування цін (одна форма, один рядок); префікс `/api/pricing`. Віддає поточні ціни через `service.py`.
-- `modules/costing/` — `domain.py` з чистою формулою на `Decimal` (без I/O), `service.py` бере поточні ціни з `pricing.service` і рахує розрахунок; префікс `/api/costing`; `repo.py`/`tables.py` немає, бо розрахунок не зберігається.
+- `modules/costing/` — `domain.py` з чистою формулою на точних `Fraction` з округленням через `Decimal` (без I/O; ADR 0004, Amendment 2026-10-29), `service.py` бере поточні ціни з `pricing.service` і рахує розрахунок; префікс `/api/costing`; `repo.py`/`tables.py` немає, бо розрахунок не зберігається.
 - `modules/catalog/` — вироби та їхня витрата пластиків; префікс `/api/catalog`; ціни — через `costing.service` (ADR 0003). Посилання рядка витрати на пластик — FK з `ON DELETE RESTRICT`.
 - **AC-03 без циклу залежностей:** `pricing.service.delete_plastic(conn, plastic_id, used_by)` приймає функцію `used_by(conn, plastic_id) -> list[str]`, а підставляє `catalog.service.item_names_using_plastic` **роутер** `pricing`. Сервіс `pricing` про каталог не знає. FK `RESTRICT` — друга лінія захисту інваріанту, якщо перевірку колись оминуть.
 

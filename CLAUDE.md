@@ -46,8 +46,9 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
   `{"type","title","status","detail","code"}`. Never raise `HTTPException` from a service.
 - **IDs:** UUIDv7 generated in the app (`core/ids.py::new_id()`), stored as 36-char `TEXT`. The DB
   never generates IDs (ADR 0003).
-- **Money (ADR 0003):** `INTEGER` kopecks with a `_kop` suffix (`price_per_kg_kop`); compute with
-  `decimal.Decimal`; round the final cost / minimum donation **up** with `ROUND_CEILING` to whole
+- **Money (ADR 0003):** `INTEGER` kopecks with a `_kop` suffix (`price_per_kg_kop`); compute exact intermediates
+  with `fractions.Fraction` and round through a `decimal.Decimal` context (cost-calculator ADR 0004
+  amendment); round the final cost / minimum donation **up** with `ROUND_CEILING` to whole
   kopecks. API exposes kopecks as ints. Never `float` for money.
 - **Physical units live in the column name:** grams `*_g`, centigrams `*_cg`, seconds `*_s`,
   whole hours `*_h`, watts `*_w`, tenths of a percent `*_permille`, rates `*_per_hour_kop`

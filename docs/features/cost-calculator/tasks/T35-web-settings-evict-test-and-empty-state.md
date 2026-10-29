@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-12", "AC-13"]
 files_hint: ["web/src/app/layout/AppRoutes.cache.test.tsx", "web/src/pages/catalog/ui/CatalogPage.tsx", "web/src/pages/catalog/ui/CatalogPage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T35 — Покрити тестом скидання кешу цін після налаштувань і не показувати порожній стан поверх placeholder-даних

@@ -139,3 +139,25 @@ test('typing "pe" quickly asks the server once, for the final query only (deboun
     .filter((q) => q !== null)
   expect(qs).toEqual(['pe'])
 })
+
+test('clearing a search that found nothing never flashes an empty-state while the list reloads', async () => {
+  const user = userEvent.setup()
+  const pending = deferred<Response>()
+  mockApi({
+    'GET /api/catalog/items': (call) => {
+      const q = new URLSearchParams(call.search).get('q')
+      if (q === 'xyz') return json({ items: [] })
+      return q ? json({ items: [] }) : pending.promise
+    },
+  })
+  renderAt('/catalog?q=xyz')
+  await screen.findByText('Нічого не знайдено за запитом «xyz».')
+
+  await user.clear(screen.getByLabelText('Пошук за назвою'))
+  await new Promise((r) => setTimeout(r, 400))
+
+  expect(screen.queryByText(/Каталог порожній/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Нічого не знайдено/)).not.toBeInTheDocument()
+  pending.resolve(json({ items: ITEMS }))
+  expect(await screen.findByRole('link', { name: 'Benchy тризуб' })).toBeInTheDocument()
+})

@@ -43,7 +43,8 @@ export function CatalogPage() {
       ) : (
         items.isError && <p className="text-destructive text-sm">Не вдалося завантажити каталог.</p>
       )}
-      {items.data?.length === 0 && (
+      {/* Placeholder rows belong to the previous search; its empty state would misdescribe this one. */}
+      {items.data?.length === 0 && !items.isPlaceholderData && (
         <p className="text-muted-foreground text-sm">
           {settledQuery.trim()
             ? `Нічого не знайдено за запитом «${settledQuery.trim()}».`

@@ -132,3 +132,38 @@ test('after a plastic price change the same inputs do not show the cached old qu
   fresh.resolve(json(QUOTE(13505)))
   expect(await screen.findByText('135,05 ₴')).toBeInTheDocument()
 })
+
+test('after a tariff change the catalog never shows the cached old donation (AC-13)', async () => {
+  const user = userEvent.setup()
+  let changed = false
+  const fresh = deferred<Response>()
+  const item = (kop: number) => ({ items: [{ id: 't1', name: 'Брелок', min_donation_kop: kop }] })
+  mockApi({
+    'GET /api/health': json({ status: 'ok', db: 'ok' }),
+    'GET /api/pricing/plastics': json({ items: [] }),
+    'GET /api/pricing/settings': () =>
+      json({ ...SETTINGS, tariff_per_kwh_kop: changed ? 600 : 432 }),
+    'PUT /api/pricing/settings': () => {
+      changed = true
+      return json({ ...SETTINGS, tariff_per_kwh_kop: 600 })
+    },
+    'GET /api/catalog/items': () => (changed ? fresh.promise : json(item(11525))),
+  })
+  renderApp('/catalog')
+  expect(await screen.findByText('115,25 ₴')).toBeInTheDocument()
+
+  await goTo(user, 'Налаштування цін')
+  const form = await screen.findByRole('form', { name: 'Налаштування цін' })
+  const tariff = await within(form).findByLabelText('Тариф, ₴ за кВт·год')
+  await vi.waitFor(() => expect(tariff).toHaveValue('4,32'))
+  await user.clear(tariff)
+  await user.type(tariff, '6')
+  await user.click(within(form).getByRole('button', { name: 'Зберегти налаштування' }))
+  await vi.waitFor(() => expect(changed).toBe(true))
+  await goTo(user, 'Каталог')
+
+  expect(screen.queryByText('115,25 ₴')).not.toBeInTheDocument()
+  fresh.resolve(json(item(13505)))
+  expect(await screen.findByText('135,05 ₴')).toBeInTheDocument()
+  expect(screen.queryByText('115,25 ₴')).not.toBeInTheDocument()
+})

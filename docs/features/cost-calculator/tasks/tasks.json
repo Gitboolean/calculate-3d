@@ -447,6 +447,189 @@
         "web/src/features/delete-item",
         "web/src/entities/item"
       ]
+    },
+    {
+      "id": "T21",
+      "title": "Відкрити DTO costing через service.py і повертати loc поля для дубля пластику",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-07",
+        "AC-14c"
+      ],
+      "dod": "catalog імпортує PlasticUsage/Quote/QuoteInput/SettingsMissingProblem лише з costing.service (re-export), а не з costing.schemas; 422 на дубль пластику має errors[0].loc == ['body','plastics',<i>,'plastic_id'] (openapi.yaml example duplicate_plastic) — integration-тест для /api/costing/quote і /api/catalog/items; make api-check зелений. Знахідки S1-6, S1-3 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/costing",
+        "backend/src/calculate3d/modules/catalog",
+        "backend/tests"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "Перевіряти на сервері, що виріб має ціну, перед збереженням (AC-10)",
+      "layer": "app",
+      "deps": [
+        "T21"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "catalog._save (create і update) до першого запису проганяє той самий розрахунок, що й quote: без налаштувань цін → 409 costing.settings_missing з missing, виріб не створено/не змінено (test-plan row 77); 409 задекларовано на createItem/updateItem у router і contracts/openapi.yaml; integration-тест; make api-check зелений. Знахідка S1-1 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog",
+        "backend/tests",
+        "docs/features/cost-calculator/contracts"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Звести живий OpenAPI з контрактом на рівні схем і задекларувати 415 на DELETE",
+      "layer": "ports",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-16b"
+      ],
+      "dod": "Response- і problem-моделі мають additionalProperties:false (extra='forbid'), *_kop-виходи minimum 0, items/missing minItems 1 (missing uniqueItems), Id format uuid на path-параметрах і plastic_id; 415 UnsupportedMediaType задекларовано на deletePlastic/deleteItem (router + контракт); test_contract.py порівнює components.schemas (required, типи, межі, additionalProperties) і падає на розбіжності; make api-types перегенеровано; make check зелений. Знахідки S1-4, S1-5 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d",
+        "backend/tests/integration/test_contract.py",
+        "docs/features/cost-calculator/contracts",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "Обмежити масштабовані цілі зверху і нормалізувати імена (NFC, невидимі символи)",
+      "layer": "app",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-11"
+      ],
+      "dod": "Кожне вхідне поле *_kop/_cg/_s/_w/_h має le=-межу, за якої максимальний min_donation_kop ≤ 2^53−1; завеликі значення → 422 validation_error біля поля (integration-тести на pricing/costing/catalog), не 500; normalize_name робить NFC перед trim; ім'я, порожнє після видалення символів категорії Cf, відхиляється; unit-тести в tests/unit/test_text.py; make api-types; make check зелений. Знахідки S2-1, S2-3 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core",
+        "backend/src/calculate3d/modules",
+        "backend/tests",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Серіалізувати перевірку і запис у транзакції та перекладати FK IntegrityError у доменні помилки",
+      "layer": "infra",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-14b"
+      ],
+      "dod": "Мутуючий запит починає транзакцію до перевірок (BEGIN IMMEDIATE через pysqlite-рецепт SQLAlchemy у create_db_engine); FK IntegrityError у pricing.repo.delete_plastic → pricing.plastic_in_use, у catalog.repo.replace_usage → catalog.plastic_not_found (не 500); тести, що симулюють FK-порушення в обхід сервісної перевірки; make api-check зелений. Знахідка S2-2 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core/db.py",
+        "backend/src/calculate3d/modules/pricing",
+        "backend/src/calculate3d/modules/catalog",
+        "backend/tests"
+      ]
+    },
+    {
+      "id": "T26",
+      "title": "Покрити шлях редагування пластику з AC-02 integration- і UI-тестами",
+      "layer": "tests",
+      "deps": [
+        "T24"
+      ],
+      "acs": [
+        "AC-02"
+      ],
+      "dod": "Integration: PUT /api/pricing/plastics/{id} на зайняту назву → 409 pricing.name_taken, ціна 0 → 422; GET після цього повертає старі значення. Vitest: PlasticsSection — форма «Змінити» з невалідною ціною показує помилку біля поля і не шле PUT; make check зелений. Знахідка S1-10 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/tests/integration/test_pricing_api.py",
+        "web/src/pages/settings/ui/PlasticsSection.test.tsx"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "Не показувати донат за старими цінами з кешу і не блимати списком під час пошуку",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "Успішні мутації plastic і price-settings прибирають кеш ['quote'] та інвалідовують ['items']; повторне відкриття /catalog або того самого quote після зміни ціни ніколи не показує старий донат (тест AC-13 перевіряє, що 115,25 ₴ не з'являється після reopen); useItems має placeholderData keepPreviousData і debounced q у ключі — таблиця не зникає між натисканнями; make web-check зелений. Знахідки S1-2, S2-8 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "web/src/entities/quote",
+        "web/src/entities/item",
+        "web/src/entities/plastic",
+        "web/src/entities/price-settings",
+        "web/src/pages/catalog"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "Типізувати problem-розширення зі згенерованих схем і показувати помилки quote на обох екранах",
+      "layer": "ui",
+      "deps": [
+        "T23",
+        "T27"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-09",
+        "AC-14"
+      ],
+      "dod": "shared/api/errors.ts будує Problem зі згенерованих FieldProblem/PlasticInUseProblem/SettingsMissingProblem/ValidationProblem, MISSING_TEXT типізовано enum'ом missing; спільна панель результату quote (MissingSettings / costing.plastic_not_found «Один із пластиків уже видалено…» / нейтральний текст для 5xx і мережі) використовується на /calculate і в ItemEditor (кнопка збереження вимкнена при помилці); ItemPage показує помилку, якщо не завантажились пластики, а MissingSettings — усередині секції з заголовком; component-тести на кожну гілку; make web-check зелений. Знахідки S1-8, S2-4, S2-5, S2-6 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "web/src/shared/api",
+        "web/src/widgets/cost-breakdown",
+        "web/src/features/quote-form",
+        "web/src/pages/calculate",
+        "web/src/pages/item"
+      ]
+    },
+    {
+      "id": "T29",
+      "title": "Зв'язати помилки годин/хвилин через aria-describedby і посилити тести AC-14b та моки quote",
+      "layer": "ui",
+      "deps": [
+        "T28"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-14b"
+      ],
+      "dod": "Поля годин і хвилин у QuoteForm мають aria-describedby на показані повідомлення ${id}-hours-error/-minutes-error/-time-error (тест через toHaveAccessibleDescription); ItemPage.test після збереження перевіряє 77,77 ₴ у статусі «Мінімальний донат»; fallback-мок у CalculatePage.test відповідає контракту (нульова розбивка або 500 на неочікуваний ключ); make web-check зелений. Знахідки S2-7, S1-9, S2-9 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "web/src/features/quote-form",
+        "web/src/pages/item/ui/ItemPage.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T30",
+      "title": "Задокументувати точні Fraction-проміжні обчислення в ADR 0004 і CLAUDE.md",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-08",
+        "AC-08b"
+      ],
+      "dod": "ADR 0004 (поправка з датою), ADR 0005 і CLAUDE.md § Money кажуть: проміжні суми — точні fractions.Fraction, округлення до копійок через Decimal-контекст (ROUND_CEILING для донату, ROUND_HALF_UP для рядків); sad.md і T5 не суперечать; make check зелений. Знахідка S1-7 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/adr",
+        "CLAUDE.md",
+        "backend/CLAUDE.md",
+        "docs/features/cost-calculator/sad.md"
+      ]
     }
   ]
 }

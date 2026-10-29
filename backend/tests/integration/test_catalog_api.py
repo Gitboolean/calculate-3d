@@ -238,3 +238,14 @@ def test_openapi_declares_catalog_operations(client: TestClient, method: str, pa
 
     assert operation["operationId"] == operation_id
     assert {s for s in operation["responses"] if s[0] in "45"} == own_errors | {"400", "403", "500"}
+
+
+def test_duplicate_plastic_is_a_422_on_the_second_occurrence(
+    client: TestClient, ids: dict[str, str]
+) -> None:
+    pid = ids["petg"]
+    response = client.post("/api/catalog/items", json=body("Дубль", (pid, 100), (pid, 200)))
+
+    payload = problem(response, 422, "validation_error")
+    assert payload["errors"][0]["loc"] == ["body", "plastics", 1, "plastic_id"]
+    assert client.get("/api/catalog/items").json() == {"items": []}

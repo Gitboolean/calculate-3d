@@ -14,7 +14,7 @@ from calculate3d.core.problems import (
 )
 from calculate3d.modules.catalog import service
 from calculate3d.modules.catalog.schemas import Item, ItemDetail, ItemInput, ItemList
-from calculate3d.modules.costing.schemas import SettingsMissingProblem
+from calculate3d.modules.costing.service import SettingsMissingProblem
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"], responses=GUARD_RESPONSES)
 

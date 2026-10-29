@@ -1,6 +1,7 @@
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import InitErrorDetails, PydanticCustomError, ValidationError
 
 from calculate3d.core.problems import Problem
 
@@ -23,12 +24,20 @@ class QuoteInput(BaseModel):
     plastics: list[PlasticUsage] = Field(min_length=1)
     print_time_s: PrintTime
 
-    @model_validator(mode="after")
-    def _each_plastic_once(self) -> Self:
-        ids = [usage.plastic_id for usage in self.plastics]
-        if len(ids) != len(set(ids)):
-            raise ValueError("plastic is listed twice")
-        return self
+    @field_validator("plastics")
+    @classmethod
+    def _each_plastic_once(cls, plastics: list[PlasticUsage]) -> list[PlasticUsage]:
+        seen: set[str] = set()
+        for index, usage in enumerate(plastics):
+            if usage.plastic_id in seen:
+                detail = InitErrorDetails(
+                    type=PydanticCustomError("value_error", "plastic is listed twice"),
+                    loc=(index, "plastic_id"),
+                    input=usage.plastic_id,
+                )
+                raise ValidationError.from_exception_data(cls.__name__, [detail])
+            seen.add(usage.plastic_id)
+        return plastics
 
 
 class CostBreakdown(BaseModel):

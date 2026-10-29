@@ -4,7 +4,11 @@ from collections.abc import Sequence
 
 from calculate3d.core.errors import AppError
 from calculate3d.modules.costing import domain
-from calculate3d.modules.costing.schemas import CostBreakdown, Quote, QuoteInput
+from calculate3d.modules.costing.schemas import CostBreakdown
+from calculate3d.modules.costing.schemas import PlasticUsage as PlasticUsage
+from calculate3d.modules.costing.schemas import Quote as Quote
+from calculate3d.modules.costing.schemas import QuoteInput as QuoteInput
+from calculate3d.modules.costing.schemas import SettingsMissingProblem as SettingsMissingProblem
 from calculate3d.modules.pricing import service as pricing_service
 
 DbConnection = pricing_service.DbConnection

@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-14c"]
 files_hint: ["backend/src/calculate3d/modules/costing", "backend/src/calculate3d/modules/catalog", "backend/tests"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T21 — Відкрити DTO costing через service.py і повертати loc поля для дубля пластику

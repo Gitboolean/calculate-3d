@@ -26,7 +26,7 @@
 | [T18](./T18-save-item-ui.md) | Додати збереження розрахунку в каталог (feature save-item) на /calculate | ui | Anton Pohorielov | M | T11, T17 | done |
 | [T19](./T19-catalog-page-ui.md) | Зібрати сторінку /catalog: пошук за ?q= і список виробів з актуальним мінімальним донатом | ui | Anton Pohorielov | M | T11, T13, T18 | done |
 | [T20](./T20-item-page-ui.md) | Зібрати сторінку /catalog/:itemId: перегляд, редагування через quote-form і видалення | ui | Anton Pohorielov | L | T17, T18 | done |
-| [T21](./T21-costing-dto-and-duplicate-loc.md) | Відкрити DTO costing через service.py і повертати loc поля для дубля пластику | app | Anton Pohorielov | S | — | todo |
+| [T21](./T21-costing-dto-and-duplicate-loc.md) | Відкрити DTO costing через service.py і повертати loc поля для дубля пластику | app | Anton Pohorielov | S | — | done |
 | [T22](./T22-server-side-ac10.md) | Перевіряти на сервері, що виріб має ціну, перед збереженням (AC-10) | app | Anton Pohorielov | S | T21 | todo |
 | [T23](./T23-openapi-schema-fidelity.md) | Звести живий OpenAPI з контрактом на рівні схем і задекларувати 415 на DELETE | ports | Anton Pohorielov | S | T22 | todo |
 | [T24](./T24-input-bounds-and-names.md) | Обмежити масштабовані цілі зверху і нормалізувати імена (NFC, невидимі символи) | app | Anton Pohorielov | S | T23 | todo |

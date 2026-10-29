@@ -9,7 +9,7 @@ from calculate3d.core.text import contains, name_key, normalize_name, sort_key
 from calculate3d.modules.catalog import repo
 from calculate3d.modules.catalog.schemas import Item, ItemDetail, ItemInput, ItemSummary
 from calculate3d.modules.costing import service as costing_service
-from calculate3d.modules.costing.schemas import PlasticUsage, QuoteInput
+from calculate3d.modules.costing.service import PlasticUsage, QuoteInput
 from calculate3d.modules.pricing import service as pricing_service
 
 

@@ -151,3 +151,15 @@ def test_openapi_declares_quote_cost(client: TestClient) -> None:
         "422",
         "500",
     }
+
+
+def test_duplicate_plastic_is_a_422_on_the_second_occurrence(
+    client: TestClient, plastics: dict[str, str]
+) -> None:
+    pid = plastics["petg"]
+    response = _quote(client, [(pid, 100), (pid, 200)], 3600)
+
+    assert response.status_code == 422, response.text
+    payload = response.json()
+    assert payload["code"] == "validation_error"
+    assert payload["errors"][0]["loc"] == ["body", "plastics", 1, "plastic_id"]

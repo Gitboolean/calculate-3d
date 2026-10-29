@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 from calculate3d.core.schemas import Name
-from calculate3d.modules.costing.schemas import PlasticUsage, Quote, QuoteInput
+from calculate3d.modules.costing.service import PlasticUsage, Quote, QuoteInput
 
 
 class ItemInput(QuoteInput):

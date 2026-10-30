@@ -113,3 +113,24 @@ test('a saved input fills the form and parses back to itself', () => {
   expect([value.hours, value.minutes]).toEqual(['3', '30'])
   expect(parseQuoteForm(value).input).toEqual(input)
 })
+
+test('usage too large for a safe integer is over the cap, not "not a number" (AC-07)', () => {
+  const { input, errors } = parseQuoteForm(form([['petg', '100 000 000 000 000']]))
+
+  expect(input).toBeNull()
+  expect(errors['rows.0.grams']).toBe('Витрата — не більше 1 000 000 г')
+})
+
+test('a hugely negative usage is "must be above zero", not "not a number" (AC-07)', () => {
+  const { errors } = parseQuoteForm(form([['petg', '-100000000000000']]))
+
+  expect(errors['rows.0.grams']).toBe('Витрата має бути більшою за нуль')
+})
+
+test('hours too large for a safe integer are over the cap, not "not whole" (AC-07)', () => {
+  const { input, errors } = parseQuoteForm(form([['petg', '1']], '100000000000000000', '0'))
+
+  expect(input).toBeNull()
+  expect(errors.time).toBe('Час друку — не більше 100 000 год')
+  expect(errors.hours).toBeUndefined()
+})

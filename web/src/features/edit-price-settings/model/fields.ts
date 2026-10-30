@@ -10,9 +10,7 @@ type FieldSpec = {
   scale: number
   min: number
   max?: number
-  /** Shown instead of `rule` when the value is over `max`. */
-  maxRule?: string
-  /** Bounds + precision, shown whenever the value breaks them (AC-05). */
+  /** Range + precision, shown for any rejection of the value (AC-05). */
   rule: string
 }
 
@@ -23,8 +21,7 @@ export const FIELDS: readonly FieldSpec[] = [
     scale: 2,
     min: 0,
     max: 1000000,
-    maxRule: 'Тариф — не більше 10 000 ₴ за кВт·год',
-    rule: 'Тариф — число від 0 з точністю до копійки',
+    rule: 'Тариф — від 0 до 10 000 ₴ за кВт·год з точністю до копійки',
   },
   {
     name: 'printer_power_w',
@@ -32,8 +29,7 @@ export const FIELDS: readonly FieldSpec[] = [
     scale: 0,
     min: 0,
     max: 1000000,
-    maxRule: 'Потужність — не більше 1 000 000 Вт',
-    rule: 'Потужність — ціле число ват від 0',
+    rule: 'Потужність — ціле число ват від 0 до 1 000 000',
   },
   {
     name: 'printer_price_kop',
@@ -41,8 +37,7 @@ export const FIELDS: readonly FieldSpec[] = [
     scale: 2,
     min: 0,
     max: 10000000000,
-    maxRule: 'Ціна принтера — не більше 100 000 000 ₴',
-    rule: 'Ціна принтера — число від 0 з точністю до копійки',
+    rule: 'Ціна принтера — від 0 до 100 000 000 ₴ з точністю до копійки',
   },
   {
     name: 'printer_lifetime_h',
@@ -50,8 +45,7 @@ export const FIELDS: readonly FieldSpec[] = [
     scale: 0,
     min: 1,
     max: 1000000,
-    maxRule: 'Термін служби — не більше 1 000 000 год',
-    rule: 'Термін служби — ціле число годин, більше за 0',
+    rule: 'Термін служби — ціле число годин від 1 до 1 000 000',
   },
   {
     name: 'parts_per_hour_kop',
@@ -59,8 +53,7 @@ export const FIELDS: readonly FieldSpec[] = [
     scale: 2,
     min: 0,
     max: 100000000,
-    maxRule: 'Деталі — не більше 1 000 000 ₴ за годину',
-    rule: 'Деталі — число від 0 з точністю до копійки',
+    rule: 'Деталі — від 0 до 1 000 000 ₴ за годину з точністю до копійки',
   },
   {
     name: 'scrap_rate_permille',
@@ -93,8 +86,6 @@ export function validate(
       parsed.value >= field.min &&
       (field.max === undefined || parsed.value <= field.max)
     if (parsed.ok && inRange) input[field.name] = parsed.value
-    else if (parsed.ok && field.maxRule && field.max !== undefined && parsed.value > field.max)
-      errors[field.name] = field.maxRule
     else errors[field.name] = field.rule
   }
   if (Object.keys(errors).length > 0) return { ok: false, errors }

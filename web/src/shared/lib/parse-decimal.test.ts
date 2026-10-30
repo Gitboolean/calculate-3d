@@ -36,7 +36,7 @@ test.each(['', '   '])('rejects blank %j as empty', (input) => {
   expect(parseDecimal(input, 2)).toEqual({ ok: false, reason: 'empty' })
 })
 
-test.each(['abc', '1,2,3', '1.2.3', '1e5', '12г', '--1', ',', 'Infinity', '99999999999999999999'])(
+test.each(['abc', '1,2,3', '1.2.3', '1e5', '12г', '--1', ',', 'Infinity'])(
   'rejects %j as not a number',
   (input) => {
     expect(parseDecimal(input, 2)).toEqual({ ok: false, reason: 'not_a_number' })
@@ -53,4 +53,23 @@ test.each([
 ])('formats %i with scale %i as %j, which parses back', (value, scale, text) => {
   expect(formatDecimal(value, scale)).toBe(text)
   expect(parseDecimal(text, scale)).toEqual({ ok: true, value })
+})
+
+test.each([
+  ['100000000000000', 2],
+  ['9007199254740992', 0],
+  ['99999999999999999999', 2],
+])('rejects well-formed %j with scale %i as too large', (input, scale) => {
+  expect(parseDecimal(input, scale)).toEqual({ ok: false, reason: 'too_large' })
+})
+
+test.each([
+  ['-100000000000000', 2],
+  ['-9007199254740992', 0],
+])('rejects well-formed %j with scale %i as too small', (input, scale) => {
+  expect(parseDecimal(input, scale)).toEqual({ ok: false, reason: 'too_small' })
+})
+
+test('the largest safe integer is still accepted', () => {
+  expect(parseDecimal('9007199254740991', 0)).toEqual({ ok: true, value: 9007199254740991 })
 })

@@ -35,13 +35,16 @@ const GRAMS_ERRORS = {
   empty: 'Вкажіть витрату пластику',
   not_a_number: 'Витрата має бути числом',
   too_precise: 'Витрата — з точністю до 0,01 г',
+  too_large: 'Витрата — не більше 1 000 000 г',
+  too_small: 'Витрата має бути більшою за нуль',
 } as const
 
-/** Whole, non-negative; an empty field counts as zero (AC-07). */
+/** Whole, non-negative; an empty field counts as zero (AC-07). A number too big to represent is `Infinity`. */
 function wholeNumber(text: string): number | null {
   if (!text.trim()) return 0
   const parsed = parseDecimal(text, 0)
-  return parsed.ok && parsed.value >= 0 ? parsed.value : null
+  if (!parsed.ok) return parsed.reason === 'too_large' ? Infinity : null
+  return parsed.value >= 0 ? parsed.value : null
 }
 
 /** The form's text → API units (AC-07 rules), or `null` with an explanation per field. */

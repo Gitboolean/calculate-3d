@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-05", "AC-07"]
 files_hint: ["web/src/shared/lib/parse-decimal.ts", "web/src/features/quote-form/model/parse.ts", "web/src/features/edit-plastic/model/validate.ts", "web/src/features/edit-price-settings/model/fields.ts"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T39 — Називати межу для завеликого числа і пояснювати межу та точність в одному правилі

@@ -1,7 +1,7 @@
 // Shared input parser (cost-calculator ADR 0004): the user types a decimal with a comma or a dot,
 // the API takes an integer in the smallest unit. Extra precision is an error, never rounded.
 
-export type ParseDecimalError = 'empty' | 'not_a_number' | 'too_precise'
+export type ParseDecimalError = 'empty' | 'not_a_number' | 'too_precise' | 'too_large' | 'too_small'
 
 export type ParseDecimalResult =
   { ok: true; value: number } | { ok: false; reason: ParseDecimalError }
@@ -21,7 +21,7 @@ export function parseDecimal(input: string, scale: number): ParseDecimalResult {
   if (fraction.replace(/0+$/, '').length > scale) return { ok: false, reason: 'too_precise' }
 
   const value = Number(whole + fraction.padEnd(scale, '0').slice(0, scale))
-  if (!Number.isSafeInteger(value)) return { ok: false, reason: 'not_a_number' }
+  if (!Number.isSafeInteger(value)) return { ok: false, reason: sign ? 'too_small' : 'too_large' }
   return { ok: true, value: sign && value !== 0 ? -value : value }
 }
 

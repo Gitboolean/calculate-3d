@@ -23,6 +23,8 @@ export function validatePlastic(
       empty: 'Вкажіть ціну за кілограм',
       not_a_number: 'Ціна має бути числом',
       too_precise: 'Ціна — з точністю до копійки (не більше двох знаків після коми)',
+      too_large: 'Ціна — не більше 10 000 000 ₴ за кг',
+      too_small: 'Ціна має бути більшою за нуль',
     }[parsed.reason]
   } else if (parsed.value <= 0) {
     errors.price = 'Ціна має бути більшою за нуль'

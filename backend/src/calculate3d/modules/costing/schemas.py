@@ -6,8 +6,8 @@ from pydantic_core import InitErrorDetails, PydanticCustomError, ValidationError
 from calculate3d.core.problems import Problem
 from calculate3d.core.schemas import Id
 
-# Upper bounds (T24, S2-1): far beyond any real print (AC-07: no practical limit), but the worst
-# case — every input at its cap, printer_lifetime_h=1, MAX_PLASTICS plastics — must keep
+# Upper bounds (T24, S2-1; AC-07 names them next to the field): far beyond any real print, but
+# the worst case — every input at its cap, printer_lifetime_h=1, MAX_PLASTICS plastics — must keep
 # min_donation_kop <= 2**53-1 (JS safe integer) and every stored value inside SQLite INTEGER.
 # Worst case: wear (1e10+1e8)*1e5 h = 1.01e15, electricity 1e9*1e5 = 1e14, plastics
 # 32*(1e9*1e8/1e5) = 3.2e13; sum ~1.14e15, x2 with 100 % scrap ~ 2.3e15 < 9.007e15.

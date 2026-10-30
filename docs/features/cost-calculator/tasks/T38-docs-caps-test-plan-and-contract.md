@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-05", "AC-07"]
 files_hint: ["docs/features/cost-calculator/test-plan.md", "docs/features/cost-calculator/contracts/openapi.yaml", "docs/features/cost-calculator/contracts/api-sync-report.md", "docs/features/cost-calculator/PRD.md", "backend/src/calculate3d/modules/costing/schemas.py", "backend/src/calculate3d/core/db.py"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T38 — Узгодити test-plan, контракт, коментарі й PRD з межами T34 і перезвірити api-sync-report

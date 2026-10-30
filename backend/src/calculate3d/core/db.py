@@ -34,7 +34,8 @@ def _set_sqlite_pragmas(dbapi_conn: Any, _record: Any) -> None:
 def _begin_immediate(conn: Connection) -> None:
     # Take the write lock up front so a pre-check read and its write are one serialized unit.
     # Straight on the driver: not a query, so it stays out of cursor-execute statement counts.
-    # `deferred_begin` (health ping) keeps a plain deferred transaction: readers never lock.
+    # `deferred_begin` (health ping) skips it: no transaction at all (driver autocommit), so the
+    # connection never locks — fit only for single-statement reads.
     if conn.get_execution_options().get("deferred_begin"):
         return
     dbapi = conn.dialect.loaded_dbapi

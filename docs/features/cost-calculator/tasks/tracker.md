@@ -45,7 +45,7 @@
 | [T37](./T37-test-plan-literal-asserts.md) | Дописати асерти test-plan: quote не створює виріб, порожня назва при редагуванні не зберігається | tests | Anton Pohorielov | S | — | done |
 | [T38](./T38-docs-caps-test-plan-and-contract.md) | Узгодити test-plan, контракт, коментарі й PRD з межами T34 і перезвірити api-sync-report | docs | Anton Pohorielov | S | — | todo |
 | [T39](./T39-cap-messages-too-large-and-range.md) | Називати межу для завеликого числа і пояснювати межу та точність в одному правилі | ui | Anton Pohorielov | S | — | done |
-| [T40](./T40-cap-component-tests.md) | Покрити межі полів компонентними тестами на сторінках налаштувань і розрахунку | ui | Anton Pohorielov | S | T39 | todo |
+| [T40](./T40-cap-component-tests.md) | Покрити межі полів компонентними тестами на сторінках налаштувань і розрахунку | ui | Anton Pohorielov | S | T39 | done |
 | [T41](./T41-web-name-length-nfc-and-catalog-wait.md) | Рахувати довжину назви як сервер (NFC, code points) і чекати перезапит замість sleep у тесті каталогу | ui | Anton Pohorielov | S | — | todo |
 
 **Total:** 41 tasks (20 + 21 review follow-ups), ~15.6 person-days (125 год).

@@ -102,6 +102,7 @@ test('several plastics add up (AC-06b)', async () => {
 test.each([
   ['12,345', '3', '30', 'Витрата — з точністю до 0,01 г'],
   ['0', '3', '30', 'Витрата має бути більшою за нуль'],
+  ['1000000,01', '3', '30', 'Витрата — не більше 1 000 000 г'],
   ['120', '3', '60', 'Хвилини — ціле число від 0 до 59'],
   ['120', '0', '0', 'Час друку має бути більшим за нуль'],
   ['120', '2,5', '0', 'Години — ціле невід’ємне число'],
@@ -119,6 +120,7 @@ test.each([
     await new Promise((resolve) => setTimeout(resolve, 300))
     expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
     expect(api.callsTo('POST', '/api/costing/quote')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
   },
 )
 

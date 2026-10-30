@@ -119,6 +119,20 @@ test('an invalid edit is explained and not sent (AC-14c)', async () => {
   expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
 })
 
+test('editing grams above the cap is explained and not sent (AC-14c)', async () => {
+  const api = serve()
+  renderItem()
+  const user = await startEditing()
+
+  const grams = screen.getByLabelText('Витрата, г')
+  await user.clear(grams)
+  await user.type(grams, '1000000,01')
+  await user.click(screen.getByRole('button', { name: 'Зберегти зміни' }))
+
+  expect(screen.getByText('Витрата — не більше 1 000 000 г')).toBeInTheDocument()
+  expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
+})
+
 test('a rejected edit keeps the form and the item unchanged (AC-14c)', async () => {
   const api = serve({ update: () => problem(409, 'catalog.name_taken', { field: 'name' }) })
   renderItem()

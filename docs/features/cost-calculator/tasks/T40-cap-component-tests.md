@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-05", "AC-07", "AC-14c"]
 files_hint: ["web/src/pages/settings/ui/PlasticsSection.test.tsx", "web/src/pages/settings/ui/PriceSettingsSection.test.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx", "web/src/pages/item/ui/ItemPage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T40 — Покрити межі полів компонентними тестами на сторінках налаштувань і розрахунку

@@ -748,6 +748,82 @@
         "backend/tests/integration/test_costing_api.py",
         "backend/tests/integration/test_catalog_api.py"
       ]
+    },
+    {
+      "id": "T38",
+      "title": "Узгодити test-plan, контракт, коментарі й PRD з межами T34 і перезвірити api-sync-report",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "test-plan.md:69 замінено рядками меж для AC-02/AC-05/AC-07 (значення на межі приймається, понад межу — відхиляється з повідомленням, що називає максимум) з посиланнями на parse.test.ts / validate.test.ts / fields.test.ts / test_input_bounds.py; openapi.yaml:529 msg = живий текст («Input should be greater than or equal to 1»), опис ItemInvalid згадує межі; коментар costing/schemas.py:9 без «no practical limit»; PRD.md:102 — кома перед «дробові потужність»; коментар core/db.py:37 каже «no transaction (driver autocommit); single-statement reads only»; /sdlc:api-forge cost-calculator --reconcile — Verdict PASS; make check зелений. Знахідки R3-1, R3-5, R3-8 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/test-plan.md",
+        "docs/features/cost-calculator/contracts/openapi.yaml",
+        "docs/features/cost-calculator/contracts/api-sync-report.md",
+        "docs/features/cost-calculator/PRD.md",
+        "backend/src/calculate3d/modules/costing/schemas.py",
+        "backend/src/calculate3d/core/db.py"
+      ]
+    },
+    {
+      "id": "T39",
+      "title": "Називати межу для завеликого числа і пояснювати межу та точність в одному правилі",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "parse-decimal повертає reason too_large для коректно записаного числа поза safe integer, і quote-form / edit-plastic / edit-price-settings показують для нього те саме повідомлення про максимум, що й для значення понад межу (10^14 г → «Витрата — не більше 1 000 000 г»); кожне поле edit-price-settings має одне правило в стилі «<Поле> — від A до B <од.> з точністю до …»; model-тести на обидва випадки; make web-check зелений. Знахідки R3-2, R3-3 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "web/src/shared/lib/parse-decimal.ts",
+        "web/src/features/quote-form/model/parse.ts",
+        "web/src/features/edit-plastic/model/validate.ts",
+        "web/src/features/edit-price-settings/model/fields.ts"
+      ]
+    },
+    {
+      "id": "T40",
+      "title": "Покрити межі полів компонентними тестами на сторінках налаштувань і розрахунку",
+      "layer": "ui",
+      "deps": [
+        "T39"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-14c"
+      ],
+      "dod": "PlasticsSection.test.tsx: ціна 10000000,01 → повідомлення про максимум; PriceSettingsSection.test.tsx: значення понад межу для кожного обмеженого налаштування → правило з межею, збереження не відбувається; CalculatePage.test.tsx (і ItemPage.test.tsx для AC-14c): 1 000 000,01 г → «Витрата — не більше 1 000 000 г» біля рядка, внеску немає; make web-check зелений. Знахідка R3-4 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "web/src/pages/settings/ui/PlasticsSection.test.tsx",
+        "web/src/pages/settings/ui/PriceSettingsSection.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/pages/item/ui/ItemPage.test.tsx"
+      ]
+    },
+    {
+      "id": "T41",
+      "title": "Рахувати довжину назви як сервер (NFC, code points) і чекати перезапит замість sleep у тесті каталогу",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11",
+        "AC-12"
+      ],
+      "dod": "edit-plastic/validate.ts і save-item/name.ts міряють [...name.normalize('NFC').trim()].length; серверний 422 на name показується як «Назва — від 1 до 100 символів» (не «обов'язкова»); тести: 60 емодзі приймаються, 60×U+0344 відхиляються з повідомленням про довжину; CatalogPage.test.tsx:157 замість sleep 400 мс чекає (vi.waitFor) на GET /api/catalog/items без q перед негативними перевірками; make web-check зелений. Знахідки R3-6, R3-7 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "web/src/features/edit-plastic/model/validate.ts",
+        "web/src/features/save-item/model/name.ts",
+        "web/src/pages/catalog/ui/CatalogPage.test.tsx"
+      ]
     }
   ]
 }

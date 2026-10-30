@@ -143,7 +143,7 @@ test('typing "pe" quickly asks the server once, for the final query only (deboun
 test('clearing a search that found nothing never flashes an empty-state while the list reloads', async () => {
   const user = userEvent.setup()
   const pending = deferred<Response>()
-  mockApi({
+  const api = mockApi({
     'GET /api/catalog/items': (call) => {
       const q = new URLSearchParams(call.search).get('q')
       if (q === 'xyz') return json({ items: [] })
@@ -154,7 +154,13 @@ test('clearing a search that found nothing never flashes an empty-state while th
   await screen.findByText('Нічого не знайдено за запитом «xyz».')
 
   await user.clear(screen.getByLabelText('Пошук за назвою'))
-  await new Promise((r) => setTimeout(r, 400))
+  await vi.waitFor(() =>
+    expect(
+      api
+        .callsTo('GET', '/api/catalog/items')
+        .filter((c) => !new URLSearchParams(c.search).has('q')),
+    ).toHaveLength(1),
+  )
 
   expect(screen.queryByText(/Каталог порожній/)).not.toBeInTheDocument()
   expect(screen.queryByText(/Нічого не знайдено/)).not.toBeInTheDocument()

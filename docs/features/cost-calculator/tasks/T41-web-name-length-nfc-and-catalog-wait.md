@@ -7,7 +7,7 @@ acs: ["AC-02", "AC-11", "AC-12"]
 files_hint: ["web/src/features/edit-plastic/model/validate.ts", "web/src/features/save-item/model/name.ts", "web/src/pages/catalog/ui/CatalogPage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T41 — Рахувати довжину назви як сервер (NFC, code points) і чекати перезапит замість sleep у тесті каталогу

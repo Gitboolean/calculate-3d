@@ -1,12 +1,14 @@
 import { isProblem, issueField } from '@/shared/api'
+import { MAX_NAME_LENGTH, nameLength, normalizeName } from '@/shared/lib'
 
-const MAX_NAME = 100
-
-/** AC-11: trimmed, 1–100 characters; uniqueness is the server's call. */
+/**
+ * AC-11: NFC, trimmed, 1–100 characters (code points, as the server counts);
+ * uniqueness is the server's call.
+ */
 export function validateItemName(name: string): string | undefined {
-  const trimmed = name.trim()
+  const trimmed = normalizeName(name)
   if (!trimmed) return 'Назва виробу обов’язкова'
-  if (trimmed.length > MAX_NAME) return `Назва — не довше ${MAX_NAME} символів`
+  if (nameLength(trimmed) > MAX_NAME_LENGTH) return `Назва — не довше ${MAX_NAME_LENGTH} символів`
   return undefined
 }
 
@@ -18,7 +20,7 @@ export function saveError(error: unknown): { name?: string; form?: string } {
     return { form: 'Один із пластиків уже видалено з налаштувань — оберіть інший.' }
   if (isProblem(error, 'validation_error')) {
     const fields = (error.problem.errors ?? []).map(issueField)
-    if (fields.includes('name')) return { name: 'Назва виробу обов’язкова' }
+    if (fields.includes('name')) return { name: `Назва — від 1 до ${MAX_NAME_LENGTH} символів` }
     return { form: 'Перевірте витрату пластику й час друку.' }
   }
   return { form: 'Не вдалося зберегти виріб. Спробуйте ще раз.' }

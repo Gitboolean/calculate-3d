@@ -5,6 +5,7 @@ import type { Plastic } from '@/entities/plastic'
 import { useQuote } from '@/entities/quote'
 import { parseQuoteForm, QuoteError, QuoteForm, quoteFormFrom } from '@/features/quote-form'
 import { saveError, validateItemName } from '@/features/save-item'
+import { normalizeName } from '@/shared/lib'
 import { Button, FormField } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
@@ -31,7 +32,7 @@ export function ItemEditor({ item, plastics, onDone }: ItemEditorProps) {
     }
     setErrors({})
     update.mutate(
-      { id: item.id, body: { name: name.trim(), ...input } },
+      { id: item.id, body: { name: normalizeName(name), ...input } },
       { onSuccess: onDone, onError: (error) => setErrors(saveError(error)) },
     )
   }

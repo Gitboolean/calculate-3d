@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 
 import { useCreateItem } from '@/entities/item'
 import type { QuoteInput } from '@/entities/quote'
+import { normalizeName } from '@/shared/lib'
 import { Button, FormField } from '@/shared/ui'
 
 import { saveError, validateItemName } from '../model/name'
@@ -27,7 +28,7 @@ export function SaveItemForm({ input }: { input: QuoteInput | null }) {
     }
     setErrors({})
     create.mutate(
-      { name: name.trim(), ...input },
+      { name: normalizeName(name), ...input },
       {
         onSuccess: (item) => navigate(`/catalog/${item.id}`),
         onError: (error) => setErrors(saveError(error)),

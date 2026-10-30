@@ -1,10 +1,9 @@
 import type { PlasticInput } from '@/entities/plastic'
 import { isProblem, issueField } from '@/shared/api'
-import { parseDecimal } from '@/shared/lib'
+import { MAX_NAME_LENGTH, nameLength, normalizeName, parseDecimal } from '@/shared/lib'
 
 export type PlasticErrors = Partial<Record<'name' | 'price' | 'form', string>>
 
-const MAX_NAME = 100
 const MAX_PRICE_KOP = 1_000_000_000
 const PRICE_RANGE = 'більшою за нуль і не більшою за 10 000 000 ₴'
 
@@ -13,9 +12,10 @@ export function validatePlastic(
   price: string,
 ): { ok: true; input: PlasticInput } | { ok: false; errors: PlasticErrors } {
   const errors: PlasticErrors = {}
-  const trimmed = name.trim()
+  const trimmed = normalizeName(name)
   if (!trimmed) errors.name = 'Назва обов’язкова'
-  else if (trimmed.length > MAX_NAME) errors.name = `Назва — не довше ${MAX_NAME} символів`
+  else if (nameLength(trimmed) > MAX_NAME_LENGTH)
+    errors.name = `Назва — не довше ${MAX_NAME_LENGTH} символів`
 
   const parsed = parseDecimal(price, 2)
   if (!parsed.ok) {
@@ -42,7 +42,7 @@ export function serverErrors(error: unknown): PlasticErrors {
   if (isProblem(error, 'validation_error')) {
     const fields = new Set((error.problem.errors ?? []).map(issueField))
     return {
-      name: fields.has('name') ? 'Назва обов’язкова' : undefined,
+      name: fields.has('name') ? `Назва — від 1 до ${MAX_NAME_LENGTH} символів` : undefined,
       price: fields.has('price_per_kg_kop') ? `Ціна має бути ${PRICE_RANGE}` : undefined,
     }
   }

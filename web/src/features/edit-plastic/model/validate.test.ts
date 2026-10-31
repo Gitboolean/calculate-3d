@@ -50,8 +50,9 @@ test('a name of 101 emoji is rejected as too long (AC-02)', () => {
   expect(result.errors.name).toBe(TOO_LONG)
 })
 
+// U+0344 NFC-splits into U+0308 U+0301, so each one counts as two code points.
 test('a name that NFC-expands past 100 code points is rejected as too long (AC-02)', () => {
-  const result = validatePlastic('̈́'.repeat(60), '100')
+  const result = validatePlastic('\u0344'.repeat(60), '100')
 
   expect(result.ok).toBe(false)
   if (result.ok) return
@@ -59,7 +60,7 @@ test('a name that NFC-expands past 100 code points is rejected as too long (AC-0
 })
 
 test('the saved name is the NFC-normalised trimmed name (AC-02)', () => {
-  const result = validatePlastic('  é  ', '100')
+  const result = validatePlastic('  e\u0301  ', '100')
 
   expect(result.ok).toBe(true)
   if (!result.ok) return
@@ -77,4 +78,27 @@ test('a server 422 on name says the length range, not "required" (AC-02)', () =>
   })
 
   expect(serverErrors(error).name).toBe('Назва — від 1 до 100 символів')
+})
+
+test.each([
+  ['U+200B', '\u200B'],
+  ['U+00AD', '\u00AD'],
+])('100 letters plus a trailing %s is accepted and sent without it (AC-02)', (_label, ch) => {
+  const letters = 'а'.repeat(100)
+  const result = validatePlastic(letters + ch, '100')
+
+  expect(result.ok).toBe(true)
+  if (!result.ok) return
+  expect(result.input.name).toBe(letters)
+})
+
+test.each([
+  ['U+200B', '\u200B'],
+  ['U+00AD', '\u00AD'],
+])('a name of only %s is "required" (AC-02)', (_label, ch) => {
+  const result = validatePlastic(ch + ch, '100')
+
+  expect(result.ok).toBe(false)
+  if (result.ok) return
+  expect(result.errors.name).toBe('Назва обов’язкова')
 })

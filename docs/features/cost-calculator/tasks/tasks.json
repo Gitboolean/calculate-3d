@@ -824,6 +824,79 @@
         "web/src/features/save-item/model/name.ts",
         "web/src/pages/catalog/ui/CatalogPage.test.tsx"
       ]
+    },
+    {
+      "id": "T42",
+      "title": "Покрити межі «на межі / межа + 1» і 32/33 пластики інтеграційними й компонентними тестами",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "test_input_bounds.py: parametrize по кожному le= полю (ціна пластику, 6 налаштувань, usage_cg, print_time_s) — значення на межі приймається, на одиницю точності більше → 422 з loc цього поля; printer_lifetime_h = 1 000 000 збережено; 32 пластики приймаються, 33 → 422 на /api/costing/quote і /api/catalog/items; CalculatePage.test.tsx: 100 000 год 1 хв і 33 рядки пластику → повідомлення про межу, донату немає, збереження недоступне; make check зелений. Знахідка R4-1 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "backend/tests/integration/test_input_bounds.py",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T43",
+      "title": "Дописати межі в контракт quoteCost, SAD потік 1, sync-report і задокументувати межу назви 100 символів",
+      "layer": "docs",
+      "deps": [
+        "T42",
+        "T44"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-11"
+      ],
+      "dod": "openapi.yaml:297-300 і costing/router.py:25 — опис 422 quoteCost називає межі (понад 10^8 cg, понад 3,6·10^8 с, понад 32 пластики) як ItemInvalid; sad.md:314 alt і рядок покриття :521 містять «понад межу»; api-sync-report.md:87 — межа 10^8 cg; PRD AC-02 і AC-11 — «назва до 100 символів»; data-model.md:76,108 і Name (openapi.yaml:675-677) — «NFC, обрізання пробілів і невидимих символів по краях, потім 1–100 символів»; test-plan.md: рядки AC-02/AC-11 для межі назви з посиланнями на validate.test.ts, name.test.ts, test_input_bounds.py, а рядки :45,55,71 посилаються на тести T42; /sdlc:api-forge cost-calculator --reconcile — Verdict PASS; make check зелений. Знахідки R4-2…R4-5 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/contracts/openapi.yaml",
+        "backend/src/calculate3d/modules/costing/router.py",
+        "docs/features/cost-calculator/sad.md",
+        "docs/features/cost-calculator/contracts/api-sync-report.md",
+        "docs/features/cost-calculator/PRD.md",
+        "docs/features/cost-calculator/data-model.md",
+        "docs/features/cost-calculator/test-plan.md"
+      ]
+    },
+    {
+      "id": "T44",
+      "title": "Обрізати назву на клієнті так само, як сервер (Cf і пробіли по краях), і записати U+0344 у тестах як escape",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "shared/lib/normalize-name.ts після NFC обрізає по краях ті самі символи, що core/text.py::normalize_name (\\s, \\p{Cf}, U+001C–U+001F, U+0085), коментар про розбіжність прибрано; тести: 100 літер + U+200B і + U+00AD приймаються як 100 символів, назва лише з U+200B → «Назва обов’язкова» для пластику і виробу; validate.test.ts:54 і name.test.ts:16 використовують '\\u0344' з коментарем про розклад NFC; make web-check зелений. Знахідки R4-6, R4-9 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "web/src/shared/lib/normalize-name.ts",
+        "web/src/features/edit-plastic/model/validate.test.ts",
+        "web/src/features/save-item/model/name.test.ts"
+      ]
+    },
+    {
+      "id": "T45",
+      "title": "Не показувати межу часу поверх помилки хвилин і будувати тексти меж з констант",
+      "layer": "ui",
+      "deps": [
+        "T44"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07"
+      ],
+      "dod": "quote-form/model/parse.ts перевіряє загальний час лише коли години і хвилини валідні (хвилини < 60) — для хвилин 99999999999999999999 і 6000001 одне повідомлення біля хвилин (тест); тексти меж у edit-plastic/model/validate.ts і quote-form/model/parse.ts — одна константа на межу (або будуються з MAX_PRICE_KOP / MAX_USAGE_CG / MAX_PRINT_TIME_S) і використовуються і в мапі причин parseDecimal, і в перевірці діапазону; наявні тести повідомлень зелені без змін тексту; make web-check зелений. Знахідки R4-7, R4-8 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "web/src/features/quote-form/model/parse.ts",
+        "web/src/features/edit-plastic/model/validate.ts"
+      ]
     }
   ]
 }

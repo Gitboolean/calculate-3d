@@ -47,5 +47,9 @@
 | [T39](./T39-cap-messages-too-large-and-range.md) | Називати межу для завеликого числа і пояснювати межу та точність в одному правилі | ui | Anton Pohorielov | S | — | done |
 | [T40](./T40-cap-component-tests.md) | Покрити межі полів компонентними тестами на сторінках налаштувань і розрахунку | ui | Anton Pohorielov | S | T39 | done |
 | [T41](./T41-web-name-length-nfc-and-catalog-wait.md) | Рахувати довжину назви як сервер (NFC, code points) і чекати перезапит замість sleep у тесті каталогу | ui | Anton Pohorielov | S | — | done |
+| [T42](./T42-cap-boundary-tests.md) | Покрити межі «на межі / межа + 1» і 32/33 пластики інтеграційними й компонентними тестами | tests | Anton Pohorielov | S | — | todo |
+| [T43](./T43-docs-quote-caps-sad-name-cap.md) | Дописати межі в контракт quoteCost, SAD потік 1, sync-report і задокументувати межу назви 100 символів | docs | Anton Pohorielov | S | T42, T44 | todo |
+| [T44](./T44-web-name-trim-parity.md) | Обрізати назву на клієнті так само, як сервер (Cf і пробіли по краях), і записати U+0344 у тестах як escape | ui | Anton Pohorielov | S | — | todo |
+| [T45](./T45-quote-time-message-and-cap-constants.md) | Не показувати межу часу поверх помилки хвилин і будувати тексти меж з констант | ui | Anton Pohorielov | S | T44 | todo |
 
-**Total:** 41 tasks (20 + 21 review follow-ups), ~15.6 person-days (125 год).
+**Total:** 45 tasks (20 + 25 review follow-ups), ~16.6 person-days (133 год).

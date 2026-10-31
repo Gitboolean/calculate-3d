@@ -50,6 +50,6 @@
 | [T42](./T42-cap-boundary-tests.md) | Покрити межі «на межі / межа + 1» і 32/33 пластики інтеграційними й компонентними тестами | tests | Anton Pohorielov | S | — | done |
 | [T43](./T43-docs-quote-caps-sad-name-cap.md) | Дописати межі в контракт quoteCost, SAD потік 1, sync-report і задокументувати межу назви 100 символів | docs | Anton Pohorielov | S | T42, T44 | todo |
 | [T44](./T44-web-name-trim-parity.md) | Обрізати назву на клієнті так само, як сервер (Cf і пробіли по краях), і записати U+0344 у тестах як escape | ui | Anton Pohorielov | S | — | done |
-| [T45](./T45-quote-time-message-and-cap-constants.md) | Не показувати межу часу поверх помилки хвилин і будувати тексти меж з констант | ui | Anton Pohorielov | S | T44 | todo |
+| [T45](./T45-quote-time-message-and-cap-constants.md) | Не показувати межу часу поверх помилки хвилин і будувати тексти меж з констант | ui | Anton Pohorielov | S | T44 | done |
 
 **Total:** 45 tasks (20 + 25 review follow-ups), ~16.6 person-days (133 год).

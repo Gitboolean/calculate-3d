@@ -5,6 +5,8 @@ import { MAX_NAME_LENGTH, nameLength, normalizeName, parseDecimal } from '@/shar
 export type PlasticErrors = Partial<Record<'name' | 'price' | 'form', string>>
 
 const MAX_PRICE_KOP = 1_000_000_000
+const PRICE_TOO_LARGE = 'Ціна — не більше 10 000 000 ₴ за кг'
+const PRICE_NOT_POSITIVE = 'Ціна має бути більшою за нуль'
 const PRICE_RANGE = 'більшою за нуль і не більшою за 10 000 000 ₴'
 
 export function validatePlastic(
@@ -23,13 +25,13 @@ export function validatePlastic(
       empty: 'Вкажіть ціну за кілограм',
       not_a_number: 'Ціна має бути числом',
       too_precise: 'Ціна — з точністю до копійки (не більше двох знаків після коми)',
-      too_large: 'Ціна — не більше 10 000 000 ₴ за кг',
-      too_small: 'Ціна має бути більшою за нуль',
+      too_large: PRICE_TOO_LARGE,
+      too_small: PRICE_NOT_POSITIVE,
     }[parsed.reason]
   } else if (parsed.value <= 0) {
-    errors.price = 'Ціна має бути більшою за нуль'
+    errors.price = PRICE_NOT_POSITIVE
   } else if (parsed.value > MAX_PRICE_KOP) {
-    errors.price = `Ціна — не більше 10 000 000 ₴ за кг`
+    errors.price = PRICE_TOO_LARGE
   }
 
   if (errors.name || errors.price || !parsed.ok) return { ok: false, errors }

@@ -28,15 +28,18 @@ export function quoteFormFrom(input: QuoteInput): QuoteFormValue {
 }
 
 const MAX_USAGE_CG = 100_000_000
+const USAGE_TOO_LARGE = 'Витрата — не більше 1 000 000 г'
+const USAGE_NOT_POSITIVE = 'Витрата має бути більшою за нуль'
 const MAX_PRINT_TIME_S = 360_000_000
+const PRINT_TIME_TOO_LARGE = 'Час друку — не більше 100 000 год'
 const MAX_ROWS = 32
 
 const GRAMS_ERRORS = {
   empty: 'Вкажіть витрату пластику',
   not_a_number: 'Витрата має бути числом',
   too_precise: 'Витрата — з точністю до 0,01 г',
-  too_large: 'Витрата — не більше 1 000 000 г',
-  too_small: 'Витрата має бути більшою за нуль',
+  too_large: USAGE_TOO_LARGE,
+  too_small: USAGE_NOT_POSITIVE,
 } as const
 
 /** Whole, non-negative; an empty field counts as zero (AC-07). A number too big to represent is `Infinity`. */
@@ -68,9 +71,8 @@ export function parseQuoteForm(value: QuoteFormValue): {
 
     const grams = parseDecimal(row.grams, 2)
     if (!grams.ok) errors[`rows.${i}.grams`] = GRAMS_ERRORS[grams.reason]
-    else if (grams.value <= 0) errors[`rows.${i}.grams`] = 'Витрата має бути більшою за нуль'
-    else if (grams.value > MAX_USAGE_CG)
-      errors[`rows.${i}.grams`] = 'Витрата — не більше 1 000 000 г'
+    else if (grams.value <= 0) errors[`rows.${i}.grams`] = USAGE_NOT_POSITIVE
+    else if (grams.value > MAX_USAGE_CG) errors[`rows.${i}.grams`] = USAGE_TOO_LARGE
     else plastics.push({ plastic_id: row.plasticId, usage_cg: grams.value })
   })
 
@@ -79,9 +81,10 @@ export function parseQuoteForm(value: QuoteFormValue): {
   if (hours === null) errors.hours = 'Години — ціле невід’ємне число'
   if (minutes === null || minutes >= 60) errors.minutes = 'Хвилини — ціле число від 0 до 59'
   const printTimeS = ((hours ?? 0) * 60 + (minutes ?? 0)) * 60
-  if (hours !== null && minutes !== null && printTimeS === 0)
-    errors.time = 'Час друку має бути більшим за нуль'
-  else if (printTimeS > MAX_PRINT_TIME_S) errors.time = 'Час друку — не більше 100 000 год'
+  if (hours !== null && minutes !== null && minutes < 60) {
+    if (printTimeS === 0) errors.time = 'Час друку має бути більшим за нуль'
+    else if (printTimeS > MAX_PRINT_TIME_S) errors.time = PRINT_TIME_TOO_LARGE
+  }
 
   if (Object.keys(errors).length > 0) return { input: null, errors }
   return { input: { plastics, print_time_s: printTimeS }, errors }

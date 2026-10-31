@@ -134,3 +134,22 @@ test('hours too large for a safe integer are over the cap, not "not whole" (AC-0
   expect(errors.time).toBe('Час друку — не більше 100 000 год')
   expect(errors.hours).toBeUndefined()
 })
+
+test.each([
+  ['0', '99999999999999999999'],
+  ['0', '6000001'],
+  ['1', '60'],
+])('invalid minutes %s h %s min explain only minutes, not the time cap (AC-07)', (h, m) => {
+  const { input, errors } = parseQuoteForm(form([['petg', '1']], h, m))
+
+  expect(input).toBeNull()
+  expect(errors.minutes).toBe('Хвилини — ціле число від 0 до 59')
+  expect(errors.time).toBeUndefined()
+})
+
+test('hours over the cap with valid minutes give only the time cap message (AC-07)', () => {
+  const { input, errors } = parseQuoteForm(form([['petg', '1']], '100000', '1'))
+
+  expect(input).toBeNull()
+  expect(errors).toEqual({ time: 'Час друку — не більше 100 000 год' })
+})

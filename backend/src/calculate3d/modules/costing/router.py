@@ -22,7 +22,10 @@ router = APIRouter(prefix="/api/costing", tags=["costing"], responses=GUARD_RESP
         415: UNSUPPORTED_MEDIA_TYPE,
         422: {
             "model": ValidationProblem | FieldProblem,
-            "description": "Хибний вхід (AC-07) або пластика з таким id немає",
+            "description": (
+                "Хибний вхід (AC-07: порожньо, нуль, зайва точність, понад межу, понад 32"
+                " пластики, повтор пластику) або пластика з таким id немає"
+            ),
         },
     },
 )

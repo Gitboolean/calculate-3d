@@ -73,7 +73,7 @@ erDiagram
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | TEXT | PK, app-generated (UUIDv7) | |
-| `name` | TEXT | NOT NULL | як ввів автор, після trim; 1–100 символів (Pydantic). AC-01, AC-02 |
+| `name` | TEXT | NOT NULL | як ввів автор, після NFC і обрізання пробілів та невидимих символів (Cf) по краях (`core/text.normalize_name`); 1–100 символів, code points (Pydantic). AC-01, AC-02 |
 | `name_key` | TEXT | NOT NULL, UNIQUE (`uq_plastics_name_key`) | `core/text.name_key(name)` = `casefold()`; оновлюється разом із `name` (ADR 0006) |
 | `price_per_kg_kop` | INTEGER | NOT NULL | ціна за кг у копійках, 1 … 1 000 000 000 (Pydantic); 650 ₴ → `65000`. AC-01, AC-02 |
 | `created_at` | TEXT | NOT NULL DEFAULT (UTC ISO-8601) | |
@@ -105,7 +105,7 @@ erDiagram
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | TEXT | PK, app-generated (UUIDv7) | `/catalog/:itemId` (ADR 0001 фічі) |
-| `name` | TEXT | NOT NULL | після trim, 1–100 символів. AC-10, AC-11, AC-14b |
+| `name` | TEXT | NOT NULL | після NFC і обрізання пробілів та Cf по краях (`core/text.normalize_name`), 1–100 символів (code points). AC-10, AC-11, AC-14b |
 | `name_key` | TEXT | NOT NULL, UNIQUE (`uq_items_name_key`) | casefold (ADR 0006) |
 | `print_time_s` | INTEGER | NOT NULL | час друку в секундах, 60 … 360 000 000 (100 000 год). UI вводить цілі год + хв, тож значення кратне 60 (AC-07); 3 год 30 хв → `12600` |
 | `created_at` | TEXT | NOT NULL DEFAULT (UTC ISO-8601) | |

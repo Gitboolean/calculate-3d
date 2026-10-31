@@ -931,7 +931,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem']
         }
       }
-      /** @description Хибний вхід (AC-07) або пластика з таким id немає */
+      /** @description Хибний вхід (AC-07: порожньо, нуль, зайва точність, понад межу, понад 32 пластики, повтор пластику) або пластика з таким id немає */
       422: {
         headers: {
           [name: string]: unknown

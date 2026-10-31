@@ -194,3 +194,116 @@ def test_name_bound_errors_keep_the_string_length_message(
     response = client.post("/api/pricing/plastics", json={"name": name, "price_per_kg_kop": 65000})
 
     assert [error["msg"] for error in response.json()["errors"]] == [msg]
+
+
+# T42 (R4-1): the caps are hard-coded from PRD AC-02/AC-05/AC-07 on purpose - importing the MAX_*
+# constants would follow a loosened `le=` instead of catching it. Cap is accepted, cap + 1 is a 422.
+PLASTIC_PRICE_CAP = 1_000_000_000
+SETTINGS_CAPS = {
+    "tariff_per_kwh_kop": 1_000_000,
+    "printer_power_w": 1_000_000,
+    "printer_price_kop": 10_000_000_000,
+    "printer_lifetime_h": 1_000_000,
+    "parts_per_hour_kop": 100_000_000,
+    "scrap_rate_permille": 1000,
+}
+USAGE_CAP_CG = 100_000_000
+PRINT_TIME_CAP_S = 360_000_000
+PLASTICS_CAP = 32
+
+
+def test_plastic_price_cap_is_accepted_and_one_more_is_a_422(client: TestClient) -> None:
+    ok = client.post(
+        "/api/pricing/plastics", json={"name": "Cap", "price_per_kg_kop": PLASTIC_PRICE_CAP}
+    )
+    over = client.post(
+        "/api/pricing/plastics", json={"name": "Over", "price_per_kg_kop": PLASTIC_PRICE_CAP + 1}
+    )
+
+    assert ok.status_code == 201, ok.text
+    _assert_422_on(over, "price_per_kg_kop")
+
+
+@pytest.mark.parametrize("field", SETTINGS_FIELDS)
+def test_price_setting_cap_is_accepted_and_one_more_is_a_422(
+    client: TestClient, field: str
+) -> None:
+    cap = SETTINGS_CAPS[field]
+
+    ok = client.put("/api/pricing/settings", json={**AC04_SETTINGS, field: cap})
+    over = client.put("/api/pricing/settings", json={**AC04_SETTINGS, field: cap + 1})
+
+    assert ok.status_code == 200, ok.text
+    assert ok.json()[field] == cap
+    _assert_422_on(over, field)
+    assert client.get("/api/pricing/settings").json()[field] == cap
+
+
+def test_usage_cap_is_accepted_and_one_more_is_a_422_in_quote_and_item(
+    client: TestClient, seeded: str
+) -> None:
+    def post(usage_cg: int) -> tuple[Any, Any]:
+        plastics = [{"plastic_id": seeded, "usage_cg": usage_cg}]
+        quote = client.post("/api/costing/quote", json={"plastics": plastics, "print_time_s": 3600})
+        item = client.post(
+            "/api/catalog/items",
+            json={"name": f"U{usage_cg}", "plastics": plastics, "print_time_s": 3600},
+        )
+        return quote, item
+
+    quote, item = post(USAGE_CAP_CG)
+    assert quote.status_code == 200, quote.text
+    assert item.status_code == 201, item.text
+
+    quote, item = post(USAGE_CAP_CG + 1)
+    _assert_422_on(quote, "usage_cg")
+    _assert_422_on(item, "usage_cg")
+
+
+def test_print_time_cap_is_accepted_and_one_minute_more_is_a_422_in_quote_and_item(
+    client: TestClient, seeded: str
+) -> None:
+    plastics = [{"plastic_id": seeded, "usage_cg": 100}]
+
+    def post(print_time_s: int) -> tuple[Any, Any]:
+        quote = client.post(
+            "/api/costing/quote", json={"plastics": plastics, "print_time_s": print_time_s}
+        )
+        item = client.post(
+            "/api/catalog/items",
+            json={"name": f"T{print_time_s}", "plastics": plastics, "print_time_s": print_time_s},
+        )
+        return quote, item
+
+    quote, item = post(PRINT_TIME_CAP_S)
+    assert quote.status_code == 200, quote.text
+    assert item.status_code == 201, item.text
+
+    quote, item = post(PRINT_TIME_CAP_S + 60)  # a whole minute, so only the cap can reject it
+    _assert_422_on(quote, "print_time_s")
+    _assert_422_on(item, "print_time_s")
+
+
+def test_32_distinct_plastics_are_accepted_and_33_is_a_422_in_quote_and_item(
+    client: TestClient, engine: Engine
+) -> None:
+    with engine.begin() as conn:
+        make_price_settings(conn)
+        ids = [make_plastic(conn, name=f"Cap-{n}") for n in range(PLASTICS_CAP + 1)]
+
+    def post(count: int) -> tuple[Any, Any]:
+        plastics = [{"plastic_id": pid, "usage_cg": 100} for pid in ids[:count]]
+        quote = client.post("/api/costing/quote", json={"plastics": plastics, "print_time_s": 3600})
+        item = client.post(
+            "/api/catalog/items",
+            json={"name": f"P{count}", "plastics": plastics, "print_time_s": 3600},
+        )
+        return quote, item
+
+    quote, item = post(PLASTICS_CAP)
+    assert quote.status_code == 200, quote.text
+    assert item.status_code == 201, item.text
+
+    quote, item = post(PLASTICS_CAP + 1)
+    _assert_422_on(quote, "plastics")
+    _assert_422_on(item, "plastics")

@@ -103,6 +103,7 @@ test.each([
   ['12,345', '3', '30', 'Витрата — з точністю до 0,01 г'],
   ['0', '3', '30', 'Витрата має бути більшою за нуль'],
   ['1000000,01', '3', '30', 'Витрата — не більше 1 000 000 г'],
+  ['120', '100000', '1', 'Час друку — не більше 100 000 год'],
   ['120', '3', '60', 'Хвилини — ціле число від 0 до 59'],
   ['120', '0', '0', 'Час друку має бути більшим за нуль'],
   ['120', '2,5', '0', 'Години — ціле невід’ємне число'],
@@ -123,6 +124,25 @@ test.each([
     expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
   },
 )
+
+test('33 plastic rows are over the cap: no donation, no saving (AC-07)', async () => {
+  const user = userEvent.setup()
+  const api = serve()
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+
+  for (let row = 1; row < 33; row += 1) {
+    await user.click(screen.getByRole('button', { name: 'Додати пластик' }))
+  }
+  await fillTime('1', '0')
+
+  expect(screen.getAllByLabelText('Пластик')).toHaveLength(33)
+  expect(await screen.findByText('Не більше 32 пластиків в одному розрахунку')).toBeInTheDocument()
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
+  expect(api.callsTo('POST', '/api/costing/quote')).toHaveLength(0)
+  expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
+})
 
 test('the same plastic twice asks to merge the rows (AC-07)', async () => {
   const user = userEvent.setup()

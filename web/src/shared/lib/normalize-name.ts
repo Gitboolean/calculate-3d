@@ -5,12 +5,19 @@
 export const MAX_NAME_LENGTH = 100
 
 // JS `\s` plus the Python-only whitespace (U+001C..U+001F, U+0085) plus Cf.
+// Tested one code point at a time from each end, so trimming stays linear (a regex with a `$`
+// branch backtracks from every interior position).
 // eslint-disable-next-line no-control-regex -- U+001C..U+001F are whitespace to the server's isspace()
-const EDGE_TRIMMABLE = /^[\s\p{Cf}\u001c-\u001f\u0085]+|[\s\p{Cf}\u001c-\u001f\u0085]+$/gu
+const TRIMMABLE = /^[\s\p{Cf}\u001c-\u001f\u0085]$/u
 
 /** NFC-normalizes `raw` and trims whitespace and invisible format characters at both ends, as the server does. */
 export function normalizeName(raw: string): string {
-  return raw.normalize('NFC').replace(EDGE_TRIMMABLE, '')
+  const chars = Array.from(raw.normalize('NFC'))
+  let start = 0
+  let end = chars.length
+  while (start < end && TRIMMABLE.test(chars[start] ?? '')) start++
+  while (end > start && TRIMMABLE.test(chars[end - 1] ?? '')) end--
+  return chars.slice(start, end).join('')
 }
 
 /** Length in code points, as the server counts. */

@@ -80,6 +80,26 @@ test('a server 422 on name says the length range, not "required" (AC-02)', () =>
   expect(serverErrors(error).name).toBe('Назва — від 1 до 100 символів')
 })
 
+test('a server 422 on price says the allowed range with the maximum (AC-02)', () => {
+  const error = new ApiError(422, {
+    type: 'about:blank',
+    title: 'Validation error',
+    status: 422,
+    detail: 'Invalid request',
+    code: 'validation_error',
+    errors: [
+      {
+        loc: ['body', 'price_per_kg_kop'],
+        msg: 'Input should be less than or equal to 1000000000',
+      },
+    ],
+  })
+
+  expect(serverErrors(error).price).toBe(
+    'Ціна має бути більшою за нуль і не більшою за 10 000 000 ₴',
+  )
+})
+
 test.each([
   ['U+200B', '\u200B'],
   ['U+00AD', '\u00AD'],

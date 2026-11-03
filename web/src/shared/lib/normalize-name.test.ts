@@ -56,3 +56,45 @@ test('NFC is applied before stripping', () => {
 test('nameLength counts code points', () => {
   expect(nameLength('😀😀')).toBe(2)
 })
+
+// Linear time: the trim must not backtrack over a long interior run (review R5-5).
+const RUN = 100_000
+const BUDGET_MS = 50
+
+function timed(raw: string): { result: string; ms: number } {
+  const start = performance.now()
+  const result = normalizeName(raw)
+  return { result, ms: performance.now() - start }
+}
+
+test('a long interior run of spaces is kept and normalises in linear time', () => {
+  const { result, ms } = timed('a' + ' '.repeat(RUN) + 'b')
+
+  expect(result).toHaveLength(RUN + 2)
+  expect(result.startsWith('a')).toBe(true)
+  expect(result.endsWith('b')).toBe(true)
+  expect(ms).toBeLessThan(BUDGET_MS)
+})
+
+test('a long interior run of zero width spaces is kept and normalises in linear time', () => {
+  const { result, ms } = timed('a' + '\u200B'.repeat(RUN) + 'b')
+
+  expect(result).toHaveLength(RUN + 2)
+  expect(result.startsWith('a')).toBe(true)
+  expect(result.endsWith('b')).toBe(true)
+  expect(ms).toBeLessThan(BUDGET_MS)
+})
+
+test('a long trailing run of spaces is stripped in linear time', () => {
+  const { result, ms } = timed('a' + ' '.repeat(RUN))
+
+  expect(result).toBe('a')
+  expect(ms).toBeLessThan(BUDGET_MS)
+})
+
+test('a long leading run of spaces is stripped in linear time', () => {
+  const { result, ms } = timed(' '.repeat(RUN) + 'a')
+
+  expect(result).toBe('a')
+  expect(ms).toBeLessThan(BUDGET_MS)
+})

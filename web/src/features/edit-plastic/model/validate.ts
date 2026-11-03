@@ -5,9 +5,10 @@ import { MAX_NAME_LENGTH, nameLength, normalizeName, parseDecimal } from '@/shar
 export type PlasticErrors = Partial<Record<'name' | 'price' | 'form', string>>
 
 const MAX_PRICE_KOP = 1_000_000_000
-const PRICE_TOO_LARGE = 'Ціна — не більше 10 000 000 ₴ за кг'
+const MAX_PRICE_TEXT = '10 000 000 ₴'
+const PRICE_TOO_LARGE = `Ціна — не більше ${MAX_PRICE_TEXT} за кг`
 const PRICE_NOT_POSITIVE = 'Ціна має бути більшою за нуль'
-const PRICE_RANGE = 'більшою за нуль і не більшою за 10 000 000 ₴'
+const PRICE_RANGE = `більшою за нуль і не більшою за ${MAX_PRICE_TEXT}`
 
 export function validatePlastic(
   name: string,

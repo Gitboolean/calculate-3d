@@ -46,16 +46,21 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
   `{"type","title","status","detail","code"}`. Never raise `HTTPException` from a service.
 - **IDs:** UUIDv7 generated in the app (`core/ids.py::new_id()`), stored as 36-char `TEXT`. The DB
   never generates IDs (ADR 0003).
-- **Money (ADR 0003):** `INTEGER` kopecks with a `_kop` suffix (`price_per_kg_kop`); compute with
-  `decimal.Decimal`; round the final cost / minimum donation **up** with `ROUND_CEILING` to whole
+- **Money (ADR 0003):** `INTEGER` kopecks with a `_kop` suffix (`price_per_kg_kop`); compute exact intermediates
+  with `fractions.Fraction` and round through a `decimal.Decimal` context (cost-calculator ADR 0004
+  amendment); round the final cost / minimum donation **up** with `ROUND_CEILING` to whole
   kopecks. API exposes kopecks as ints. Never `float` for money.
-- **Physical units live in the column name:** grams `*_g`, seconds `*_s`, watts `*_w`, rates
-  `*_per_hour_kop`.
+- **Physical units live in the column name:** grams `*_g`, centigrams `*_cg`, seconds `*_s`,
+  whole hours `*_h`, watts `*_w`, tenths of a percent `*_permille`, rates `*_per_hour_kop`
+  (cost-calculator ADR 0004: every fractional quantity is a scaled integer).
 - **Persistence:** SQLAlchemy 2 Core only (`select/insert/update/delete` on `Table`s sharing
   `core.db.metadata`), no ORM sessions. DB is dumb storage: no CHECK, no TRIGGER, no business
   defaults — validation lives in Pydantic/service. Audit column `created_at` (UTC ISO-8601 `TEXT`)
   only; hard delete. Pragmas `foreign_keys=ON` + WAL are set on every connection by
-  `create_db_engine()`. DB file: `CALC3D_DATABASE_URL` (default `backend/var/calculate3d.db`, gitignored).
+  `create_db_engine()`, and every transaction opens with `BEGIN IMMEDIATE` (driver autocommit +
+  a `begin` listener; the health ping opts out with `deferred_begin`) so a service's pre-check
+  read and its write are serialized; repos translate
+  a FK/UNIQUE `IntegrityError` into a repo exception the service maps to a domain error. DB file: `CALC3D_DATABASE_URL` (default `backend/var/calculate3d.db`, gitignored).
 - **Migrations:** Alembic in `backend/migrations/`, timestamped file names
   (`YYYYMMDD_HHMM_<slug>.py`), **SQL-first** — `op.execute("""<SQL>""")` in `upgrade()`/`downgrade()`,
   no autogenerate. Staged `docs/features/<slug>/migrations/<NN>_*.up.sql`/`.down.sql` are copied

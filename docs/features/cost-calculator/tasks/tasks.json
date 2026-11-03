@@ -1,0 +1,976 @@
+{
+  "slug": "cost-calculator",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Перенести 4 staged-міграції в ланцюжок Alembic і задокументувати суфікси одиниць",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-03",
+        "AC-09",
+        "AC-15"
+      ],
+      "dod": "Чотири ревізії проходять upgrade → downgrade → upgrade на тимчасовому SQLite у test_migrations.py, а make api-check зелений.",
+      "files_hint": [
+        "docs/features/cost-calculator/migrations/20261028120000_create_plastics",
+        "docs/features/cost-calculator/migrations/20261028120001_create_price_settings",
+        "docs/features/cost-calculator/migrations/20261028120002_create_items",
+        "docs/features/cost-calculator/migrations/20261028120003_create_item_plastics",
+        "backend/tests/integration/test_migrations.py",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Додати core/text.py (trim, name_key, пошук, український порядок) і поля-розширення AppError",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-03",
+        "AC-09",
+        "AC-11",
+        "AC-12"
+      ],
+      "dod": "Unit-тести core/text.py відтворюють порядок «Benchy, гачок, ґудзик, єдиноріг, Іграшка, Ялинка» з AC-12, а інтеграційний тест бачить field/items/missing у тілі problem+json.",
+      "files_hint": [
+        "backend/src/calculate3d/core/text.py",
+        "backend/src/calculate3d/core/errors.py",
+        "backend/tests/unit/test_text.py",
+        "backend/tests/integration/test_errors.py"
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Додати middleware захисту запитів: allowlist Host, same-origin, JSON-only",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-16",
+        "AC-16b"
+      ],
+      "dod": "Інтеграційні тести показують 400/403/415 на чужий Host, чужий Origin і не-JSON зміну без зміни стану БД, а запити з дозволеним Host/Origin на обох портах проходять.",
+      "files_hint": [
+        "backend/src/calculate3d/core/guard.py",
+        "backend/src/calculate3d/core/config.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_request_guard.py"
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Віддавати index.html для будь-якого не-/api шляху (SPA fallback)",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-09",
+        "AC-14"
+      ],
+      "dod": "test_static_ui.py показує, що GET /catalog/<uuid> і /settings повертають index.html, а GET /api/unknown повертає problem+json 404.",
+      "files_hint": [
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_static_ui.py"
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "Реалізувати чисту формулу собівартості costing.domain на Decimal з еталонною таблицею",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-04",
+        "AC-06",
+        "AC-06b",
+        "AC-08",
+        "AC-08b",
+        "AC-13"
+      ],
+      "dod": "Параметризований pytest на ≥10 еталонних прикладах (AC-06, AC-06b, AC-08b, AC-13 та інші) збігається до копійки, а перевірка з фіксованим seed доводить, що донат ≥ точної суми і < суми + 1 коп.",
+      "files_hint": [
+        "backend/src/calculate3d/core/money.py",
+        "backend/src/calculate3d/modules/costing/__init__.py",
+        "backend/src/calculate3d/modules/costing/domain.py",
+        "backend/tests/unit/test_costing_domain.py"
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "Зібрати модуль pricing: tables, repo, service, schemas для пластиків і налаштувань цін",
+      "layer": "app",
+      "deps": [
+        "T1",
+        "T2",
+        "T5"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-03",
+        "AC-04",
+        "AC-05"
+      ],
+      "dod": "Unit-тести сервісу pricing покривають AC-01–AC-05 (унікальність після trim+casefold, plastic_in_use з назвами виробів, атомарна заміна всіх 6 полів), а make api-check зелений. Фікстура engine у conftest.py дає кожному тесту власний файл БД, скопійований з мігрованого один раз на сесію шаблону; наявні тести зелені без змін.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/pricing/__init__.py",
+        "backend/src/calculate3d/modules/pricing/tables.py",
+        "backend/src/calculate3d/modules/pricing/repo.py",
+        "backend/src/calculate3d/modules/pricing/service.py",
+        "backend/src/calculate3d/modules/pricing/schemas.py",
+        "backend/tests/conftest.py",
+        "backend/tests/factories.py",
+        "backend/tests/unit/test_pricing_service.py"
+      ]
+    },
+    {
+      "id": "T7",
+      "title": "Відкрити /api/pricing: CRUD пластиків і GET/PUT налаштувань цін",
+      "layer": "ports",
+      "deps": [
+        "T6"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-04",
+        "AC-05"
+      ],
+      "dod": "Інтеграційні тести через TestClient проходять AC-01, AC-02, AC-04 і AC-05 на реальному SQLite з problem+json кодами з контракту, а make api-types-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/pricing/router.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_pricing_api.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T8",
+      "title": "Реалізувати costing.service.quote() і POST /api/costing/quote",
+      "layer": "ports",
+      "deps": [
+        "T5",
+        "T7"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-06b",
+        "AC-07",
+        "AC-08",
+        "AC-09"
+      ],
+      "dod": "POST /api/costing/quote повертає 11525 коп і розбивку AC-06, 8063 коп для AC-06b, 422 для кожного хибного випадку AC-07 і 409 costing.settings_missing з missing для AC-09.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/costing/service.py",
+        "backend/src/calculate3d/modules/costing/schemas.py",
+        "backend/src/calculate3d/modules/costing/router.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/unit/test_costing_service.py",
+        "backend/tests/integration/test_costing_api.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T9",
+      "title": "Додати catalog tables + repo: вироби з рядками витрати, пакетне читання без N+1",
+      "layer": "infra",
+      "deps": [
+        "T1"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-10",
+        "AC-12",
+        "AC-14b",
+        "AC-15"
+      ],
+      "dod": "Інтеграційні тести repo на мігрованому SQLite підтверджують, що list_items_with_usage робить фіксовану кількість SQL-запитів на 1 000 виробів, видалення виробу каскадить рядки, а item_names_using_plastic повертає назви.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/__init__.py",
+        "backend/src/calculate3d/modules/catalog/tables.py",
+        "backend/src/calculate3d/modules/catalog/repo.py",
+        "backend/tests/factories.py",
+        "backend/tests/integration/test_catalog_repo.py"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Реалізувати catalog.service: збереження, редагування, видалення, пошук і перерахунок цін",
+      "layer": "app",
+      "deps": [
+        "T2",
+        "T8",
+        "T9"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-14b",
+        "AC-14c",
+        "AC-15"
+      ],
+      "dod": "Unit-тести catalog.service з підміненими repo і costing покривають AC-10–AC-15 (зокрема незмінність виробу при помилці AC-14c та український порядок AC-12), а make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/service.py",
+        "backend/src/calculate3d/modules/catalog/schemas.py",
+        "backend/tests/unit/test_catalog_service.py"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Відкрити /api/catalog/items і підключити перевірку використання пластику в pricing (AC-03)",
+      "layer": "ports",
+      "deps": [
+        "T7",
+        "T8",
+        "T10"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-14b",
+        "AC-14c",
+        "AC-15"
+      ],
+      "dod": "Інтеграційні тести через TestClient проходять AC-03 (409 pricing.plastic_in_use з items), AC-10–AC-15 і AC-13 (ціна виробу змінюється після PUT ціни пластику), а make check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/router.py",
+        "backend/src/calculate3d/modules/pricing/router.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_catalog_api.py",
+        "backend/tests/integration/test_pricing_api.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Додати тести NFR (латентність, збереженість, узгодженість цін) і контрактний тест OpenAPI",
+      "layer": "tests",
+      "deps": [
+        "T3",
+        "T11"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04",
+        "AC-06",
+        "AC-10",
+        "AC-12",
+        "AC-13",
+        "AC-15",
+        "AC-16b"
+      ],
+      "dod": "Нові тести NFR, наскрізний сценарій API і контракт зелені в локальному make check (латентність пропускається при CI=1); кількість SQL-запитів на відкриття каталогу не залежить від кількості виробів; дифф app.openapi() з contracts/openapi.yaml не має відсутніх операцій чи error-кодів.",
+      "files_hint": [
+        "backend/tests/integration/test_nfr_latency.py",
+        "backend/tests/integration/test_nfr_durability.py",
+        "backend/tests/integration/test_price_consistency.py",
+        "backend/tests/integration/test_contract.py",
+        "backend/tests/integration/test_e2e_golden_path.py",
+        "backend/tests/integration/test_request_guard.py",
+        "backend/pyproject.toml",
+        "backend/uv.lock"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Підключити React Router, оболонку з навігацією, parse-decimal і format-money",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-09"
+      ],
+      "dod": "Vitest покриває parse-decimal на всіх прикладах з AC-01, AC-02, AC-05 і AC-07 (кома, крапка, 649,995, 4,3216, 7,25 %, 152,5 Вт, 12,345 г) і format-money (11525 → «115,25 ₴»), а make web-check зелений зі Steiger.",
+      "files_hint": [
+        "web/package.json",
+        "web/package-lock.json",
+        "web/src/app/App.tsx",
+        "web/src/app/layout",
+        "web/src/shared/lib/parse-decimal.ts",
+        "web/src/shared/lib/parse-decimal.test.ts",
+        "web/src/shared/lib/format-money.ts",
+        "web/src/shared/lib/format-money.test.ts",
+        "web/src/shared/lib/index.ts",
+        "web/src/pages"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Зібрати розділ пластиків на /settings: список, додавання, редагування, видалення з підтвердженням",
+      "layer": "ui",
+      "deps": [
+        "T7",
+        "T13"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-03"
+      ],
+      "dod": "Component-тести з підміненим API проходять AC-01 (пластик у списку), AC-02 (помилки біля полів без збереження) і AC-03 (повідомлення з назвами виробів), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/settings",
+        "web/src/features/edit-plastic",
+        "web/src/entities/plastic",
+        "web/src/shared/ui/alert-dialog.tsx",
+        "web/src/shared/ui/index.ts"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Зібрати форму налаштувань цін на /settings: 6 полів, одне збереження, знос за годину",
+      "layer": "ui",
+      "deps": [
+        "T7",
+        "T13",
+        "T14"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-05"
+      ],
+      "dod": "Component-тести проходять AC-04 (один PUT з усіма 6 полями і показ зносу 7,00 ₴) і AC-05 (жодного запиту, коли хоч одне поле хибне; нуль допустимий), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/settings",
+        "web/src/features/edit-price-settings",
+        "web/src/entities/price-settings"
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Додати entity quote (debounce + ключ запиту) і віджет cost-breakdown",
+      "layer": "ui",
+      "deps": [
+        "T8",
+        "T13"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-06b",
+        "AC-08",
+        "AC-08b"
+      ],
+      "dod": "Vitest-сценарій «дві швидкі зміни, повільна перша відповідь» ніколи не показує донат для попередніх значень, а віджет рендерить 115,25 ₴ і 4 рядки AC-06.",
+      "files_hint": [
+        "web/src/entities/quote",
+        "web/src/widgets/cost-breakdown"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Зібрати сторінку /calculate з формою quote-form, валідацією AC-07 і станом «бракує налаштувань»",
+      "layer": "ui",
+      "deps": [
+        "T14",
+        "T16"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-06b",
+        "AC-07",
+        "AC-09"
+      ],
+      "dod": "Component-тести проходять AC-06/AC-06b (донат з'являється без окремої дії), AC-07 (донату немає, помилки біля полів) і AC-09 (перелік відсутніх налаштувань з посиланням на /settings), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate",
+        "web/src/features/quote-form",
+        "web/src/shared/ui/select.tsx",
+        "web/src/shared/ui/index.ts"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Додати збереження розрахунку в каталог (feature save-item) на /calculate",
+      "layer": "ui",
+      "deps": [
+        "T11",
+        "T17"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "Component-тести показують, що збереження недоступне без донату (AC-10), успішне збереження надсилає лише параметри і веде на сторінку виробу, а 409 catalog.name_taken дає помилку біля назви (AC-11).",
+      "files_hint": [
+        "web/src/features/save-item",
+        "web/src/entities/item",
+        "web/src/pages/calculate"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Зібрати сторінку /catalog: пошук за ?q= і список виробів з актуальним мінімальним донатом",
+      "layer": "ui",
+      "deps": [
+        "T11",
+        "T13",
+        "T18"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "Component-тести показують відфільтрований за ?q=тризуб список у серверному порядку з цінами у форматі «115,25 ₴», а повторне відкриття сторінки робить новий запит (AC-13).",
+      "files_hint": [
+        "web/src/pages/catalog",
+        "web/src/entities/item"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Зібрати сторінку /catalog/:itemId: перегляд, редагування через quote-form і видалення",
+      "layer": "ui",
+      "deps": [
+        "T17",
+        "T18"
+      ],
+      "acs": [
+        "AC-14",
+        "AC-14b",
+        "AC-14c",
+        "AC-15"
+      ],
+      "dod": "Component-тести проходять AC-14 (параметри й розбивка), AC-14b (оновлення після збереження), AC-14c (помилки без зміни виробу) і AC-15 (видалення після підтвердження, скасування лишає виріб), а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/item",
+        "web/src/features/delete-item",
+        "web/src/entities/item"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "Відкрити DTO costing через service.py і повертати loc поля для дубля пластику",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-07",
+        "AC-14c"
+      ],
+      "dod": "catalog імпортує PlasticUsage/Quote/QuoteInput/SettingsMissingProblem лише з costing.service (re-export), а не з costing.schemas; 422 на дубль пластику має errors[0].loc == ['body','plastics',<i>,'plastic_id'] (openapi.yaml example duplicate_plastic) — integration-тест для /api/costing/quote і /api/catalog/items; make api-check зелений. Знахідки S1-6, S1-3 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/costing",
+        "backend/src/calculate3d/modules/catalog",
+        "backend/tests"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "Перевіряти на сервері, що виріб має ціну, перед збереженням (AC-10)",
+      "layer": "app",
+      "deps": [
+        "T21"
+      ],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "catalog._save (create і update) до першого запису проганяє той самий розрахунок, що й quote: без налаштувань цін → 409 costing.settings_missing з missing, виріб не створено/не змінено (test-plan row 77); 409 задекларовано на createItem/updateItem у router і contracts/openapi.yaml; integration-тест; make api-check зелений. Знахідка S1-1 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog",
+        "backend/tests",
+        "docs/features/cost-calculator/contracts"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Звести живий OpenAPI з контрактом на рівні схем і задекларувати 415 на DELETE",
+      "layer": "ports",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-16b"
+      ],
+      "dod": "Response- і problem-моделі мають additionalProperties:false (extra='forbid'), *_kop-виходи minimum 0, items/missing minItems 1 (missing uniqueItems), Id format uuid на path-параметрах і plastic_id; 415 UnsupportedMediaType задекларовано на deletePlastic/deleteItem (router + контракт); test_contract.py порівнює components.schemas (required, типи, межі, additionalProperties) і падає на розбіжності; make api-types перегенеровано; make check зелений. Знахідки S1-4, S1-5 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d",
+        "backend/tests/integration/test_contract.py",
+        "docs/features/cost-calculator/contracts",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "Обмежити масштабовані цілі зверху і нормалізувати імена (NFC, невидимі символи)",
+      "layer": "app",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-11"
+      ],
+      "dod": "Кожне вхідне поле *_kop/_cg/_s/_w/_h має le=-межу, за якої максимальний min_donation_kop ≤ 2^53−1; завеликі значення → 422 validation_error біля поля (integration-тести на pricing/costing/catalog), не 500; normalize_name робить NFC перед trim; ім'я, порожнє після видалення символів категорії Cf, відхиляється; unit-тести в tests/unit/test_text.py; make api-types; make check зелений. Знахідки S2-1, S2-3 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core",
+        "backend/src/calculate3d/modules",
+        "backend/tests",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Серіалізувати перевірку і запис у транзакції та перекладати FK IntegrityError у доменні помилки",
+      "layer": "infra",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-14b"
+      ],
+      "dod": "Мутуючий запит починає транзакцію до перевірок (BEGIN IMMEDIATE через pysqlite-рецепт SQLAlchemy у create_db_engine); FK IntegrityError у pricing.repo.delete_plastic → pricing.plastic_in_use, у catalog.repo.replace_usage → catalog.plastic_not_found (не 500); тести, що симулюють FK-порушення в обхід сервісної перевірки; make api-check зелений. Знахідка S2-2 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core/db.py",
+        "backend/src/calculate3d/modules/pricing",
+        "backend/src/calculate3d/modules/catalog",
+        "backend/tests"
+      ]
+    },
+    {
+      "id": "T26",
+      "title": "Покрити шлях редагування пластику з AC-02 integration- і UI-тестами",
+      "layer": "tests",
+      "deps": [
+        "T24"
+      ],
+      "acs": [
+        "AC-02"
+      ],
+      "dod": "Integration: PUT /api/pricing/plastics/{id} на зайняту назву → 409 pricing.name_taken, ціна 0 → 422; GET після цього повертає старі значення. Vitest: PlasticsSection — форма «Змінити» з невалідною ціною показує помилку біля поля і не шле PUT; make check зелений. Знахідка S1-10 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "backend/tests/integration/test_pricing_api.py",
+        "web/src/pages/settings/ui/PlasticsSection.test.tsx"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "Не показувати донат за старими цінами з кешу і не блимати списком під час пошуку",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "Успішні мутації plastic і price-settings прибирають кеш ['quote'] та інвалідовують ['items']; повторне відкриття /catalog або того самого quote після зміни ціни ніколи не показує старий донат (тест AC-13 перевіряє, що 115,25 ₴ не з'являється після reopen); useItems має placeholderData keepPreviousData і debounced q у ключі — таблиця не зникає між натисканнями; make web-check зелений. Знахідки S1-2, S2-8 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "web/src/entities/quote",
+        "web/src/entities/item",
+        "web/src/entities/plastic",
+        "web/src/entities/price-settings",
+        "web/src/pages/catalog"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "Типізувати problem-розширення зі згенерованих схем і показувати помилки quote на обох екранах",
+      "layer": "ui",
+      "deps": [
+        "T23",
+        "T27"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-09",
+        "AC-14"
+      ],
+      "dod": "shared/api/errors.ts будує Problem зі згенерованих FieldProblem/PlasticInUseProblem/SettingsMissingProblem/ValidationProblem, MISSING_TEXT типізовано enum'ом missing; спільна панель результату quote (MissingSettings / costing.plastic_not_found «Один із пластиків уже видалено…» / нейтральний текст для 5xx і мережі) використовується на /calculate і в ItemEditor (кнопка збереження вимкнена при помилці); ItemPage показує помилку, якщо не завантажились пластики, а MissingSettings — усередині секції з заголовком; component-тести на кожну гілку; make web-check зелений. Знахідки S1-8, S2-4, S2-5, S2-6 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "web/src/shared/api",
+        "web/src/widgets/cost-breakdown",
+        "web/src/features/quote-form",
+        "web/src/pages/calculate",
+        "web/src/pages/item"
+      ]
+    },
+    {
+      "id": "T29",
+      "title": "Зв'язати помилки годин/хвилин через aria-describedby і посилити тести AC-14b та моки quote",
+      "layer": "ui",
+      "deps": [
+        "T28"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-14b"
+      ],
+      "dod": "Поля годин і хвилин у QuoteForm мають aria-describedby на показані повідомлення ${id}-hours-error/-minutes-error/-time-error (тест через toHaveAccessibleDescription); ItemPage.test після збереження перевіряє 77,77 ₴ у статусі «Мінімальний донат»; fallback-мок у CalculatePage.test відповідає контракту (нульова розбивка або 500 на неочікуваний ключ); make web-check зелений. Знахідки S2-7, S1-9, S2-9 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "web/src/features/quote-form",
+        "web/src/pages/item/ui/ItemPage.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T30",
+      "title": "Задокументувати точні Fraction-проміжні обчислення в ADR 0004 і CLAUDE.md",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-08",
+        "AC-08b"
+      ],
+      "dod": "ADR 0004 (поправка з датою), ADR 0005 і CLAUDE.md § Money кажуть: проміжні суми — точні fractions.Fraction, округлення до копійок через Decimal-контекст (ROUND_CEILING для донату, ROUND_HALF_UP для рядків); sad.md і T5 не суперечать; make check зелений. Знахідка S1-7 у docs/features/cost-calculator/_review/review-2026-10-29.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/adr",
+        "CLAUDE.md",
+        "backend/CLAUDE.md",
+        "docs/features/cost-calculator/sad.md"
+      ]
+    },
+    {
+      "id": "T31",
+      "title": "Типізувати id у path-параметрах як Id (format: uuid) і полагодити контрактний тест параметрів",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-16b"
+      ],
+      "dod": "item_id/plastic_id у catalog/router.py і pricing/router.py типізовані через core/schemas.py Id, живий OpenAPI емітить format: uuid; _path_id_params у test_contract.py зливає path-item- і operation-рівневі parameters і падає, якщо format прибрати; make api-types без ручних правок; make check зелений. Знахідка R2-1 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/router.py",
+        "backend/src/calculate3d/modules/pricing/router.py",
+        "backend/tests/integration/test_contract.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T32",
+      "title": "Брати BEGIN IMMEDIATE через SQLAlchemy і не блокувати health-ping",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-03",
+        "AC-14b"
+      ],
+      "dod": "Помилка BEGIN IMMEDIATE (зайнятий lock, read-only файл) приходить як SQLAlchemyError; health-ping не бере write-lock; integration-тест: друге з'єднання тримає BEGIN IMMEDIATE → GET /api/health повертає 200 db: \"ok\" (не 500; під WAL читання проходить, зайнята БД — не «down»); тести статистики запитів і test_tx_serialization лишаються зеленими; make api-check зелений. Знахідка R2-3 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core/db.py",
+        "backend/src/calculate3d/modules/health/repo.py",
+        "backend/tests/integration"
+      ]
+    },
+    {
+      "id": "T33",
+      "title": "Нормалізувати ім'я (NFC) до перевірки довжини, щоб довге після NFC ім'я давало 422",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "Name у core/schemas.py міряє 1..100 після normalize_name; POST /api/pricing/plastics і POST /api/catalog/items з \"\\u0344\"*100 повертають 422 validation_error з loc на name (не 500); unit-тест у test_text.py або test_input_bounds.py; make api-check зелений. Знахідка R2-4 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/src/calculate3d/core/schemas.py",
+        "backend/src/calculate3d/core/text.py",
+        "backend/tests/integration/test_input_bounds.py"
+      ]
+    },
+    {
+      "id": "T34",
+      "title": "Записати верхні межі в PRD і пояснювати їх біля поля в UI",
+      "layer": "ui",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-14c"
+      ],
+      "dod": "PRD AC-02/AC-05/AC-07 називають верхні межі з data-model.md §«Верхні межі» (замість «верхньої межі немає»); parseQuoteForm, validate.ts пластику і fields.ts налаштувань відхиляють значення понад межу з повідомленням, що називає максимум; QuoteError на validation_error показує «Перевірте поля», а не «Спробуйте ще раз»; Vitest-тести на кожне поле з межею; make web-check зелений. Знахідка R2-2 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/PRD.md",
+        "web/src/features/quote-form",
+        "web/src/features/edit-plastic/model/validate.ts",
+        "web/src/features/edit-price-settings/model/fields.ts"
+      ]
+    },
+    {
+      "id": "T35",
+      "title": "Покрити тестом скидання кешу цін після налаштувань і не показувати порожній стан поверх placeholder-даних",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "AppRoutes.cache.test.tsx має кейс: зміна тарифу в PriceSettingsSection → у каталозі не видно старого донату до свіжої відповіді (падає без evictPricedQueries у useReplacePriceSettings); CatalogPage не показує «Каталог порожній»/«Нічого не знайдено», поки items.isPlaceholderData; тест: порожній результат ?q=xyz → очищення пошуку до некешованого запиту; make web-check зелений. Знахідки R2-8, R2-9 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "web/src/app/layout/AppRoutes.cache.test.tsx",
+        "web/src/pages/catalog/ui/CatalogPage.tsx",
+        "web/src/pages/catalog/ui/CatalogPage.test.tsx"
+      ]
+    },
+    {
+      "id": "T36",
+      "title": "Узгодити SAD з поправкою ADR 0004, повернути ## Links і оновити приклад msg у контракті",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-08b"
+      ],
+      "dod": "sad.md (рядки ~110, 133, 171, 330, 522) описує точні Fraction-проміжні і округлення через Decimal; ADR 0004 знову має розділ ## Links після поправки; приклад msg дубля пластику в contracts/openapi.yaml = \"plastic is listed twice\" (як у живому API); make check зелений. Знахідки R2-5, R2-6, R2-7 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/sad.md",
+        "docs/features/cost-calculator/adr/0004-exchange-quantities-as-scaled-integers.md",
+        "docs/features/cost-calculator/contracts/openapi.yaml"
+      ]
+    },
+    {
+      "id": "T37",
+      "title": "Дописати асерти test-plan: quote не створює виріб, порожня назва при редагуванні не зберігається",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-14c"
+      ],
+      "dod": "test_costing_api.py після успішного quote перевіряє GET /api/catalog/items == {\"items\": []}; test_rejected_edit_leaves_the_item_unchanged має кейс blank-name (422, GET незмінний); make api-check зелений. Знахідка R2-10 у docs/features/cost-calculator/_review/review-2026-10-29-r2.md.",
+      "files_hint": [
+        "backend/tests/integration/test_costing_api.py",
+        "backend/tests/integration/test_catalog_api.py"
+      ]
+    },
+    {
+      "id": "T38",
+      "title": "Узгодити test-plan, контракт, коментарі й PRD з межами T34 і перезвірити api-sync-report",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "test-plan.md:69 замінено рядками меж для AC-02/AC-05/AC-07 (значення на межі приймається, понад межу — відхиляється з повідомленням, що називає максимум) з посиланнями на parse.test.ts / validate.test.ts / fields.test.ts / test_input_bounds.py; openapi.yaml:529 msg = живий текст («Input should be greater than or equal to 1»), опис ItemInvalid згадує межі; коментар costing/schemas.py:9 без «no practical limit»; PRD.md:102 — кома перед «дробові потужність»; коментар core/db.py:37 каже «no transaction (driver autocommit); single-statement reads only»; /sdlc:api-forge cost-calculator --reconcile — Verdict PASS; make check зелений. Знахідки R3-1, R3-5, R3-8 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/test-plan.md",
+        "docs/features/cost-calculator/contracts/openapi.yaml",
+        "docs/features/cost-calculator/contracts/api-sync-report.md",
+        "docs/features/cost-calculator/PRD.md",
+        "backend/src/calculate3d/modules/costing/schemas.py",
+        "backend/src/calculate3d/core/db.py"
+      ]
+    },
+    {
+      "id": "T39",
+      "title": "Називати межу для завеликого числа і пояснювати межу та точність в одному правилі",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "parse-decimal повертає reason too_large для коректно записаного числа поза safe integer, і quote-form / edit-plastic / edit-price-settings показують для нього те саме повідомлення про максимум, що й для значення понад межу (10^14 г → «Витрата — не більше 1 000 000 г»); кожне поле edit-price-settings має одне правило в стилі «<Поле> — від A до B <од.> з точністю до …»; model-тести на обидва випадки; make web-check зелений. Знахідки R3-2, R3-3 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "web/src/shared/lib/parse-decimal.ts",
+        "web/src/features/quote-form/model/parse.ts",
+        "web/src/features/edit-plastic/model/validate.ts",
+        "web/src/features/edit-price-settings/model/fields.ts"
+      ]
+    },
+    {
+      "id": "T40",
+      "title": "Покрити межі полів компонентними тестами на сторінках налаштувань і розрахунку",
+      "layer": "ui",
+      "deps": [
+        "T39"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07",
+        "AC-14c"
+      ],
+      "dod": "PlasticsSection.test.tsx: ціна 10000000,01 → повідомлення про максимум; PriceSettingsSection.test.tsx: значення понад межу для кожного обмеженого налаштування → правило з межею, збереження не відбувається; CalculatePage.test.tsx (і ItemPage.test.tsx для AC-14c): 1 000 000,01 г → «Витрата — не більше 1 000 000 г» біля рядка, внеску немає; make web-check зелений. Знахідка R3-4 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "web/src/pages/settings/ui/PlasticsSection.test.tsx",
+        "web/src/pages/settings/ui/PriceSettingsSection.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/pages/item/ui/ItemPage.test.tsx"
+      ]
+    },
+    {
+      "id": "T41",
+      "title": "Рахувати довжину назви як сервер (NFC, code points) і чекати перезапит замість sleep у тесті каталогу",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11",
+        "AC-12"
+      ],
+      "dod": "edit-plastic/validate.ts і save-item/name.ts міряють [...name.normalize('NFC').trim()].length; серверний 422 на name показується як «Назва — від 1 до 100 символів» (не «обов'язкова»); тести: 60 емодзі приймаються, 60×U+0344 відхиляються з повідомленням про довжину; CatalogPage.test.tsx:157 замість sleep 400 мс чекає (vi.waitFor) на GET /api/catalog/items без q перед негативними перевірками; make web-check зелений. Знахідки R3-6, R3-7 у docs/features/cost-calculator/_review/review-2026-10-30.md.",
+      "files_hint": [
+        "web/src/features/edit-plastic/model/validate.ts",
+        "web/src/features/save-item/model/name.ts",
+        "web/src/pages/catalog/ui/CatalogPage.test.tsx"
+      ]
+    },
+    {
+      "id": "T42",
+      "title": "Покрити межі «на межі / межа + 1» і 32/33 пластики інтеграційними й компонентними тестами",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "test_input_bounds.py: parametrize по кожному le= полю (ціна пластику, 6 налаштувань, usage_cg, print_time_s) — значення на межі приймається, на одиницю точності більше → 422 з loc цього поля; printer_lifetime_h = 1 000 000 збережено; 32 пластики приймаються, 33 → 422 на /api/costing/quote і /api/catalog/items; CalculatePage.test.tsx: 100 000 год 1 хв і 33 рядки пластику → повідомлення про межу, донату немає, збереження недоступне; make check зелений. Знахідка R4-1 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "backend/tests/integration/test_input_bounds.py",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T43",
+      "title": "Дописати межі в контракт quoteCost, SAD потік 1, sync-report і задокументувати межу назви 100 символів",
+      "layer": "docs",
+      "deps": [
+        "T42",
+        "T44"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-11"
+      ],
+      "dod": "openapi.yaml:297-300 і costing/router.py:25 — опис 422 quoteCost називає межі (понад 10^8 cg, понад 3,6·10^8 с, понад 32 пластики) як ItemInvalid; sad.md:314 alt і рядок покриття :521 містять «понад межу»; api-sync-report.md:87 — межа 10^8 cg; PRD AC-02 і AC-11 — «назва до 100 символів»; data-model.md:76,108 і Name (openapi.yaml:675-677) — «NFC, обрізання пробілів і невидимих символів по краях, потім 1–100 символів»; test-plan.md: рядки AC-02/AC-11 для межі назви з посиланнями на validate.test.ts, name.test.ts, test_input_bounds.py, а рядки :45,55,71 посилаються на тести T42; /sdlc:api-forge cost-calculator --reconcile — Verdict PASS; make check зелений. Знахідки R4-2…R4-5 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/contracts/openapi.yaml",
+        "backend/src/calculate3d/modules/costing/router.py",
+        "docs/features/cost-calculator/sad.md",
+        "docs/features/cost-calculator/contracts/api-sync-report.md",
+        "docs/features/cost-calculator/PRD.md",
+        "docs/features/cost-calculator/data-model.md",
+        "docs/features/cost-calculator/test-plan.md"
+      ]
+    },
+    {
+      "id": "T44",
+      "title": "Обрізати назву на клієнті так само, як сервер (Cf і пробіли по краях), і записати U+0344 у тестах як escape",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "shared/lib/normalize-name.ts після NFC обрізає по краях ті самі символи, що core/text.py::normalize_name (\\s, \\p{Cf}, U+001C–U+001F, U+0085), коментар про розбіжність прибрано; тести: 100 літер + U+200B і + U+00AD приймаються як 100 символів, назва лише з U+200B → «Назва обов’язкова» для пластику і виробу; validate.test.ts:54 і name.test.ts:16 використовують '\\u0344' з коментарем про розклад NFC; make web-check зелений. Знахідки R4-6, R4-9 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "web/src/shared/lib/normalize-name.ts",
+        "web/src/features/edit-plastic/model/validate.test.ts",
+        "web/src/features/save-item/model/name.test.ts"
+      ]
+    },
+    {
+      "id": "T45",
+      "title": "Не показувати межу часу поверх помилки хвилин і будувати тексти меж з констант",
+      "layer": "ui",
+      "deps": [
+        "T44"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07"
+      ],
+      "dod": "quote-form/model/parse.ts перевіряє загальний час лише коли години і хвилини валідні (хвилини < 60) — для хвилин 99999999999999999999 і 6000001 одне повідомлення біля хвилин (тест); тексти меж у edit-plastic/model/validate.ts і quote-form/model/parse.ts — одна константа на межу (або будуються з MAX_PRICE_KOP / MAX_USAGE_CG / MAX_PRINT_TIME_S) і використовуються і в мапі причин parseDecimal, і в перевірці діапазону; наявні тести повідомлень зелені без змін тексту; make web-check зелений. Знахідки R4-7, R4-8 у docs/features/cost-calculator/_review/review-2026-10-31.md.",
+      "files_hint": [
+        "web/src/features/quote-form/model/parse.ts",
+        "web/src/features/edit-plastic/model/validate.ts"
+      ]
+    },
+    {
+      "id": "T46",
+      "title": "Покрити межу назви 100 символів серверними кейсами (емодзі, U+200B, U+00AD) і записати невидимі символи в бекенд-тестах як escape",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "test_input_bounds.py для POST /api/pricing/plastics і POST /api/catalog/items: 100 емодзі (U+1F600) збережено, 101 — 422 з полем name і нічого не записано; 100 літер + U+200B на краю збережено з назвою довжиною 100; 100 літер + U+00AD на краю прийнято; рядки 134, 187 у test_input_bounds.py і 65-66, 70-71, 75-76 у test_text.py записують U+200B, U+200D, U+0301, U+0306 як escape (\\u200b, \\u200d, \\u0301, \\u0306) без сирих невидимих символів; make api-check зелений. Знахідки R5-3, R5-8 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "backend/tests/integration/test_input_bounds.py",
+        "backend/tests/unit/test_text.py"
+      ]
+    },
+    {
+      "id": "T47",
+      "title": "Показати межу назви біля поля компонентними тестами і будувати тест 33 рядків з валідних рядків",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-11"
+      ],
+      "dod": "PlasticsSection.test.tsx: назва 101 емодзі → «Назва — не довше 100 символів» біля поля, жодного POST/PUT; SaveItemForm.test.tsx і ItemPage.test.tsx: назва 101 символ → повідомлення про межу біля назви, жодного POST/PUT на /api/catalog/items; CalculatePage.test.tsx:128: мок віддає 33 різні пластики, усі 33 рядки заповнено валідною витратою — «Не більше 32 пластиків в одному розрахунку», нуль POST /api/costing/quote, збереження недоступне (тест падає, якщо MAX_ROWS = 33); make web-check зелений. Знахідки R5-2, R5-6 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "web/src/pages/settings/ui/PlasticsSection.test.tsx",
+        "web/src/features/save-item/ui/SaveItemForm.test.tsx",
+        "web/src/pages/item/ui/ItemPage.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T48",
+      "title": "Обрізати назву лінійно, як сервер, і будувати текст межі ціни з однієї константи",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "shared/lib/normalize-name.ts після NFC обрізає краї двома індексами по code points з тестом одного символу [\\s\\p{Cf}\\u001c-\\u001f\\u0085] (як core/text.py::normalize_name), без глобального regex з якорем $; тест: 'a' + 100 000 пробілів + 'b' нормалізується менш ніж за 50 мс і зберігає внутрішні пробіли; наявні тести normalize-name.test.ts зелені без змін; edit-plastic/model/validate.ts: «10 000 000» з'являється один раз (одна константа межі ціни, з якої будуються PRICE_TOO_LARGE і PRICE_RANGE, або вивід з MAX_PRICE_KOP), тексти повідомлень незмінні; make web-check зелений. Знахідки R5-5, R5-7 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "web/src/shared/lib/normalize-name.ts",
+        "web/src/shared/lib/normalize-name.test.ts",
+        "web/src/features/edit-plastic/model/validate.ts"
+      ]
+    },
+    {
+      "id": "T49",
+      "title": "Дописати межу назви в SAD, межі в AC-14c, ItemInvalid і 422 каталогу та розвести кейси test-plan за файлами",
+      "layer": "docs",
+      "deps": [
+        "T46",
+        "T47"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-11",
+        "AC-14c"
+      ],
+      "dod": "sad.md: потоки пластику (:208, :215) і збереження виробу (:359) мають гілку «назва довша за 100 символів» на UI і сервері, кроки :211, :356 — «NFC, обрізає пробіли й невидимі символи на краях», рядки покриття :515, :526 оновлено; PRD.md AC-14c перелічує межі AC-07 (1 000 000 г, 100 000 год, 32 пластики) і назву понад 100 символів (або посилається на всі правила AC-07 / AC-11); openapi.yaml ItemInvalid і опис 422 у catalog/router.py називають ті самі межі, що quoteCost, + make api-types; api-sync-report.md — запис reconcile, Verdict PASS або PASS (with deferrals); test-plan.md:46,85 — рівень unit + component + integration, кожен кейс прив'язано до файлу, який його справді містить; make check зелений. Знахідки R5-1, R5-3, R5-4 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/sad.md",
+        "docs/features/cost-calculator/PRD.md",
+        "docs/features/cost-calculator/contracts/openapi.yaml",
+        "backend/src/calculate3d/modules/catalog/router.py",
+        "docs/features/cost-calculator/contracts/api-sync-report.md",
+        "docs/features/cost-calculator/test-plan.md",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    }
+  ]
+}

@@ -1,11 +1,14 @@
-import { HomePage } from '@/pages/home'
+import { BrowserRouter } from 'react-router'
 
+import { AppRoutes } from './layout/AppRoutes'
 import { QueryProvider } from './providers/QueryProvider'
 
 export function App() {
   return (
     <QueryProvider>
-      <HomePage />
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
     </QueryProvider>
   )
 }

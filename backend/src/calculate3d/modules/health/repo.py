@@ -13,7 +13,8 @@ DbEngine = Engine
 
 def ping(engine: Engine) -> bool:
     try:
-        with engine.connect() as conn:
+        # Deferred begin: the ping must not take the write lock (see core/db.py).
+        with engine.connect().execution_options(deferred_begin=True) as conn:
             return conn.execute(text("SELECT 1")).scalar() == 1
     except SQLAlchemyError:
         return False

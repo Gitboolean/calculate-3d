@@ -83,3 +83,35 @@ def test_app_error_with_non_http_status_renders_problem_json(
     body = response.json()
     assert body["title"] == "Error"
     assert body["code"] == "odd"
+
+
+def test_app_error_extension_members_appear_in_problem_body(engine: Engine, tmp_path: Path) -> None:
+    app = build_app(engine, tmp_path)
+
+    @app.get("/api/_test/in-use")
+    def in_use() -> None:
+        raise AppError(
+            "pricing.plastic_in_use",
+            "Пластик використовують вироби",
+            status=409,
+            items=["Органайзер", "Підставка"],
+        )
+
+    @app.get("/api/_test/taken")
+    def taken() -> None:
+        raise AppError("pricing.name_taken", "Назва вже є", status=409, field="name")
+
+    @app.get("/api/_test/missing")
+    def missing() -> None:
+        raise AppError("costing.settings_missing", "Бракує", status=409, missing=["plastics"])
+
+    with TestClient(app) as client:
+        in_use_body = client.get("/api/_test/in-use").json()
+        taken_body = client.get("/api/_test/taken").json()
+        missing_body = client.get("/api/_test/missing").json()
+        plain_body = client.get("/api/_test/odd").json()
+
+    assert in_use_body["items"] == ["Органайзер", "Підставка"]
+    assert taken_body["field"] == "name"
+    assert missing_body["missing"] == ["plastics"]
+    assert plain_body.keys() == PROBLEM_KEYS

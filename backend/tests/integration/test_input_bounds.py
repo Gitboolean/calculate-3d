@@ -131,7 +131,7 @@ def test_quote_at_every_maximum_stays_within_js_safe_integer(client: TestClient)
     assert response.json()["min_donation_kop"] <= JS_SAFE_MAX
 
 
-@pytest.mark.parametrize("name", ["​", "​‍", " ​ "])
+@pytest.mark.parametrize("name", ["\u200b", "\u200b\u200d", " \u200b "])
 def test_name_of_only_invisible_characters_is_a_422_on_name(client: TestClient, name: str) -> None:
     response = client.post("/api/pricing/plastics", json={"name": name, "price_per_kg_kop": 65000})
 
@@ -184,7 +184,7 @@ def test_plastic_name_of_exactly_100_chars_after_nfc_is_accepted(client: TestCli
     ("name", "msg"),
     [
         ("   ", "String should have at least 1 character"),
-        ("​", "String should have at least 1 character"),
+        ("\u200b", "String should have at least 1 character"),
         (EXPANDING_CHAR * 100, "String should have at most 100 characters"),
     ],
 )
@@ -194,6 +194,62 @@ def test_name_bound_errors_keep_the_string_length_message(
     response = client.post("/api/pricing/plastics", json={"name": name, "price_per_kg_kop": 65000})
 
     assert [error["msg"] for error in response.json()["errors"]] == [msg]
+
+
+# T46 (R5-3): the 100 cap counts code points of the normalised name, on both name-bearing endpoints.
+# An emoji is one code point (two UTF-16 units, four UTF-8 bytes); Cf (U+200B, U+00AD) at the edges
+# is trimmed before the length is measured.
+NAME_ENDPOINTS = ["/api/pricing/plastics", "/api/catalog/items"]
+
+
+def _post_named(client: TestClient, path: str, plastic_id: str, name: str) -> Any:
+    body: dict[str, Any] = {"name": name}
+    if path == "/api/pricing/plastics":
+        body["price_per_kg_kop"] = 65000
+    else:
+        body["plastics"] = [{"plastic_id": plastic_id, "usage_cg": 100}]
+        body["print_time_s"] = 12600
+    return client.post(path, json=body)
+
+
+def _names(client: TestClient, path: str) -> list[str]:
+    return [item["name"] for item in client.get(path).json()["items"]]
+
+
+@pytest.mark.parametrize("path", NAME_ENDPOINTS)
+def test_name_of_100_emoji_is_saved_and_101_is_a_422_on_name(
+    client: TestClient, seeded: str, path: str
+) -> None:
+    ok = _post_named(client, path, seeded, "\U0001f600" * 100)
+    over = _post_named(client, path, seeded, "\U0001f600" * 101)
+
+    assert ok.status_code == 201, ok.text
+    assert ok.json()["name"] == "\U0001f600" * 100
+    _assert_422_on(over, "name")
+    assert "\U0001f600" * 101 not in _names(client, path)
+    assert _names(client, path).count("\U0001f600" * 100) == 1
+
+
+@pytest.mark.parametrize("path", NAME_ENDPOINTS)
+def test_name_of_100_letters_and_a_trailing_zero_width_space_is_saved_as_100_chars(
+    client: TestClient, seeded: str, path: str
+) -> None:
+    response = _post_named(client, path, seeded, "a" * 100 + "\u200b")
+
+    assert response.status_code == 201, response.text
+    assert response.json()["name"] == "a" * 100
+    assert "a" * 100 in _names(client, path)
+    assert all("\u200b" not in name for name in _names(client, path))
+
+
+@pytest.mark.parametrize("path", NAME_ENDPOINTS)
+def test_name_of_100_letters_and_a_trailing_soft_hyphen_is_accepted(
+    client: TestClient, seeded: str, path: str
+) -> None:
+    response = _post_named(client, path, seeded, "b" * 100 + "\u00ad")
+
+    assert response.status_code == 201, response.text
+    assert response.json()["name"] == "b" * 100
 
 
 # T42 (R4-1): the caps are hard-coded from PRD AC-02/AC-05/AC-07 on purpose - importing the MAX_*

@@ -62,15 +62,15 @@ def test_sort_key_puts_other_scripts_after_cyrillic() -> None:
 
 
 def test_normalize_name_applies_nfc() -> None:
-    assert normalize_name("é") == "é"
-    assert normalize_name("й") == "й"
+    assert normalize_name("e\u0301") == "é"
+    assert normalize_name("и\u0306") == "й"
 
 
 def test_name_key_matches_composed_and_decomposed_forms() -> None:
-    assert name_key("Café") == name_key("Café")
-    assert name_key("Йод") == name_key("Йод")
+    assert name_key("Café") == name_key("Cafe\u0301")
+    assert name_key("Йод") == name_key("И\u0306од")
 
 
 def test_normalize_name_drops_format_characters() -> None:
-    assert normalize_name("​PETG‍") == "PETG"
-    assert normalize_name("​‍") == ""
+    assert normalize_name("\u200bPETG\u200d") == "PETG"
+    assert normalize_name("\u200b\u200d") == ""

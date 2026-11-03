@@ -897,6 +897,80 @@
         "web/src/features/quote-form/model/parse.ts",
         "web/src/features/edit-plastic/model/validate.ts"
       ]
+    },
+    {
+      "id": "T46",
+      "title": "Покрити межу назви 100 символів серверними кейсами (емодзі, U+200B, U+00AD) і записати невидимі символи в бекенд-тестах як escape",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "test_input_bounds.py для POST /api/pricing/plastics і POST /api/catalog/items: 100 емодзі (U+1F600) збережено, 101 — 422 з полем name і нічого не записано; 100 літер + U+200B на краю збережено з назвою довжиною 100; 100 літер + U+00AD на краю прийнято; рядки 134, 187 у test_input_bounds.py і 65-66, 70-71, 75-76 у test_text.py записують U+200B, U+200D, U+0301, U+0306 як escape (\\u200b, \\u200d, \\u0301, \\u0306) без сирих невидимих символів; make api-check зелений. Знахідки R5-3, R5-8 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "backend/tests/integration/test_input_bounds.py",
+        "backend/tests/unit/test_text.py"
+      ]
+    },
+    {
+      "id": "T47",
+      "title": "Показати межу назви біля поля компонентними тестами і будувати тест 33 рядків з валідних рядків",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-11"
+      ],
+      "dod": "PlasticsSection.test.tsx: назва 101 емодзі → «Назва — не довше 100 символів» біля поля, жодного POST/PUT; SaveItemForm.test.tsx і ItemPage.test.tsx: назва 101 символ → повідомлення про межу біля назви, жодного POST/PUT на /api/catalog/items; CalculatePage.test.tsx:128: мок віддає 33 різні пластики, усі 33 рядки заповнено валідною витратою — «Не більше 32 пластиків в одному розрахунку», нуль POST /api/costing/quote, збереження недоступне (тест падає, якщо MAX_ROWS = 33); make web-check зелений. Знахідки R5-2, R5-6 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "web/src/pages/settings/ui/PlasticsSection.test.tsx",
+        "web/src/features/save-item/ui/SaveItemForm.test.tsx",
+        "web/src/pages/item/ui/ItemPage.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T48",
+      "title": "Обрізати назву лінійно, як сервер, і будувати текст межі ціни з однієї константи",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-11"
+      ],
+      "dod": "shared/lib/normalize-name.ts після NFC обрізає краї двома індексами по code points з тестом одного символу [\\s\\p{Cf}\\u001c-\\u001f\\u0085] (як core/text.py::normalize_name), без глобального regex з якорем $; тест: 'a' + 100 000 пробілів + 'b' нормалізується менш ніж за 50 мс і зберігає внутрішні пробіли; наявні тести normalize-name.test.ts зелені без змін; edit-plastic/model/validate.ts: «10 000 000» з'являється один раз (одна константа межі ціни, з якої будуються PRICE_TOO_LARGE і PRICE_RANGE, або вивід з MAX_PRICE_KOP), тексти повідомлень незмінні; make web-check зелений. Знахідки R5-5, R5-7 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "web/src/shared/lib/normalize-name.ts",
+        "web/src/shared/lib/normalize-name.test.ts",
+        "web/src/features/edit-plastic/model/validate.ts"
+      ]
+    },
+    {
+      "id": "T49",
+      "title": "Дописати межу назви в SAD, межі в AC-14c, ItemInvalid і 422 каталогу та розвести кейси test-plan за файлами",
+      "layer": "docs",
+      "deps": [
+        "T46",
+        "T47"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-11",
+        "AC-14c"
+      ],
+      "dod": "sad.md: потоки пластику (:208, :215) і збереження виробу (:359) мають гілку «назва довша за 100 символів» на UI і сервері, кроки :211, :356 — «NFC, обрізає пробіли й невидимі символи на краях», рядки покриття :515, :526 оновлено; PRD.md AC-14c перелічує межі AC-07 (1 000 000 г, 100 000 год, 32 пластики) і назву понад 100 символів (або посилається на всі правила AC-07 / AC-11); openapi.yaml ItemInvalid і опис 422 у catalog/router.py називають ті самі межі, що quoteCost, + make api-types; api-sync-report.md — запис reconcile, Verdict PASS або PASS (with deferrals); test-plan.md:46,85 — рівень unit + component + integration, кожен кейс прив'язано до файлу, який його справді містить; make check зелений. Знахідки R5-1, R5-3, R5-4 у docs/features/cost-calculator/_review/review-2026-10-31-r5.md.",
+      "files_hint": [
+        "docs/features/cost-calculator/sad.md",
+        "docs/features/cost-calculator/PRD.md",
+        "docs/features/cost-calculator/contracts/openapi.yaml",
+        "backend/src/calculate3d/modules/catalog/router.py",
+        "docs/features/cost-calculator/contracts/api-sync-report.md",
+        "docs/features/cost-calculator/test-plan.md",
+        "web/src/shared/api/schema.d.ts"
+      ]
     }
   ]
 }

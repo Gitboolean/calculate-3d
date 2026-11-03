@@ -1079,7 +1079,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem']
         }
       }
-      /** @description Хибні параметри виробу (AC-07, AC-14c) або пластика з таким id немає */
+      /** @description Хибні параметри виробу (AC-07, AC-11, AC-14c: порожньо, нуль, зайва точність, понад межу, понад 32 пластики, повтор пластику, назва порожня чи понад 100 символів) або пластика з таким id немає */
       422: {
         headers: {
           [name: string]: unknown
@@ -1237,7 +1237,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem']
         }
       }
-      /** @description Хибні параметри виробу (AC-07, AC-14c) або пластика з таким id немає */
+      /** @description Хибні параметри виробу (AC-07, AC-11, AC-14c: порожньо, нуль, зайва точність, понад межу, понад 32 пластики, повтор пластику, назва порожня чи понад 100 символів) або пластика з таким id немає */
       422: {
         headers: {
           [name: string]: unknown

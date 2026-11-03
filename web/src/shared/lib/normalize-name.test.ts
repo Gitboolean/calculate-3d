@@ -59,7 +59,8 @@ test('nameLength counts code points', () => {
 
 // Linear time: the trim must not backtrack over a long interior run (review R5-5).
 const RUN = 100_000
-const BUDGET_MS = 50
+// Generous for a slow CI runner: the backtracking regex took ~7 s on this run (review R6-2).
+const BUDGET_MS = 1000
 
 function timed(raw: string): { result: string; ms: number } {
   const start = performance.now()

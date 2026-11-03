@@ -52,7 +52,7 @@
 | [T44](./T44-web-name-trim-parity.md) | Обрізати назву на клієнті так само, як сервер (Cf і пробіли по краях), і записати U+0344 у тестах як escape | ui | Anton Pohorielov | S | — | done |
 | [T45](./T45-quote-time-message-and-cap-constants.md) | Не показувати межу часу поверх помилки хвилин і будувати тексти меж з констант | ui | Anton Pohorielov | S | T44 | done |
 | [T46](./T46-name-cap-server-cases-and-test-escapes.md) | Покрити межу назви 100 символів серверними кейсами (емодзі, U+200B, U+00AD) і записати невидимі символи в бекенд-тестах як escape | tests | Anton Pohorielov | S | — | done |
-| [T47](./T47-name-cap-component-tests-and-33-valid-rows.md) | Показати межу назви біля поля компонентними тестами і будувати тест 33 рядків з валідних рядків | ui | Anton Pohorielov | S | — | todo |
+| [T47](./T47-name-cap-component-tests-and-33-valid-rows.md) | Показати межу назви біля поля компонентними тестами і будувати тест 33 рядків з валідних рядків | ui | Anton Pohorielov | S | — | done |
 | [T48](./T48-linear-name-trim-and-price-cap-constant.md) | Обрізати назву лінійно, як сервер, і будувати текст межі ціни з однієї константи | ui | Anton Pohorielov | S | — | todo |
 | [T49](./T49-docs-name-cap-sad-ac14c-item-invalid.md) | Дописати межу назви в SAD, межі в AC-14c, ItemInvalid і 422 каталогу та розвести кейси test-plan за файлами | docs | Anton Pohorielov | S | T46, T47 | todo |
 

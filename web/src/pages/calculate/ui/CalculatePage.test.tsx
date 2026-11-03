@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { json, mockApi, problem, renderWithProviders, type ApiCall } from '@/shared/testing'
@@ -125,19 +125,36 @@ test.each([
   },
 )
 
-test('33 plastic rows are over the cap: no donation, no saving (AC-07)', async () => {
-  const user = userEvent.setup()
-  const api = serve()
+test('33 valid plastic rows are over the cap: no donation, no saving (AC-07)', async () => {
+  const many = Array.from({ length: 33 }, (_, i) => ({
+    id: `p${i}`,
+    name: `Пластик ${i}`,
+    price_per_kg_kop: 40000,
+  }))
+  const api = serve({ plastics: many })
   renderWithProviders(<CalculatePage />)
-  await screen.findByRole('option', { name: 'PETG чорний' })
+  await screen.findByRole('option', { name: 'Пластик 32' })
 
   for (let row = 1; row < 33; row += 1) {
-    await user.click(screen.getByRole('button', { name: 'Додати пластик' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Додати пластик' }))
   }
+  const selects = screen.getAllByLabelText('Пластик')
+  const grams = screen.getAllByLabelText('Витрата, г')
+  expect(selects).toHaveLength(33)
+  selects.forEach((select, row) => {
+    fireEvent.change(select, { target: { value: `p${row}` } })
+    fireEvent.change(grams[row] as HTMLElement, { target: { value: '10' } })
+  })
   await fillTime('1', '0')
 
-  expect(screen.getAllByLabelText('Пластик')).toHaveLength(33)
   expect(await screen.findByText('Не більше 32 пластиків в одному розрахунку')).toBeInTheDocument()
+  // every row is valid and distinct: the row count is the only thing wrong
+  expect(screen.queryByText(/Цей пластик уже є/)).not.toBeInTheDocument()
+  expect(screen.queryByText('Витрата має бути більшою за нуль')).not.toBeInTheDocument()
+  expect(screen.queryByText('Вкажіть витрату пластику')).not.toBeInTheDocument()
+  expect(
+    new Set(screen.getAllByLabelText('Пластик').map((s) => (s as HTMLSelectElement).value)),
+  ).toHaveProperty('size', 33)
   await new Promise((resolve) => setTimeout(resolve, 300))
   expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
   expect(api.callsTo('POST', '/api/costing/quote')).toHaveLength(0)

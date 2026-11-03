@@ -69,3 +69,15 @@ test('a name already in the catalog is explained next to the field (AC-11)', asy
   expect(screen.getByLabelText('Назва виробу')).toHaveAttribute('aria-invalid', 'true')
   expect(screen.queryByText('Інша сторінка')).not.toBeInTheDocument()
 })
+
+test('a name over 100 characters is explained next to the field and nothing is sent (AC-11)', async () => {
+  const api = mockApi({})
+  renderForm(INPUT)
+
+  await save('я'.repeat(101))
+
+  expect(screen.getByText('Назва — не довше 100 символів')).toBeInTheDocument()
+  expect(screen.getByLabelText('Назва виробу')).toHaveAttribute('aria-invalid', 'true')
+  expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(0)
+  expect(api.callsTo('PUT', '/api/catalog/items')).toHaveLength(0)
+})

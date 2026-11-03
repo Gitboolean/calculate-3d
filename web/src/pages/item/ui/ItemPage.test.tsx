@@ -119,6 +119,22 @@ test('an invalid edit is explained and not sent (AC-14c)', async () => {
   expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
 })
 
+test('editing a name over 100 characters is explained next to the field and not sent (AC-11)', async () => {
+  const api = serve()
+  renderItem()
+  const user = await startEditing()
+
+  const name = screen.getByLabelText('Назва виробу')
+  await user.clear(name)
+  await user.type(name, 'я'.repeat(101))
+  await user.click(screen.getByRole('button', { name: 'Зберегти зміни' }))
+
+  expect(screen.getByText('Назва — не довше 100 символів')).toBeInTheDocument()
+  expect(name).toHaveAttribute('aria-invalid', 'true')
+  expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
+  expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(0)
+})
+
 test('editing grams above the cap is explained and not sent (AC-14c)', async () => {
   const api = serve()
   renderItem()

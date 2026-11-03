@@ -74,6 +74,7 @@ test.each([
   ['PETG', '0', 'Ціна має бути більшою за нуль'],
   ['PETG', '-5', 'Ціна має бути більшою за нуль'],
   ['PETG', '10000000,01', 'Ціна — не більше 10 000 000 ₴ за кг'],
+  ['\u{1F600}'.repeat(101), '650', 'Назва — не довше 100 символів'],
 ])(
   'invalid input %j / %j is explained next to the field and not sent',
   async (name, price, message) => {

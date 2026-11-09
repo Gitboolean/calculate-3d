@@ -41,29 +41,36 @@ target_surfaces: []  # filled in §4 — subset of: backend-service | web-fronte
 
 ## 2. Constraints
 
-<!-- 🎯 Навіщо: §4 (стратегія) працює тільки коли §2 зафіксувала, ЩО ВЖЕ ЗАФІКСОВАНО:    -->
-<!--           стек, версії, дедлайн, регуляторні вимоги. Це вхід, не вихід.             -->
-<!-- 📋 Що писати: чотири блоки — Технічні / Організаційні / Конвенції / Регуляторні.     -->
-<!-- 📌 Приклад: «Postgres 18» (не «Postgres»); «дедлайн Q3 — жорсткий» (не «бажано»).    -->
-
-**Technical.**
-- <Language + version, e.g. Go 1.26>
-- <Framework + version, e.g. chi v5.1, pgx v5.7>
-- <Datastore + version, e.g. Postgres 18>
-- <Architecture convention, e.g. hexagonal per CLAUDE.md>
+**Technical** (версії — з `backend/uv.lock` і `web/package.json` на 2026-11-09).
+- Python **3.14.6** (через `uv`) · FastAPI **0.162** (Starlette 1.10) · Pydantic **2.14** · Uvicorn 0.54.
+- SQLite **3.53** — один файл, `journal_mode=WAL`, `foreign_keys=ON`, кожна транзакція — `BEGIN IMMEDIATE` · SQLAlchemy **2.1** Core (без ORM) · Alembic **1.20**, міграції SQL-first (project ADR 0003).
+- React **19.3** + TypeScript **5.9** + Vite **8.3** · React Router **8.5** (cost-calculator ADR 0001) · Tailwind CSS **4.3** + shadcn/ui (`web/src/shared/ui/`: button, card, input, label, table, alert-dialog, form-field, select) · TanStack Query **5.105** · `openapi-fetch` 0.17 + `openapi-typescript` (типи вебу генеруються з OpenAPI бекенду).
+- Модульний моноліт router → service → repo; модулі спілкуються лише через `service.py` іншого модуля, межі перевіряє `tests/unit/test_module_boundaries.py` (project ADR 0002). Веб — Feature-Sliced Design, контроль імпортів — Steiger.
+- Один процес, bind лише на `127.0.0.1`, без автентифікації (project ADR 0004); без фонових воркерів і багатопроцесних серверів (project ADR 0003).
+- **Розбір файлу — лише стандартна бібліотека Python:** `zipfile`, `xml.etree.ElementTree`, `json`; нових runtime-залежностей фіча не додає. Вбудований Expat **2.8.1** захищає від експоненційного розгортання сутностей («billion laughs») з версії 2.4, а ElementTree не завантажує зовнішніх сутностей (XXE); обидва факти закріплює тест із набору поганих файлів (§10 QG-2).
+- **Brownfield-факти, що обмежують імпорт:**
+  - `core/guard.py` (`RequestGuard`, cost-calculator ADR 0007) відповідає `415` на кожен `POST/PUT/PATCH/DELETE` до `/api` з тілом, `Content-Type` якого не `application/json`.
+  - Межі розміру тіла запиту немає ні в застосунку, ні в Uvicorn; `python-multipart` не встановлено.
+  - Вхід розрахунку — `costing` `QuoteInput`: `plastics[{plastic_id, usage_cg}]` (1–32 рядки, без повтору пластику), `print_time_s` (кратний 60, від 60 до 360 000 000), `usage_cg` від 1 до 100 000 000. Ці межі — межі імпорту (PRD AC-14).
+  - Таблиці `plastics` (pricing) і `items` / `item_plastics` (catalog) не мають поняття філамента слайсера чи зіставлення.
 
 **Organisational.**
-- <Effort budget, e.g. 3 person-weeks>
-- <Deadline, e.g. 2026-Q3 hard>
-- <Team composition, e.g. 1 backend + 0.5 frontend>
+- Одна людина: автор — водночас PM, архітектор і розробник.
+- Бюджет E = 2 тижні (idea-brief §11), без жорсткого дедлайну; навчальний проєкт, що проходить повний SDLC-пайплайн.
+- Гейт якості перед кожним комітом і в CI — `make check` (`api-check` + `web-check` + `api-types-check`).
 
 **Conventions.**
-- <Link to CLAUDE.md or project conventions>
-- <Naming, ID strategy, error-handling pattern>
+- Кореневий `CLAUDE.md` + `backend/CLAUDE.md` + `web/CLAUDE.md` — джерело конвенцій. `docs/architecture-map.md` описує стан до scaffold і застарів (`reflects_commit: 95f8e06`) — цей прохід спирається на свіжий скан коду (див. §11).
+- IDs — UUIDv7 із застосунку (`core/ids.py::new_id()`), `TEXT` 36 символів; БД ID не генерує.
+- Гроші й кількості — масштабовані цілі числа з одиницею в назві (`*_kop`, `*_cg`, `*_s`; cost-calculator ADR 0004); точні проміжні значення — `Fraction`, мінімальний донат округлюється вгору (`ROUND_CEILING`); `float` для грошей і кількостей заборонено.
+- Помилки — `AppError(code, message, status)` → RFC 9457 `application/problem+json`; коди модуля — `<module>.<error_name>`; сервіси не кидають `HTTPException`.
+- Міграції — `backend/migrations/versions/YYYYMMDD_HHMM_<slug>.py`, SQL-first, upgrade → downgrade → upgrade (тест); правила `.claude/rules/migrations.md` (адаптація для SQLite).
+- Каталог зберігає параметри виробу, а не ціну; ціна завжди перераховується з поточних налаштувань цін.
 
 **Regulatory / external.**
-- <e.g. GDPR — user deletion behavior per ADR-NNNN>
-- <e.g. SOC2, PCI — applicable controls>
+- Особистих даних немає; зіставлення пластиків — внутрішні дані на рівні налаштувань цін (PRD §6.1). Файл слайсера може містити службові дані (назви об'єктів і пластин, версію слайсера) — інструмент бере лише числа, назву, тип і колір філамента й відкидає файл.
+- Security review обов'язковий (PRD §6.1): безпечне читання архіву, межа розміру, захист від запитів сторонніх сайтів. Abuse cases PRD §6.1 (сторонній сайт, інший пристрій, шкідливий архів, назва філамента як код/розмітка) покривають §8 і §10 QG-2/QG-3.
+- Зовнішніх регуляторних вимог (GDPR, PCI) немає: локальний інструмент одного автора без облікових записів (project ADR 0004).
 
 ## 3. Context and scope
 

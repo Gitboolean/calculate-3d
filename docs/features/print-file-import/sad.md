@@ -120,49 +120,86 @@ C4Context
 
 ## 5. Building block view
 
-<!-- 🎯 Навіщо: ВНУТРІШНЯ ДЕКОМПОЗИЦІЯ — модулі, контейнери, БД. Статична топологія:   -->
-<!--           хто з ким може говорити. Без §5 §6 (сценарії) не має словника учасників. -->
-<!-- 📋 Що писати: 1 абзац про стиль (шари/гексагональна/clean/на подіях) +            -->
-<!--           дерево папок + Mermaid C4Container.                                       -->
-<!-- 📌 ОДИН Container на кожну оголошену target_surface (frontmatter): fullstack        -->
-<!--           [backend-service, web-frontend] = backend-API container + web/SPA container; -->
-<!--           [backend-service, mobile-app] = API + mobile app. Container(web, …) нижче — -->
-<!--           лише приклад однієї поверхні; додай/заміни під оголошене у §4. → _shared/surfaces.md -->
-<!-- 📌 Приклад: «web-app, content-api, media-worker, postgres, s3, cdn».                -->
+Той самий модульний моноліт із простими шарами (project ADR 0002), що й в етапі 1. Фіча додає **один** вертикальний модуль `importing` (→ [ADR 0005](adr/0005-add-an-importing-module-that-owns-the-parser-and-filament-mappings.md)), який містить і розбір файлу, і таблицю зіставлень пластиків. Наявні модулі змінюються точково: `catalog` приймає зіставлення під час збереження виробу (ADR 0003), а `core/guard.py` отримує один виняток для сирого тіла файлу (ADR 0002). `pricing` і `costing` не змінюються. Залежності сервісів: `catalog → importing → pricing` (плюс наявні `catalog → costing → pricing`); циклу на рівні `service.py` немає. Веб додає один FSD-слайс `features/slicer-import`, який збирають сторінки розрахунку й виробу.
 
-<One paragraph: layered / hexagonal / clean / event-driven. Why.>
-
-**Internal decomposition:**
+**Internal decomposition (backend):**
 
 ```
-<e.g. internal/modules/goals/>
-├── domain/       <entities + sentinel errors>
-├── app/          <use cases / services>
-├── infra/        <repository + outbox impl>
-├── ports/        <HTTP handlers, DTOs, error mapping>
-└── module.go     <self-wiring>
+backend/src/calculate3d/
+├── main.py                 # + router importing
+├── core/
+│   └── guard.py            # + POST маршруту імпорту приймає ЛИШЕ application/octet-stream (ADR 0002);
+│                           #   решта змінних /api — і далі лише application/json
+└── modules/
+    ├── importing/          # НОВИЙ — імпорт файлу слайсера + зіставлення пластиків
+    │   ├── router.py       # /api/importing — приймає сире тіло, читає потоком під межею
+    │   │                   #   100 000 000 байт (413), віддає розібраний файл; нічого не пише
+    │   ├── parser.py       # чиста функція bytes → дані файлу | помилка розбору (без I/O, як
+    │   │                   #   costing/domain.py): межі архіву (§8), ланцюжок AC-12 → AC-13 → AC-14,
+    │   │                   #   час ceil до хвилини, колір #RRGGBB, назва без пробілів на краях, usage_mg
+    │   ├── service.py      # parse_slicer_file(): готовність налаштувань (pricing.service, AC-04) →
+    │   │                   #   parser → підстановка зіставлень; remember_mappings(): upsert (ADR 0003)
+    │   ├── schemas.py      # розібраний файл, філамент слайсера, вхід зіставлення
+    │   ├── repo.py         # пошук зіставлень за (назва, колір); upsert
+    │   └── tables.py       # зіставлення пластиків: (назва філамента, колір) унікальні;
+    │                       #   FK → пластик ON DELETE CASCADE (AC-11)
+    ├── catalog/            # ItemInput + необов'язковий список зіставлень; create/update_item
+    │                       #   викликає importing.service.remember_mappings у тій самій транзакції
+    ├── pricing/            # без змін (видалення пластику каскадом забуває його зіставлення)
+    └── costing/            # без змін (межі 32 пластики / 1 000 000 г — AC-14)
+backend/migrations/versions/  # + YYYYMMDD_HHMM_create_filament_mappings.py (SQL-first)
+backend/tests/fixtures/slicer/ # еталонні файли (vtulka_A, LITTLE_TREES) + генератор поганих файлів
 ```
+
+**Internal decomposition (web, FSD):**
+
+```
+web/src/
+├── pages/          # calculate · item — вбудовують імпорт у наявні форми (без нових маршрутів)
+├── features/
+│   ├── slicer-import/  # НОВИЙ
+│   │   ├── api/        # мутація розбору (TanStack Query useMutation, тіло — File, ADR 0002)
+│   │   ├── model/      # compose.ts — рядки з точних мг (ADR 0004); стан імпорту; diff «було → стало»
+│   │   └── ui/         # вибір файлу, список філаментів і вибір пластику, підтвердження
+│   │                   #   сумування (AC-10), панель «було → стало» (AC-05), повідомлення відмов
+│   ├── save-item/      # + передає зіставлення пластиків разом із виробом (ADR 0003)
+│   └── quote-form/     # приймає рядки й час з імпорту, ручні правки — як в етапі 1
+├── entities/       # plastic · item · quote — без змін (список пластиків для вибору)
+└── shared/ui/      # + dialog (shadcn)
+```
+
+Імпорт нічого не зберігає до моменту збереження виробу: розібраний файл живе в стані `features/slicer-import` на екрані. «Було» для AC-05 — це свіжо прочитаний з каталогу виріб (`GET` виробу), а не стан форми, тож незбережені ручні зміни на екрані імпорт відкидає. Точні колонки таблиці зіставлень, поля API й коди помилок визначають `generate-data-model` і `api-forge`.
 
 **C4 Container (L2):**
 
 ```mermaid
 C4Container
-    title <system> — Containers
+    title print-file-import — Containers
 
-    Person(user, "<User>")
+    Person(author, "автор", "Єдиний користувач, браузер на 127.0.0.1")
 
-    Container_Boundary(boundary, "<Our System>") {
-        Container(web, "<Web/API container>", "<technology>", "<purpose>")
-        Container(svc, "<Service container>", "<technology>", "<purpose>")
-        ContainerDb(db, "<DB>", "<technology>", "<purpose>")
+    System_Boundary(calc, "calculate-3d — один процес на 127.0.0.1:8000") {
+        Container(spa, "Web SPA", "React 19, TypeScript, Vite, TanStack Query", "Розрахунок і виріб з імпортом файлу, вибір пластиків, було-стало; складає рядки з мг")
+        Container(api, "API", "Python 3.14, FastAPI", "JSON під /api, сире тіло лише для імпорту, захист запитів, problem+json")
+        Container(importing, "importing", "модуль FastAPI, stdlib zipfile", "Розбирає файл слайсера в пам'яті, підставляє й запам'ятовує зіставлення пластиків")
+        Container(catalog, "catalog", "модуль FastAPI", "Вироби; при збереженні передає зіставлення в тій самій транзакції")
+        Container(costing, "costing", "модуль FastAPI", "Формула собівартості й межі рядків; без змін")
+        Container(pricing, "pricing", "модуль FastAPI", "Пластики й налаштування цін; без змін")
+        ContainerDb(db, "SQLite", "файл backend/var/calculate3d.db, WAL", "Пластики, налаштування, вироби, зіставлення пластиків; файл слайсера не зберігається")
     }
 
-    System_Ext(ext, "<External>", "<purpose>")
-
-    Rel(user, web, "<interaction>", "<protocol>")
-    Rel(web, svc, "<service calls>")
-    Rel(svc, db, "<reads/writes>", "<driver>")
-    Rel(svc, ext, "<emits>", "<protocol>")
+    Rel(author, spa, "Обирає файл, пластики, підтверджує зміни", "браузер")
+    Rel(spa, api, "Файл слайсера (octet-stream), розрахунок, збереження виробу", "HTTP /api")
+    Rel(api, importing, "Маршрутизує /api/importing")
+    Rel(api, catalog, "Маршрутизує /api/catalog")
+    Rel(api, costing, "Маршрутизує /api/costing")
+    Rel(catalog, importing, "Запам'ятати зіставлення", "service.py")
+    Rel(catalog, costing, "Рахує ціну виробу", "service.py")
+    Rel(importing, pricing, "Чи є пластики й налаштування (AC-04)", "service.py")
+    Rel(costing, pricing, "Бере поточні ціни", "service.py")
+    Rel(importing, db, "Читає і пише зіставлення", "SQLAlchemy Core")
+    Rel(catalog, db, "Читає і пише вироби", "SQLAlchemy Core")
+    Rel(pricing, db, "Читає і пише пластики", "SQLAlchemy Core")
 ```
 
 ## 6. Runtime view

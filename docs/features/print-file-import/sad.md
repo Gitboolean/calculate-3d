@@ -6,7 +6,7 @@ updated_at: "2026-11-09"
 feature_size: M
 stage: "04-05"
 ticket: ""
-target_surfaces: []  # filled in §4 — subset of: backend-service | web-frontend | mobile-app | desktop-app | cli | worker | library-sdk. Read (never re-derived) by api-forge/complete-sequence-diagrams/break-tasks/plan-tests/review-feature → _shared/surfaces.md
+target_surfaces: [backend-service, web-frontend]  # filled in §4 — subset of: backend-service | web-frontend | mobile-app | desktop-app | cli | worker | library-sdk. Read (never re-derived) by api-forge/complete-sequence-diagrams/break-tasks/plan-tests/review-feature → _shared/surfaces.md
 ---
 
 # Software Architecture Document — print-file-import
@@ -105,30 +105,18 @@ C4Context
 
 ## 4. Solution strategy
 
-<!-- 🎯 Навіщо: 3-4 СТРАТЕГІЧНІ СТОВПИ, з яких потім ростуть усі ADR. Без §4 кожен ADR    -->
-<!--           виглядає випадковим — нема зонтика. ⭐ Найгустіша секція — тут ADR-gate    -->
-<!--           спрацьовує майже завжди (рішення незворотні + мульти-модульні).            -->
-<!-- 📋 Що писати: спершу Target surface(s), потім 3-4 стратегічні вибори.                -->
-<!--           На кожен — заголовок + 2-3 речення rationale.                              -->
-<!-- 📌 ПЕРШЕ рішення §4 — Target surface(s): ЩО САМЕ будуємо. Записується у frontmatter   -->
-<!--           target_surfaces: [...] і гейтить §5 (один контейнер на поверхню) + усі       -->
-<!--           наступні стадії. Деривиться з PRD §1 «для кого» + §4 ролей. → _shared/surfaces.md -->
-<!-- 📌 Приклад: «Зберігати урок як таблицю блоків» — стовп, з якого виросло ADR-0001.    -->
+**Target surface(s) (the first decision — what's being built):** `[backend-service, web-frontend]` — ті самі API й SPA, що в етапі 1: автор працює лише через браузер (PRD §4), а правила, налаштування цін і каталог живуть у бекенді. Окремий CLI PRD не просить. Поверхні успадковано від cost-calculator, тож окремого ADR немає (критерій «незворотність» не спрацьовує — нових поверхонь не з'являється).
 
-**Target surface(s) (the first decision — what's being built):** `<e.g. [backend-service, web-frontend]>`
-<!-- Mirror this list into the frontmatter `target_surfaces`. For each declared UI surface          -->
-<!-- (web-frontend / mobile-app / desktop-app) add a UI-architecture choice below (web → SSR/SPA/   -->
-<!-- hybrid; mobile → native/cross-platform). Multi-surface is usually an ADR (multi-module +       -->
-<!-- irreversible). The UI reuses the repo's existing design system / components / tokens from       -->
-<!-- architecture-map.md §Frontend — it does not design greenfield. → _shared/surfaces.md           -->
+**UI-architecture (web-frontend):** імпорт — **крок у наявних сторінках** SPA (React Router, cost-calculator ADR 0001), без нових маршрутів. Кнопка «Імпортувати файл» з'являється в розрахунку (`/calculate`) і в редакторі виробу (`/catalog/:itemId`). Новий FSD-слайс `features/slicer-import` тримає вибір файлу, список філаментів слайсера, вибір пластику, підтвердження сумування (AC-10) і панель «було → стало» (AC-05). Розібраний файл живе лише в стані форми на екрані й зникає після збереження, скасування чи перезавантаження сторінки (AC-09b). Після імпорту рядки потрапляють у ту саму форму, тож ручні правки працюють за правилами етапу 1 (AC-01, AC-05). Нове в `shared/ui` — примітив shadcn `dialog`. Рішення inline (без ADR): воно випливає з ADR 0001 етапу 1, а альтернатива (окремий екран-майстер) змусила б передавати розібраний файл між маршрутами й дублювати редактор.
 
 **Top strategic choices (the seeds for ADRs):**
 
-1. **<e.g. Module isolation through events>** — <2-3 sentences rationale referencing Quality Goals and constraints>.
-2. **<e.g. Single-store persistence (Postgres)>** — <2-3 sentences>.
-3. **<e.g. UI-architecture: SPA consuming the backend API>** — <per declared UI surface; 2-3 sentences>.
+1. **Файл розбирає сервер, а зберігаються лише числа** ([ADR 0001](adr/0001-parse-slicer-file-on-server-and-keep-only-numbers.md)) — браузер надсилає файл у бекенд, і модуль імпорту розбирає його stdlib-засобами в пам'яті. Перевірки йдуть ланцюжком AC-12: проєкт Bambu Studio → нарізаний → рівно одна нарізана пластина → цілісність → межі файлу. Сервер округлює час вгору до хвилини (AC-03), нормалізує колір і назву (AC-09), підставляє запам'ятовані зіставлення пластиків і повертає результат без жодного запису в БД. Причина — QG-1 і QG-2: усі доменні правила лишаються в одному місці з розрахунком (cost-calculator ADR 0002), еталонні й погані файли тестуються в pytest, а затримку вимірюють як «час відповіді сервера» (PRD §6).
+2. **Файл передається сирим тілом `application/octet-stream` і тримається лише в пам'яті під межею 100 МБ** ([ADR 0002](adr/0002-upload-slicer-file-as-raw-octet-stream-body-held-in-memory.md)) — `RequestGuard` дозволяє цей тип лише для маршруту імпорту, а всі інші змінні запити, як і раніше, приймаються лише як JSON. Тіло читається потоком і обривається на першому байті понад межу. Причина — QG-3 і QG-2: `octet-stream` не входить до «простих» CORS-типів, тож сторонній сайт не надішле його без preflight (а preflight завжди падає, бо CORS немає). Тимчасового файлу на диску (як у multipart) немає, нової залежності теж. Закриває PRD §8 №2.
+3. **Зіставлення пластиків записуються в тій самій транзакції, що й виріб** ([ADR 0003](adr/0003-remember-filament-mappings-in-the-item-save-transaction.md)) — створення й оновлення виробу в `catalog` приймають необов'язковий список зіставлень (назва + колір філамента → пластик), і `catalog.service` у тій самій транзакції викликає сервіс модуля імпорту. Причина — AC-07 дослівно: вибір запам'ятовується лише разом зі збереженим виробом, а невдале збереження (наприклад, `409` на назву) не лишає зіставлень. Зіставлення вказує на пластик через FK з `ON DELETE CASCADE`, тож видалений пластик ніколи не підставляється (AC-11), і `pricing` про зіставлення нічого не знає.
+4. **Рядки розрахунку складає веб із точних міліграмів** ([ADR 0004](adr/0004-compose-quote-rows-in-the-web-from-exact-milligrams.md)) — сервер повертає витрату кожного філамента цілим `usage_mg`, а чиста TS-функція в `features/slicer-import` групує філаменти за обраним пластиком, додає мг і лише потім округлює суму вгору до `usage_cg` (AC-03, AC-10). Ціну, розбивку й межі 32 пластиків / 1 000 000 г, як і раніше, рахує й перевіряє `costing` на сервері (AC-14 — «так само, як при ручному введенні»). Причина — QG-1 без додаткового запиту на кожну зміну вибору: сервер без стану однаково не має файлу, щоб перевірити повернені браузером філаменти.
 
-Each tactical decision in later sections should be traceable to one of these strategic seeds. Tactical decisions that *contradict* a strategic choice are red flags — surface them in §11 Risks.
+Тактичні рішення в §5–§8 мають випливати з цих чотирьох; суперечність — червоний прапорець для §11.
 
 ## 5. Building block view
 

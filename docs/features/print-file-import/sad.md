@@ -333,17 +333,17 @@ sequenceDiagram
 
 ## 9. Architecture decisions
 
-<!-- 🎯 Навіщо: ЗВОРОТНИЙ ІНДЕКС на папку adr/. `ls adr/` дає файли, §9 дає семантику —    -->
-<!--           чому вони існують, до якого зрізу SAD привʼязані, у якому статусі.           -->
-<!-- 📋 Що писати: таблиця з 4 колонками. Один рядок на ADR. Mixed status — це OK.         -->
-<!-- 📌 Приклад: «0001 | Зберігати урок як таблицю блоків | Accepted | §4».                -->
-
 | # | Title | Status | Section |
 |---|---|---|---|
-| <NNNN> | <imperative — e.g. "Use sliding window for rate limiting"> | Accepted | §<N> |
-| <NNNN> | <imperative — e.g. "Co-locate outbox worker in API process"> | Accepted | §<N> |
+| [0001](adr/0001-parse-slicer-file-on-server-and-keep-only-numbers.md) | Parse the slicer file on the server and keep only the numbers | Accepted | §4 |
+| [0002](adr/0002-upload-slicer-file-as-raw-octet-stream-body-held-in-memory.md) | Upload the slicer file as a raw application/octet-stream body held in memory | Accepted | §4, §8 |
+| [0003](adr/0003-remember-filament-mappings-in-the-item-save-transaction.md) | Remember filament mappings in the item-save transaction | Accepted | §4 |
+| [0004](adr/0004-compose-quote-rows-in-the-web-from-exact-milligrams.md) | Compose quote rows in the web from exact milligrams | Accepted | §4 |
+| [0005](adr/0005-add-an-importing-module-that-owns-the-parser-and-filament-mappings.md) | Add an importing module that owns the parser and the filament mappings | Accepted | §5 |
 
-ADR files live under `docs/features/<slug>/adr/NNNN-<title>.md`.
+ADR files live under `docs/features/print-file-import/adr/NNNN-<title>.md`. Рішення, що діють і далі без змін: project ADR 0001–0004 (`docs/adr/`) і cost-calculator ADR 0001–0007 (`docs/features/cost-calculator/adr/`); ADR 0002 доповнює cost-calculator ADR 0007 одним винятком для маршруту імпорту.
+
+Рішення, свідомо залишені inline (не пройшли поріг масштабу удару 2 з 3): target surfaces і UI-архітектура (§4, успадковані з етапу 1), розбір лише stdlib-засобами (§2), межі читання архіву (§8), межа розміру як константа (§7).
 
 ## 10. Quality requirements
 

@@ -204,35 +204,100 @@ C4Container
 
 ## 6. Runtime view
 
-<!-- 🎯 Навіщо: ПОТІК У RUNTIME для 1-2 критичних сценаріїв. Хто з ким коли і у якому     -->
-<!--           порядку говорить. Без §6 §5 — лише купа коробок без життя.                  -->
-<!-- 📋 Що писати: Mermaid sequenceDiagram. Учасники — імена з §5 (не вигадуй нові!).      -->
-<!--           Повідомлення семантичні («складає чорновик»), БЕЗ HTTP-методів/шляхів —     -->
-<!--           ендпоінт-рівневі sequence-діаграми зʼявляться у stage 06 (api-forge).        -->
-<!-- ⏳ RESERVED FOR SEQUENCES: architecture-design сіє лише primary flow(s) тут.          -->
-<!--           complete-sequence-diagrams (stage 06) ДОПОВНЮЄ §6 кожним критичним flow /    -->
-<!--           кожним §5 AC — без обмеження. Не намагайся покрити все тут.                  -->
-<!-- 📌 Приклад: «methodist → web-app: складає чорновик → web-app → content-api: зберегти». -->
+Нижче — три основні потоки, закладені на етапі архітектури: імпорт у розрахунок, перенарізка наявного виробу з «було → стало» і відмова для поганого файлу. Учасники — контейнери з §5. Повідомлення семантичні: ендпоінти, коди статусів і назви полів з'являться на етапі `api-forge`. Решту критичних потоків — кожен AC PRD §5 — додає `complete-sequence-diagrams`.
 
-**Critical flow 1: <flow name>**
+### Critical flow 1: імпорт файлу слайсера в розрахунок (US-01, US-03)
 
 ```mermaid
 sequenceDiagram
-    actor User
-    participant API
-    participant Service
-    participant DB
-    User->>API: <request>
-    API->>Service: <call>
-    Service->>DB: <write tx>
-    DB-->>Service: ok
-    Service-->>API: result
-    API-->>User: 201
+    actor author as автор
+    participant spa as Web SPA
+    participant importing as importing
+    participant pricing as pricing
+    participant db as SQLite
+    participant costing as costing
+
+    author->>spa: обирає файл слайсера в розрахунку
+    spa->>importing: надсилає байти файлу (octet-stream)
+    importing->>pricing: чи є пластики й налаштування цін
+    pricing-->>importing: готово
+    Note over importing: розбирає архів у пам'яті - проєкт Bambu, одна нарізана пластина, межі файлу
+    importing->>db: шукає зіставлення за назвою й кольором філаментів
+    db-->>importing: знайдені зіставлення
+    importing-->>spa: пластина, час до хвилини, філаменти в мг, підставлені пластики
+    alt є незіставлений філамент
+        spa-->>author: показує філамент як у слайсері й просить обрати пластик
+        author->>spa: обирає пластик
+    end
+    opt два різні філаменти ведуть до одного пластику
+        spa-->>author: питає, чи сумувати їх в один рядок
+        author->>spa: підтверджує сумування або обирає інший пластик
+    end
+    Note over spa: складає рядки - сума мг на пластик, вгору до сотих грама
+    spa->>costing: рядки пластиків і час друку
+    costing->>pricing: поточні ціни
+    pricing-->>costing: ціни
+    costing-->>spa: мінімальний донат і розбивка
+    spa-->>author: заповнений розрахунок, мінімальний донат, імпортована пластина
 ```
 
-<!-- For XS/S: 1 flow above is enough. For M+: add 2-4 more (e.g. failure-mode flow, async flow). -->
+### Critical flow 2: перенарізка наявного виробу з «було → стало» (US-02, US-03)
 
-**Critical flow 2: <e.g. async event propagation>** — <if applicable, otherwise N/A>.
+```mermaid
+sequenceDiagram
+    actor author as автор
+    participant spa as Web SPA
+    participant catalog as catalog
+    participant importing as importing
+    participant costing as costing
+    participant db as SQLite
+
+    author->>spa: у виробі обирає новий файл слайсера
+    spa->>catalog: читає виріб, як він збережений
+    catalog-->>spa: параметри виробу і поточний мінімальний донат
+    spa->>importing: надсилає байти файлу
+    importing-->>spa: філаменти, час, підставлені пластики
+    spa->>costing: нові рядки й час
+    costing-->>spa: новий мінімальний донат
+    spa-->>author: було і стало - пластики, час, мінімальний донат
+    alt автор підтверджує
+        spa->>catalog: зберегти виріб разом із зіставленнями пластиків
+        Note over catalog,db: одна транзакція - виріб і зіставлення разом або нічого
+        catalog->>db: замінює пластики й час виробу
+        catalog->>importing: запам'ятати зіставлення
+        importing->>db: upsert за назвою й кольором
+        catalog-->>spa: збережений виріб
+        spa-->>author: каталог показує новий мінімальний донат
+    else автор скасовує
+        spa-->>author: виріб без змін, зіставлення не запам'ятовано
+    end
+```
+
+### Critical flow 3: відмова для непридатного файлу (US-04, US-05)
+
+```mermaid
+sequenceDiagram
+    actor author as автор
+    participant spa as Web SPA
+    participant api as API
+    participant importing as importing
+
+    author->>spa: обирає файл
+    spa->>api: надсилає байти файлу
+    alt запит не з сайту інструмента або не octet-stream
+        api-->>spa: відмова захисту запитів, файл не читається
+    else тіло понад 100 000 000 байт
+        api-->>spa: файл завеликий, читання обірвано на межі
+    else тіло в межах
+        api->>importing: розібрати байти
+        alt не проєкт Bambu Studio, не нарізаний, кілька нарізаних пластин, пошкоджений або поза межами
+            importing-->>spa: причина простими словами, нічого не змінено
+        else придатний
+            importing-->>spa: розібраний файл, далі як у потоці 1
+        end
+    end
+    spa-->>author: пояснення й пропозиція ввести дані вручну, форма без змін
+```
 
 ## 7. Deployment view
 

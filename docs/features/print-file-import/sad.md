@@ -314,22 +314,22 @@ sequenceDiagram
 
 ## 8. Crosscutting concepts
 
-<!-- 🎯 Навіщо: НАСКРІЗНІ ПАТЕРНИ, які перетинають кілька модулів: логування, помилки,    -->
-<!--           авторизація, ID strategy, outbox, кеш. ⭐ Друга найгустіша секція.          -->
-<!--           Якщо патерн всередині одного модуля — він НЕ сюди. Якщо це конвенція        -->
-<!--           проєкту в цілому — у CLAUDE.md.                                              -->
-<!-- 📋 Що писати: таблиця концепт / конвенція / де визначено. Один рядок на концепт.      -->
-<!-- 📌 Приклад: «UUID v7 (час+випадковий, сортується) у app-layer» — як default з CLAUDE.md. -->
+Етап 1 уже визначив більшість наскрізних правил, і фіча їх успадковує. Нові рядки — перші три: вони описують роботу з недовіреним архівом (§3) і закривають PRD §8 №4.
 
 | Concept | Convention | Where defined |
 |---|---|---|
-| Logging | <e.g. structured slog, fields `module=<name>`> | <CLAUDE.md §X or here> |
-| Authentication | <e.g. JWT via session middleware> | <CLAUDE.md §X> |
-| Error handling | <e.g. domain sentinel → ports/errors.go → apperr JSON> | <CLAUDE.md §X> |
-| ID strategy | <e.g. UUID v7 in app layer> | <CLAUDE.md §X> |
-| Internationalisation | <e.g. N/A, English only> | — |
-| Observability | <e.g. OpenTelemetry on HTTP boundaries> | — |
-| Outbox / events | <module-specific patterns, if any> | <here> |
+| **Межі читання архіву** (нове; закриває PRD §8 №4) | Читаються лише 4 службові частини за **точною** назвою: `3D/3dmodel.model`, `Metadata/model_settings.config`, `Metadata/slice_info.config`, `Metadata/project_settings.config`. G-code (`Metadata/plate_N.gcode`), картинки й вкладення (`Auxiliaries/…`) **ніколи не розпаковуються**: «бомба» зі стиснутого G-code нічого не важить. Межі: каталог ZIP ≤ 10 000 записів; кожна прочитана частина ≤ 8 000 000 байт розпакованого розміру — перевіряється і за заголовком, і фактичним `read(limit + 1)`, тож заголовок, що бреше про розмір, межі не обходить. Дубльовані назви, зашифровані частини, невідомий метод стиснення чи пошкоджений ZIP → «файл пошкоджений» (AC-13). На диск нічого не витягується, шляхи з архіву не використовуються як шляхи файлової системи. Реальні частини в еталонах — від 75 байт до 59 КБ. | тут; тест-набір поганих файлів (§10 QG-2) |
+| **Джерело чисел і ланцюжок перевірок** (нове) | (1) `3dmodel.model` має `<metadata name="Application">` з префіксом `BambuStudio-`, а `project_settings.config` існує, інакше «не файл проєкту Bambu Studio» (CAD-3MF, OrcaSlicer — AC-12, AC-13); (2) жодна пластина в `model_settings.config` не має `gcode_file`, а `slice_info.config` — результатів, інакше «не нарізаний» (AC-12); (3) понад одна пластина з результатами → «кілька нарізаних пластин» (AC-13); (4) цілісність: `prediction` і кожен `<filament id type color used_g>` наявні й розбираються, `id` має відповідну назву в `filament_settings_id[id-1]` (AC-13); (5) межі файлу: час > 0 і ≤ 100 000 год, хоча б один філамент із витратою > 0 (AC-14). Час — `prediction` (повний розрахунковий час разом зі змінами філаменту). Філаменти без запису в `slice_info` або з `used_g = 0` пропускаються (AC-02). Числа розбираються з рядка через `Decimal`; NaN, нескінченність, експонента й від'ємні значення → «пошкоджений». На обох еталонах ці числа збігаються із заголовком G-code. | тут; ADR 0001 |
+| **Нормалізація філамента** (нове) | Колір → `#RRGGBB` у верхньому регістрі; 8-значний `#RRGGBBAA` втрачає альфу; інша форма → «пошкоджений» (AC-09). Назва пресету — лише обрізання пробілів на краях, з урахуванням регістру й без NFC-нормалізації, щоб збіг зі зіставленням був точним (AC-09). Довжину назви обмежує data-model; задовга назва → «пошкоджений». | тут |
+| Error handling | `AppError` → RFC 9457 `application/problem+json`; коди модуля `importing.*`: `file_too_large` (413), `settings_missing` (409, з `missing` — як `costing.settings_missing`, AC-04), а відмови ланцюжка AC-12…AC-14 — 422 зі своїм кодом на кожну причину, щоб веб показав пояснення українською. Остаточні назви кодів і полів фіксує `api-forge`. | `CLAUDE.md` § Errors; `core/errors.py` |
+| Authentication / захист запитів | Без автентифікації (project ADR 0004). `RequestGuard` (cost-calculator ADR 0007) + **поправка ADR 0002**: `POST` маршруту імпорту приймає лише `application/octet-stream`, решта змінних `/api` — лише `application/json`; `Host` / `Origin` / `Sec-Fetch-Site` — без змін; CORS немає (AC-15). | cost-calculator ADR 0007; ADR 0002 |
+| Output encoding (XSS) | Назви, типи й кольори філаментів із файлу React рендерить лише як текст; `dangerouslySetInnerHTML` у слайсі імпорту заборонено; колір показується зразком лише після нормалізації сервером до `#RRGGBB` (PRD §6.1). | тут |
+| Logging | Тіло запиту, вміст файлу й назви з нього ніколи не логуються; у помилці 500 — лише код `internal_error` без деталей файлу. | тут |
+| ID strategy | UUIDv7 із застосунку (`core/ids.py::new_id()`) для рядків зіставлень; БД ID не генерує. | `CLAUDE.md` § IDs |
+| Quantities | Масштабовані цілі з одиницею в назві (cost-calculator ADR 0004). Новий суфікс `*_mg` — точна витрата філамента лише у відповіді розбору (ADR 0004); у БД і в `costing` — як і раніше `*_cg`; час — `*_s`, кратний 60. | `CLAUDE.md` § Money/units; ADR 0004 |
+| Transactions | Одна транзакція на запит (`ConnectionDep`, `BEGIN IMMEDIATE`); розбір нічого не пише; виріб і зіставлення пишуться в одній транзакції (ADR 0003). | `core/db.py`; ADR 0003 |
+| Internationalisation | Усі повідомлення імпорту українською (PRD §6); назви філаментів показуються як у файлі; грами й час форматуються як в етапі 1. | `CLAUDE.md` § Locale |
+| Observability | N/A — локальний інструмент без метрик (§7). | — |
 
 ## 9. Architecture decisions
 

@@ -375,25 +375,21 @@ ADR files live under `docs/features/print-file-import/adr/NNNN-<title>.md`. Рі
 
 ## 11. Risks and technical debt
 
-<!-- 🎯 Навіщо: ⭐ збирає ВСЕ, що може зламатись — і не лише технічне. Без §11 ризики   -->
-<!--           обговорюються на стендапах і губляться; борг лишається у голові того,    -->
-<!--           хто його прийняв.                                                          -->
-<!-- 📋 Що писати: таблиця ризик/борг — серйозність — мітигація — власник. Технічний    -->
-<!--           борг окремою секцією.                                                      -->
-<!-- 📌 Приклад: «EM не пушить — member не оновлює дані | High | …». Перший ризик —      -->
-<!--           часто продуктовий, не технічний. Це нормально.                            -->
-
-<!-- Severity column literals: Low / Medium / High for regular risks; "Open question" for rows
-     created by Step-7 `Save as Open Question` resolutions (see references/socratic-loop.md). -->
-
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| <e.g. Outbox lag may reach hours during downstream outage> | Medium | <Alert >10 min, on-call playbook, retry backoff> | <DevOps> |
-| <e.g. No event schema versioning in v1> | Medium | <ADR-NNNN planned for v2, graceful handling of unknown fields> | <Backend> |
-| Open architectural decision: <decision-headline> | Open question | Resolve before <stage trigger or YYYY-MM-DD>; <inline rationale from Step-7 Save-as-OQ> | <owner> |
+| Нова версія Bambu Studio змінює службові частини архіву (`slice_info.config`, `model_settings.config`, позначку `Application`) — формат не документований, парсер спирається на еталони 02.08.02.61 | Medium | Ланцюжок перевірок (§8) відмовляє «закрито»: незнайоме поле чи форма → «файл пошкоджений» з пропозицією ввести вручну, ніколи не нулі (QG-1, QG-2). Після кожного оновлення слайсера — новий еталон у `tests/fixtures/slicer/` і таблиці QG-1 | автор |
+| Файл OrcaSlicer (форк Bambu Studio зі схожим форматом) прийнято як Bambu без еталона | Medium | Перевірка префікса `Application = BambuStudio-` першою в ланцюжку (§8, AC-12); тест із позначкою `OrcaSlicer` у наборі поганих файлів (QG-2); OrcaSlicer — поза обсягом (PRD §3) | автор |
+| Суфікс принтера в назві пресету («@BBL A1M»): зміна чи додавання принтера робить усі зіставлення пластиків новими (PRD §8 №3) | Low | Прийнято: принтер один. Переглянути ключ зіставлення перед зміною або додаванням принтера (PRD §8 №3) | автор |
+| Ненарізані пластини файлу пропускаються — автор може очікувати, що імпортовано весь проєкт | Low | Інструмент показує номер і назву імпортованої пластини (AC-02, Decision override §1); відмова, якщо нарізаних пластин понад одну (AC-13) | автор |
+| Виняток `octet-stream` у `RequestGuard` (ADR 0002) випадково поширюється на інші маршрути | Low | Виняток задано точним маршрутом і методом; тест «`octet-stream` на будь-який інший змінний `/api` → 415» (QG-3) | автор |
+| `docs/architecture-map.md` застарів (`reflects_commit: 95f8e06`, до scaffold): цей SAD спирався на свіжий скан коду, а наступні стадії можуть прочитати застарілу карту | Medium | Запустити `/sdlc:map-architecture` до `/sdlc:break-tasks` | автор |
+| Пік пам'яті до ≈ 132 МБ на один імпорт (§7) | Low | Межа тіла та межі частин архіву (ADR 0002, §8); імпорти йдуть по одному | автор |
 
 **Accepted debt (acceptable in v1, plan to fix later):**
-- <e.g. Goal entity is not versioned (immutable) — OK for v1, may need audit versioning in v2>
+- Правило «сума мг → вгору до сотих грама» живе у вебі (ADR 0004), а не в Python поруч із рештою домену. Розходження з бекендом ловлять тести на тих самих прикладах AC-03 / AC-10.
+- Якщо слайсер запише понад 3 знаки в грамах, сума округлених вгору мг може перевищити округлену точну суму на 0,01 г — лише вгору, тож мінімальний донат не стає меншим (ADR 0004). Bambu Studio пише 2 знаки.
+- `CLAUDE.md` (§ Money/units) не називає суфікс `*_mg` — дописати під час реалізації ADR 0004.
+- Окремого перегляду й редагування зіставлень пластиків немає (PRD §3): помилкове зіставлення виправляється лише наступним імпортом із новим вибором (AC-08).
 
 ## 12. Glossary
 

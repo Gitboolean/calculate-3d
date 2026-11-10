@@ -294,3 +294,36 @@ BAD_FILES: tuple[BadFile, ...] = (
     BadFile("too_long_print_time", _prediction("360000001"), PRINT_TIME_OUT_OF_RANGE),
     BadFile("no_filament_usage", _used_g("0.00"), NO_FILAMENT_USAGE),
 )
+
+
+# ── Valid variants of the sliced reference (QG-1 AC-05, QG-4) ──
+
+
+def vtulka_variant(*, used_g: str | None = None, prediction: str | None = None) -> bytes:
+    """vtulka_A.gcode.3mf re-sliced in memory: another PLA-white usage and/or prediction."""
+    parts = _service_parts()
+    if used_g is not None:
+        parts = _edit(SLICE_INFO, _sub(r'used_g="[^"]*"', f'used_g="{used_g}"'), parts)
+    if prediction is not None:
+        pattern, repl = r'key="prediction" value="[^"]*"', f'key="prediction" value="{prediction}"'
+        parts = _edit(SLICE_INFO, _sub(pattern, repl), parts)
+    return build_zip(parts)
+
+
+def padded_to(size: int) -> bytes:
+    """The sliced reference plus a stored (uncompressed) attachment, exactly `size` bytes."""
+    with zipfile.ZipFile(VTULKA_SLICED) as zf:
+        parts = [(info.filename, zf.read(info)) for info in zf.infolist()]
+    name = "Auxiliaries/padding.bin"
+
+    def build(padding: int) -> bytes:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for part, data in parts:
+                zf.writestr(part, data)
+            zf.writestr(name, bytes(padding), compress_type=zipfile.ZIP_STORED)
+        return buf.getvalue()
+
+    body = build(size - len(build(0)))
+    assert len(body) == size
+    return body

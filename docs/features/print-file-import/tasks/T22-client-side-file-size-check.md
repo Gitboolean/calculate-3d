@@ -7,7 +7,7 @@ acs: ["AC-13"]
 files_hint: ["web/src/features/slicer-import/ui/ImportFileButton.tsx", "web/src/features/slicer-import/ui/ImportFileButton.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T22 — Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання

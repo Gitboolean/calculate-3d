@@ -86,3 +86,38 @@ test('only the last chosen file fills the form when answers arrive out of order'
 
   expect(onParsed).toHaveBeenCalledTimes(1)
 })
+
+// Mirrors MAX_BODY_BYTES in backend/src/calculate3d/modules/importing/router.py (AC-13).
+const MAX_FILE_BYTES = 100_000_000
+
+function fileOfSize(size: number) {
+  const file = slicerFile('big.3mf')
+  Object.defineProperty(file, 'size', { value: size })
+  return file
+}
+
+test('a file over 100 MB is rejected in the browser with the size explanation and never uploaded', async () => {
+  const api = mockApi({ 'POST /api/importing/parse': json(PARSED) })
+  const onParsed = vi.fn()
+  const user = userEvent.setup()
+  renderWithProviders(<ImportFileButton onParsed={onParsed} />)
+
+  await user.upload(screen.getByLabelText('Файл слайсера'), fileOfSize(MAX_FILE_BYTES + 1))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Файл більший за 100 МБ — такий файл не імпортується.',
+  )
+  expect(api.callsTo('POST', '/api/importing/parse')).toHaveLength(0)
+  expect(onParsed).not.toHaveBeenCalled()
+})
+
+test('a file of exactly 100 MB is still sent', async () => {
+  const api = mockApi({ 'POST /api/importing/parse': json(PARSED) })
+  const onParsed = vi.fn()
+  renderWithProviders(<ImportFileButton onParsed={onParsed} />)
+
+  await userEvent.upload(screen.getByLabelText('Файл слайсера'), fileOfSize(MAX_FILE_BYTES))
+
+  await vi.waitFor(() => expect(onParsed).toHaveBeenCalledWith(PARSED))
+  expect(api.callsTo('POST', '/api/importing/parse')).toHaveLength(1)
+})

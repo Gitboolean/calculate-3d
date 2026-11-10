@@ -26,6 +26,6 @@
 | [T19](./T19-import-memory-within-sad-budget.md) | Пам'ять імпорту в бюджеті SAD §7: межа central directory до ZipFile і один буфер тіла | infra | Anton Pohorielov | M | T8, T18 | done |
 | [T20](./T20-cancel-import-and-mapping-plastic-deleted.md) | Скасування імпорту в розрахунку і пояснення importing.plastic_not_found під час збереження | ui | Anton Pohorielov | M | T15, T16 | done |
 | [T21](./T21-ui-tests-ac03-ac08-ac14-integer-rounding.md) | UI-тести AC-03/AC-08/AC-14 після імпорту і цілочислове округлення мг → сг | ui | Anton Pohorielov | M | T20 | done |
-| [T22](./T22-client-side-file-size-check.md) | Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання | ui | Anton Pohorielov | S | T13 | todo |
+| [T22](./T22-client-side-file-size-check.md) | Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання | ui | Anton Pohorielov | S | T13 | done |
 
 **Total:** 22 tasks, ~8.5 person-days + ~2 person-days of review follow-ups (T18–T22, [review 2026-11-10](../_review/review-2026-11-10.md)).

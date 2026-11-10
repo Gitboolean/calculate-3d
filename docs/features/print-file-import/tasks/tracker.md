@@ -13,7 +13,7 @@
 | [T6](./T6-importing-service-parse-slicer-file.md) | importing.service.parse_slicer_file: готовність налаштувань, розбір, підстановка зіставлень, помилки | app | Anton Pohorielov | M | T4, T5 | done |
 | [T7](./T7-request-guard-octet-stream-exception.md) | RequestGuard: приймати application/octet-stream лише для POST /api/importing/parse | wiring | Anton Pohorielov | S | — | done |
 | [T8](./T8-importing-parse-router.md) | Роутер POST /api/importing/parse: потокове читання під межею 100 МБ, problem+json, api-types | ports | Anton Pohorielov | M | T6, T7 | done |
-| [T9](./T9-catalog-save-item-with-mappings.md) | catalog: ItemInput.filament_mappings і remember_mappings у транзакції збереження виробу | app | Anton Pohorielov | M | T5 | todo |
+| [T9](./T9-catalog-save-item-with-mappings.md) | catalog: ItemInput.filament_mappings і remember_mappings у транзакції збереження виробу | app | Anton Pohorielov | M | T5 | done |
 | [T10](./T10-importing-nfr-and-reference-tests.md) | NFR і еталонні тести імпорту: точність донату, латентність 100 МБ, збереженість, перенарізка | tests | Anton Pohorielov | M | T8, T9 | todo |
 | [T11](./T11-shared-ui-dialog.md) | Додати shadcn-примітив dialog у shared/ui | ui | Anton Pohorielov | S | — | todo |
 | [T12](./T12-slicer-import-compose-model.md) | features/slicer-import/model: compose.ts — рядки з точних мг, конфлікти сумування, diff «було → стало» | domain | Anton Pohorielov | M | T8 | todo |

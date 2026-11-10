@@ -269,8 +269,10 @@ def test_live_schema_matches_the_contract_schema(app_openapi: dict[str, Any], na
     assert not divergences, "\n" + "\n".join(divergences)
 
 
-# The parse result and its problems (print-file-import D3); catalog's changed inputs join in T9.
+# The parse result, its problems (D3) and catalog's changed input (ADR 0003).
 IMPORT_SCHEMAS = (
+    "ItemInput",
+    "FilamentMappingInput",
     "SlicerFile",
     "SlicedPlate",
     "SlicerFilament",

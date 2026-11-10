@@ -179,6 +179,22 @@ export interface components {
       /** Field */
       field: string
     }
+    /**
+     * FilamentMappingInput
+     * @description The author's choice «slicer filament → plastic»; upserted by (name, color) (AC-07, AC-08).
+     */
+    FilamentMappingInput: {
+      /** Filament Name */
+      filament_name: string
+      /** Filament Color */
+      filament_color: string
+      /**
+       * Plastic Id
+       * Format: uuid
+       * @description filament_mappings.plastic_id → plastics.id
+       */
+      plastic_id: string
+    }
     /** HealthOut */
     HealthOut: {
       /**
@@ -284,6 +300,11 @@ export interface components {
       print_time_s: number
       /** Name */
       name: string
+      /**
+       * Filament Mappings
+       * @description Необов'язково (ADR 0003): зіставлення з імпорту, що запам'ятовуються разом із виробом; у відповіді виробу не повертаються
+       */
+      filament_mappings?: components['schemas']['FilamentMappingInput'][]
     }
     /** ItemList */
     ItemList: {

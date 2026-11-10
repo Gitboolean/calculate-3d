@@ -1,6 +1,7 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
+from pydantic_core import InitErrorDetails, PydanticCustomError
 
 from calculate3d.core.problems import Problem
 from calculate3d.core.schemas import Id
@@ -26,6 +27,22 @@ class FilamentMappingInput(BaseModel):
     filament_name: FilamentName
     filament_color: FilamentColor
     plastic_id: Annotated[Id, Field(description="filament_mappings.plastic_id → plastics.id")]
+
+
+def each_filament_once(mappings: list[FilamentMappingInput]) -> list[FilamentMappingInput]:
+    """One mapping per (name, color) — the UNIQUE key of filament_mappings (contract)."""
+    seen: set[tuple[str, str]] = set()
+    for index, m in enumerate(mappings):
+        key = (m.filament_name, m.filament_color)
+        if key in seen:
+            detail = InitErrorDetails(
+                type=PydanticCustomError("value_error", "filament is mapped twice"),
+                loc=(index, "filament_color"),
+                input=m.filament_color,
+            )
+            raise ValidationError.from_exception_data("FilamentMappingList", [detail])
+        seen.add(key)
+    return mappings
 
 
 class SlicedPlate(BaseModel):

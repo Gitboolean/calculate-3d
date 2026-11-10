@@ -11,6 +11,7 @@ from calculate3d.modules.importing.schemas import (
     SlicedPlate,
     SlicerFilament,
     SlicerFile,
+    each_filament_once,
 )
 from calculate3d.modules.pricing import service as pricing_service
 
@@ -19,6 +20,7 @@ __all__ = [
     "FileTooLarge",
     "ImportPlasticNotFound",
     "ImportSettingsMissing",
+    "each_filament_once",
     "parse_slicer_file",
     "remember_mappings",
 ]

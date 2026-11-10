@@ -10,9 +10,11 @@ import io
 import json
 import zipfile
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from xml.etree import ElementTree as ET
+
+from calculate3d.modules.importing import normalize
 
 MODEL = "3D/3dmodel.model"
 MODEL_SETTINGS = "Metadata/model_settings.config"
@@ -23,6 +25,8 @@ SERVICE_PARTS = (MODEL, MODEL_SETTINGS, SLICE_INFO, PROJECT_SETTINGS)
 MAX_ENTRIES = 10_000
 MAX_PART_BYTES = 8_000_000
 BAMBU_APPLICATION_PREFIX = "BambuStudio-"
+MAX_PRINT_TIME_S = 360_000_000  # 100 000 h, as for manual input (AC-14)
+MAX_FILAMENTS = 32  # one mapping key per row, up to 32 rows (data-model)
 
 # Rejection codes — the `code` of ImportRejectedProblem (contracts/openapi.yaml).
 NOT_SLICER_PROJECT = "importing.not_slicer_project"
@@ -57,6 +61,37 @@ class SlicedPlate:
     plate: Plate
     results: ET.Element
     project_settings: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ParsedFilament:
+    """A used slicer filament, keyed by (name, color) after normalization (AC-09)."""
+
+    name: str
+    type: str
+    color: str
+    usage_mg: int
+
+
+@dataclass(frozen=True)
+class ParsedFile:
+    plate: Plate
+    print_time_s: int
+    filaments: tuple[ParsedFilament, ...]
+
+
+def parse(body: bytes) -> ParsedFile:
+    """The whole SAD §8 chain: steps 0–3, then integrity (4) and the file bounds (5)."""
+    sliced = read_sliced_plate(body)
+    print_time_s = normalize.print_time_s(_metadata(sliced.results).get("prediction", ""))
+    if print_time_s is None:
+        raise ParseError(CORRUPTED_FILE)
+    filaments = _used_filaments(sliced)
+    if not 0 < print_time_s <= MAX_PRINT_TIME_S:
+        raise ParseError(PRINT_TIME_OUT_OF_RANGE)
+    if not filaments:
+        raise ParseError(NO_FILAMENT_USAGE)
+    return ParsedFile(sliced.plate, print_time_s, filaments)
 
 
 def read_sliced_plate(body: bytes) -> SlicedPlate:
@@ -161,7 +196,7 @@ def _metadata(element: ET.Element) -> dict[str, str]:
     return {item.get("key", ""): item.get("value", "") for item in element.findall("metadata")}
 
 
-def _plate_index(value: str | None) -> int:
+def _positive_int(value: str | None) -> int:
     if value is None or not value.isascii() or not value.isdigit() or int(value) < 1:
         raise ParseError(CORRUPTED_FILE)
     return int(value)
@@ -173,7 +208,7 @@ def _plates_with_gcode(model_settings: ET.Element) -> dict[int, str]:
     for plate in model_settings.findall("plate"):
         meta = _metadata(plate)
         if meta.get("gcode_file"):
-            index = _plate_index(meta.get("plater_id"))
+            index = _positive_int(meta.get("plater_id"))
             if index in plates:
                 raise ParseError(CORRUPTED_FILE)
             plates[index] = meta.get("plater_name", "")
@@ -184,8 +219,42 @@ def _slice_results(slice_info: ET.Element) -> dict[int, ET.Element]:
     """Plates of `slice_info.config` that carry slicing results, by plate index."""
     results: dict[int, ET.Element] = {}
     for plate in slice_info.findall("plate"):
-        index = _plate_index(_metadata(plate).get("index"))
+        index = _positive_int(_metadata(plate).get("index"))
         if index in results:
             raise ParseError(CORRUPTED_FILE)
         results[index] = plate
     return results
+
+
+def _used_filaments(sliced: SlicedPlate) -> tuple[ParsedFilament, ...]:
+    """Filaments with usage > 0; identical (name, color) slots merge with the exact sum (AC-10)."""
+    presets = sliced.project_settings.get("filament_settings_id")
+    if not isinstance(presets, list):
+        raise ParseError(CORRUPTED_FILE)
+    merged: dict[tuple[str, str], ParsedFilament] = {}
+    for row in sliced.results.findall("filament"):
+        filament = _filament(row, presets)
+        if filament.usage_mg == 0:
+            continue
+        key = (filament.name, filament.color)
+        if (same := merged.get(key)) is not None:
+            filament = replace(same, usage_mg=same.usage_mg + filament.usage_mg)
+        if filament.usage_mg > normalize.MAX_SAFE_INTEGER:
+            raise ParseError(CORRUPTED_FILE)
+        merged[key] = filament
+    if len(merged) > MAX_FILAMENTS:
+        raise ParseError(CORRUPTED_FILE)
+    return tuple(merged.values())
+
+
+def _filament(row: ET.Element, presets: list[Any]) -> ParsedFilament:
+    """`<filament id type color used_g>`; its name is the preset `filament_settings_id[id-1]`."""
+    index = _positive_int(row.get("id"))
+    preset = presets[index - 1] if index <= len(presets) else None
+    name = normalize.filament_name(preset) if isinstance(preset, str) else None
+    color = normalize.filament_color(row.get("color", ""))
+    usage_mg = normalize.usage_mg(row.get("used_g", ""))
+    filament_type = row.get("type", "").strip()
+    if name is None or color is None or usage_mg is None or not filament_type:
+        raise ParseError(CORRUPTED_FILE)
+    return ParsedFilament(name, filament_type, color, usage_mg)

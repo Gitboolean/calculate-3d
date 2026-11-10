@@ -48,6 +48,11 @@ REQUIRED_CASES = {
     "non_canonical_color",
     "too_many_filament_pairs",
     "usage_mg_over_safe_integer",
+    "huge_plate_index",
+    "huge_filament_id",
+    "huge_plater_id",
+    "unknown_xml_encoding",
+    "local_header_name_not_utf8",
 }
 
 

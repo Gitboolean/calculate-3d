@@ -149,7 +149,7 @@ def _inflate(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> bytes:
         with archive.open(entry) as part:
             # The header may lie about the size: never read more than the limit + 1 byte.
             data = part.read(MAX_PART_BYTES + 1)
-    except (zipfile.BadZipFile, zlib.error, EOFError, OSError, RuntimeError) as e:
+    except (zipfile.BadZipFile, zlib.error, EOFError, OSError, RuntimeError, ValueError) as e:
         raise ParseError(CORRUPTED_FILE) from e
     if len(data) > MAX_PART_BYTES:
         raise ParseError(CORRUPTED_FILE)
@@ -159,7 +159,8 @@ def _inflate(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> bytes:
 def _xml(data: bytes) -> ET.Element:
     try:
         return ET.fromstring(data)
-    except ET.ParseError as e:
+    except (ET.ParseError, LookupError, ValueError) as e:
+        # LookupError: the XML declaration names an encoding Python does not know.
         raise ParseError(CORRUPTED_FILE) from e
 
 
@@ -196,8 +197,17 @@ def _metadata(element: ET.Element) -> dict[str, str]:
     return {item.get("key", ""): item.get("value", "") for item in element.findall("metadata")}
 
 
+_MAX_ID_DIGITS = 9  # plate index / filament id are tiny; also keeps int() under the digit limit
+
+
 def _positive_int(value: str | None) -> int:
-    if value is None or not value.isascii() or not value.isdigit() or int(value) < 1:
+    if (
+        value is None
+        or not value.isascii()
+        or not value.isdigit()
+        or len(value) > _MAX_ID_DIGITS
+        or int(value) < 1
+    ):
         raise ParseError(CORRUPTED_FILE)
     return int(value)
 

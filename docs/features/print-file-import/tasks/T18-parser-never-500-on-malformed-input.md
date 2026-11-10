@@ -7,7 +7,7 @@ acs: ["AC-13"]
 files_hint: ["backend/src/calculate3d/modules/importing/parser.py", "backend/tests/fixtures/slicer/bad_files.py", "backend/tests/integration/test_importing_bad_files.py"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T18 — Парсер: будь-який пошкоджений вміст архіву → importing.corrupted_file, ніколи не 500

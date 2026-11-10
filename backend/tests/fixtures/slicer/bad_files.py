@@ -238,6 +238,33 @@ def _name(value: str) -> bytes:
     return build_zip(_edit(PROJECT_SETTINGS, _project_settings(preset)))
 
 
+HUGE_NUMBER = "9" * 4301  # > 4300 digits: int() refuses it (CPython limit)
+
+
+def _huge_digits(name: str, pattern: str, repl: str) -> bytes:
+    return build_zip(_edit(name, _sub(pattern, repl.replace("@", HUGE_NUMBER))))
+
+
+def _unknown_xml_encoding() -> bytes:
+    return build_zip(_edit(SLICE_INFO, _sub(r'encoding="UTF-8"', 'encoding="x-bogus"')))
+
+
+def _local_name_not_utf8() -> bytes:
+    """slice_info's LOCAL header sets the UTF-8 flag (0x800) and has a non-UTF-8 name byte."""
+    body = bytearray(build_zip(_service_parts()))
+    name = SLICE_INFO.encode()
+    pos = body.find(b"PK\x03\x04")
+    while pos != -1:
+        (name_len,) = struct.unpack_from("<H", body, pos + 26)
+        if bytes(body[pos + 30 : pos + 30 + name_len]) == name:
+            (flags,) = struct.unpack_from("<H", body, pos + 6)
+            struct.pack_into("<H", body, pos + 6, flags | 0x800)
+            body[pos + 30 + name_len - 1] = 0xFF  # last name byte: invalid UTF-8
+            return bytes(body)
+        pos = body.find(b"PK\x03\x04", pos + 4)
+    raise AssertionError("local header of slice_info not found")
+
+
 BAD_FILES: tuple[BadFile, ...] = (
     # Step 0 — not a ZIP, or a ZIP breaking the archive read limits (SAD §8).
     BadFile("not_zip", b"%PDF-1.7\nnot a slicer project\n", NOT_SLICER_PROJECT),
@@ -289,6 +316,23 @@ BAD_FILES: tuple[BadFile, ...] = (
         CORRUPTED_FILE,
     ),
     BadFile("too_many_filament_pairs", _extra_filaments(count=33, names=33), CORRUPTED_FILE),
+    BadFile(
+        "huge_plate_index",
+        _huge_digits(SLICE_INFO, r'key="index" value="1"', 'key="index" value="@"'),
+        CORRUPTED_FILE,
+    ),
+    BadFile(
+        "huge_filament_id",
+        _huge_digits(SLICE_INFO, r'<filament id="1"', '<filament id="@"'),
+        CORRUPTED_FILE,
+    ),
+    BadFile(
+        "huge_plater_id",
+        _huge_digits(MODEL_SETTINGS, r'key="plater_id" value="1"', 'key="plater_id" value="@"'),
+        CORRUPTED_FILE,
+    ),
+    BadFile("unknown_xml_encoding", _unknown_xml_encoding(), CORRUPTED_FILE),
+    BadFile("local_header_name_not_utf8", _local_name_not_utf8(), CORRUPTED_FILE),
     # Step 5 — file bounds (AC-14).
     BadFile("zero_print_time", _prediction("0"), PRINT_TIME_OUT_OF_RANGE),
     BadFile("too_long_print_time", _prediction("360000001"), PRINT_TIME_OUT_OF_RANGE),

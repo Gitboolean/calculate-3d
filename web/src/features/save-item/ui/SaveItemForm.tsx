@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 
 import { useCreateItem } from '@/entities/item'
 import type { QuoteInput } from '@/entities/quote'
+import type { Schemas } from '@/shared/api'
 import { normalizeName } from '@/shared/lib'
 import { Button, FormField } from '@/shared/ui'
 
@@ -10,9 +11,16 @@ import { saveError, validateItemName } from '../model/name'
 
 /**
  * Saves the shown calculation as a catalog item — its parameters only, never a price (AC-10).
- * `input` is null until the donation for the current values is on screen.
+ * `input` is null until the donation for the current values is on screen. `filamentMappings`
+ * from a slicer import are remembered together with the item, never on their own (ADR 0003).
  */
-export function SaveItemForm({ input }: { input: QuoteInput | null }) {
+export function SaveItemForm({
+  input,
+  filamentMappings = [],
+}: {
+  input: QuoteInput | null
+  filamentMappings?: Schemas['FilamentMappingInput'][]
+}) {
   const [name, setName] = useState('')
   const [errors, setErrors] = useState<{ name?: string; form?: string }>({})
   const create = useCreateItem()
@@ -28,7 +36,11 @@ export function SaveItemForm({ input }: { input: QuoteInput | null }) {
     }
     setErrors({})
     create.mutate(
-      { name: normalizeName(name), ...input },
+      {
+        name: normalizeName(name),
+        ...input,
+        ...(filamentMappings.length > 0 ? { filament_mappings: filamentMappings } : {}),
+      },
       {
         onSuccess: (item) => navigate(`/catalog/${item.id}`),
         onError: (error) => setErrors(saveError(error)),

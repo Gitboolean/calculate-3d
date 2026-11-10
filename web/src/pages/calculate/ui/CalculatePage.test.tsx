@@ -23,6 +23,19 @@ const QUOTES: Record<string, unknown> = {
     min_donation_kop: 11525,
     breakdown: { plastic_kop: 7800, electricity_kop: 227, wear_kop: 2450, scrap_kop: 1048 },
   },
+  // vtulka_A from the slicer file: 1 154 cg, 1 h 38 min (print-file-import AC-01).
+  '[["pla",1154]]|5880': {
+    min_donation_kop: 1882,
+    breakdown: { plastic_kop: 462, electricity_kop: 106, wear_kop: 1143, scrap_kop: 171 },
+  },
+  '[["pla",1154]]|6000': {
+    min_donation_kop: 1900,
+    breakdown: { plastic_kop: 462, electricity_kop: 108, wear_kop: 1166, scrap_kop: 173 },
+  },
+  '[["pla",1549],["petg",223]]|5460': {
+    min_donation_kop: 2000,
+    breakdown: { plastic_kop: 620, electricity_kop: 99, wear_kop: 1062, scrap_kop: 219 },
+  },
   '[["pla",8000],["petg",4000]]|7200': {
     min_donation_kop: 8063,
     breakdown: { plastic_kop: 5800, electricity_kop: 130, wear_kop: 1400, scrap_kop: 733 },
@@ -31,8 +44,16 @@ const QUOTES: Record<string, unknown> = {
 
 type Body = { plastics: { plastic_id: string; usage_cg: number }[]; print_time_s: number }
 
-function serve({ plastics = PLASTICS, settings = SETTINGS as typeof SETTINGS | null } = {}) {
+function serve({
+  plastics = PLASTICS,
+  settings = SETTINGS as typeof SETTINGS | null,
+  parsed = [] as unknown[],
+} = {}) {
+  let parses = 0
   return mockApi({
+    'POST /api/importing/parse': () => json(parsed[parses++] ?? parsed.at(-1)),
+    'POST /api/catalog/items': (call: ApiCall) =>
+      json({ id: 'item-1', ...(call.body as object) }, 201),
     'GET /api/pricing/plastics': json({ items: plastics }),
     'GET /api/pricing/settings': json(settings),
     'POST /api/costing/quote': (call: ApiCall) => {
@@ -312,4 +333,134 @@ test('the combined time error describes both time inputs (a11y)', async () => {
   await screen.findByText(message)
   expect(screen.getByLabelText('Години')).toHaveAccessibleDescription(message)
   expect(screen.getByLabelText('Хвилини')).toHaveAccessibleDescription(message)
+})
+
+// ── print-file-import: the slicer file fills the calculation (T15) ──
+const PLA = 'Bambu PLA Basic @BBL A1M'
+const VTULKA = {
+  plate: { index: 1, name: '' },
+  print_time_s: 5880,
+  filaments: [
+    {
+      filament_name: PLA,
+      filament_type: 'PLA',
+      filament_color: '#FFFFFF',
+      usage_mg: 11540,
+      plastic_id: 'pla',
+    },
+  ],
+}
+const TWO_COLORS = {
+  plate: { index: 1, name: 'mini christmas tree' },
+  print_time_s: 5460,
+  filaments: [
+    { ...VTULKA.filaments[0], filament_color: '#3F8E43', usage_mg: 15490, plastic_id: 'pla' },
+    { ...VTULKA.filaments[0], filament_color: '#000000', usage_mg: 2230, plastic_id: null },
+  ],
+}
+
+async function importFile(name = 'vtulka_A.gcode.3mf') {
+  await userEvent.upload(
+    screen.getByLabelText('Файл слайсера'),
+    new File([new Uint8Array([0x50, 0x4b])], name),
+  )
+}
+
+test('an imported file replaces every manual row and the time, then prices it (AC-01)', async () => {
+  serve({ parsed: [VTULKA] })
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('3', '30')
+  await screen.findByText('115,25 ₴')
+
+  await importFile()
+
+  await vi.waitFor(() => expect(screen.getAllByLabelText('Витрата, г')).toHaveLength(1))
+  expect(screen.getByLabelText('Витрата, г')).toHaveValue('11,54')
+  expect(screen.getAllByLabelText('Пластик')[0]).toHaveValue('pla')
+  expect(screen.getByLabelText('Години')).toHaveValue('1')
+  expect(screen.getByLabelText('Хвилини')).toHaveValue('38')
+  const donation = await screen.findByRole('status', { name: 'Мінімальний донат' })
+  expect(within(donation).getByText('18,82 ₴')).toBeInTheDocument()
+})
+
+test('the author can still edit by hand after an import', async () => {
+  serve({ parsed: [VTULKA] })
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('18,82 ₴')
+
+  await fillTime('1', '40')
+
+  expect(await screen.findByText('19,00 ₴')).toBeInTheDocument()
+})
+
+test('a second import replaces the first, and no donation shows until all are mapped', async () => {
+  const user = userEvent.setup()
+  serve({ parsed: [VTULKA, TWO_COLORS] })
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('18,82 ₴')
+
+  await importFile('LITTLE_TREES.gcode.3mf')
+
+  expect(await screen.findByText('Пластина 1 · mini christmas tree')).toBeInTheDocument()
+  expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
+
+  await user.selectOptions(screen.getByLabelText(`Пластик для ${PLA} #000000`), 'petg')
+
+  const donation = await screen.findByRole('status', { name: 'Мінімальний донат' })
+  expect(within(donation).getByText('20,00 ₴')).toBeInTheDocument()
+  expect(screen.getAllByLabelText('Витрата, г').map((i) => (i as HTMLInputElement).value)).toEqual([
+    '15,49',
+    '2,23',
+  ])
+})
+
+test('saving the item sends the filament mappings; only saving sends them (AC-07)', async () => {
+  const user = userEvent.setup()
+  const api = serve({ parsed: [TWO_COLORS] })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await user.selectOptions(await screen.findByLabelText(`Пластик для ${PLA} #000000`), 'petg')
+  await screen.findByText('20,00 ₴')
+  expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(0)
+
+  await user.type(screen.getByLabelText('Назва виробу'), 'Ялинка')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+
+  await screen.findByText('Інша сторінка')
+  expect(api.callsTo('POST', '/api/catalog/items')[0]?.body).toEqual({
+    name: 'Ялинка',
+    plastics: [
+      { plastic_id: 'pla', usage_cg: 1549 },
+      { plastic_id: 'petg', usage_cg: 223 },
+    ],
+    print_time_s: 5460,
+    filament_mappings: [
+      { filament_name: PLA, filament_color: '#3F8E43', plastic_id: 'pla' },
+      { filament_name: PLA, filament_color: '#000000', plastic_id: 'petg' },
+    ],
+  })
+})
+
+test('a manual calculation is saved without filament mappings', async () => {
+  const user = userEvent.setup()
+  const api = serve()
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('3', '30')
+  await screen.findByText('115,25 ₴')
+
+  await user.type(screen.getByLabelText('Назва виробу'), 'Брелок')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+
+  await screen.findByText('Інша сторінка')
+  expect(api.callsTo('POST', '/api/catalog/items')[0]?.body).not.toHaveProperty('filament_mappings')
 })

@@ -218,3 +218,65 @@ def test_cross_site_reads_are_refused(client: TestClient, path: str) -> None:
     response = client.get(path, headers={"origin": "https://evil.example.test"})
 
     _assert_problem(response, 403, "cross_origin_forbidden")
+
+
+# ── ADR 0002 (print-file-import): raw octet-stream only for POST /api/importing/parse ──
+IMPORT_PATH = "/api/importing/parse"
+OCTET = {"Content-Type": "application/octet-stream"}
+
+
+def test_octet_stream_passes_the_guard_on_the_import_route(guarded: TestClient) -> None:
+    response = guarded.post(IMPORT_PATH, content=b"PK\x03\x04", headers=OCTET)
+
+    assert response.status_code not in {400, 403, 415}
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "multipart/form-data; boundary=x",
+        "text/plain",
+        "application/x-www-form-urlencoded",
+        "application/json",
+    ],
+)
+def test_import_route_accepts_only_octet_stream(guarded: TestClient, content_type: str) -> None:
+    response = guarded.post(IMPORT_PATH, content=b"x", headers={"Content-Type": content_type})
+
+    _assert_problem(response, 415, "unsupported_media_type")
+    assert "application/octet-stream" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/api/_test/echo"),
+        ("POST", "/api/pricing/plastics"),
+        ("PUT", "/api/pricing/settings"),
+        ("POST", "/api/catalog/items"),
+        ("PUT", IMPORT_PATH),
+        ("POST", IMPORT_PATH + "/extra"),
+    ],
+)
+def test_octet_stream_is_rejected_everywhere_else(
+    guarded: TestClient, method: str, path: str
+) -> None:
+    response = guarded.request(method, path, content=b"PK\x03\x04", headers=OCTET)
+
+    _assert_problem(response, 415, "unsupported_media_type")
+
+
+@pytest.mark.parametrize(
+    ("headers", "status", "code"),
+    [
+        ({"Origin": "https://evil.example.test"}, 403, "cross_origin_forbidden"),
+        ({"Sec-Fetch-Site": "cross-site"}, 403, "cross_origin_forbidden"),
+        ({"Host": "evil.example.test"}, 400, "host_not_allowed"),
+    ],
+)
+def test_origin_and_host_checks_still_guard_the_import_route(
+    guarded: TestClient, headers: dict[str, str], status: int, code: str
+) -> None:
+    response = guarded.post(IMPORT_PATH, content=b"PK\x03\x04", headers={**OCTET, **headers})
+
+    _assert_problem(response, status, code)

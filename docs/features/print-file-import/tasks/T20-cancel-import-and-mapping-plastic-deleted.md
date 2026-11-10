@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-08", "AC-09b"]
 files_hint: ["web/src/pages/calculate/ui/CalculatePage.tsx", "web/src/features/slicer-import/ui/FilamentMappingPanel.tsx", "web/src/features/save-item/model/name.ts", "web/src/pages/item/ui/ItemReslice.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx", "web/src/pages/item/ui/ItemPage.reslice.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T20 — Скасування імпорту в розрахунку і пояснення importing.plastic_not_found під час збереження

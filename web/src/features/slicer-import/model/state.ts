@@ -1,6 +1,12 @@
-import type { Schemas } from '@/shared/api'
+import { isProblem, type Schemas } from '@/shared/api'
 
-import { initialChoice, mergeKey, type FilamentChoice, type MergeGroup } from './compose'
+import {
+  filamentKey,
+  initialChoice,
+  mergeKey,
+  type FilamentChoice,
+  type MergeGroup,
+} from './compose'
 
 /**
  * An import in progress — screen memory only: it is gone after save, cancel or reload, so an
@@ -23,4 +29,16 @@ export function choosePlastic(state: ImportState, key: string, plasticId: string
 /** The author confirmed these filaments are the same plastic (AC-10). */
 export function confirmMerge(state: ImportState, group: MergeGroup): ImportState {
   return { ...state, confirmed: new Set([...state.confirmed, mergeKey(group)]) }
+}
+
+/**
+ * A save rejected for a deleted mapped plastic (`filament_mappings.<i>.plastic_id`): ask for that
+ * filament's plastic again. `<i>` indexes the array `mappingsFor` built — chosen filaments only.
+ */
+export function clearRejectedChoice(state: ImportState, error: unknown): ImportState {
+  const field = isProblem(error, 'importing.plastic_not_found') ? error.problem.field : undefined
+  const index = Number(/^filament_mappings\.(\d+)\./.exec(field ?? '')?.[1])
+  const chosen = state.file.filaments.filter((f) => state.choice[filamentKey(f)])
+  const rejected = chosen[index]
+  return rejected ? choosePlastic(state, filamentKey(rejected), '') : state
 }

@@ -13,14 +13,16 @@ import {
 } from '@/features/quote-form'
 import { SaveItemForm } from '@/features/save-item'
 import {
+  clearRejectedChoice,
   compose,
+  filamentKey,
   FilamentMappingPanel,
   ImportFileButton,
   mappingsFor,
   startImport,
   type ImportState,
 } from '@/features/slicer-import'
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
 export function CalculatePage() {
@@ -82,7 +84,18 @@ export function CalculatePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <ImportFileButton onParsed={(file) => applyImport(startImport(file))} />
-            {imported && <FilamentMappingPanel state={imported} onChange={applyImport} />}
+            {imported && (
+              <>
+                <FilamentMappingPanel
+                  key={imported.file.filaments.map(filamentKey).join('\0')}
+                  state={imported}
+                  onChange={applyImport}
+                />
+                <Button type="button" variant="outline" onClick={() => setImported(null)}>
+                  Скасувати імпорт
+                </Button>
+              </>
+            )}
             <QuoteForm value={value} onChange={setValue} plastics={plastics.data} errors={errors} />
           </CardContent>
         </Card>
@@ -116,6 +129,7 @@ export function CalculatePage() {
           <SaveItemForm
             input={quote && !importBlocks ? input : null}
             filamentMappings={imported ? mappingsFor(imported.file, imported.choice) : []}
+            onSaveError={(e) => imported && setImported(clearRejectedChoice(imported, e))}
           />
         </CardContent>
       </Card>

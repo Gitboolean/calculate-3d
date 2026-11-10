@@ -44,7 +44,11 @@ type Body = { plastics: { plastic_id: string; usage_cg: number }[]; print_time_s
 const keyOf = (b: Body) =>
   `${JSON.stringify(b.plastics.map((p) => [p.plastic_id, p.usage_cg]))}|${b.print_time_s}`
 
-function serve({ parse = () => json(RESLICED), items = [SAVED] as (typeof SAVED)[] } = {}) {
+function serve({
+  parse = () => json(RESLICED),
+  items = [SAVED] as (typeof SAVED)[],
+  update = undefined as ((call: ApiCall) => Response) | undefined,
+} = {}) {
   let reads = 0
   return mockApi({
     'GET /api/pricing/plastics': json({ items: PLASTICS }),
@@ -58,7 +62,8 @@ function serve({ parse = () => json(RESLICED), items = [SAVED] as (typeof SAVED)
       return kop ? json({ min_donation_kop: kop, breakdown: BREAKDOWN }) : problem(500, 'x')
     },
     'POST /api/importing/parse': parse,
-    'PUT /api/catalog/items/i1': (call: ApiCall) => json({ id: 'i1', ...(call.body as object) }),
+    'PUT /api/catalog/items/i1': (call: ApiCall) =>
+      update ? update(call) : json({ id: 'i1', ...(call.body as object) }),
   })
 }
 
@@ -167,4 +172,24 @@ test('«було» is the item as saved now — fresh from the server, not unsav
 
   expect(within(panel).getByText('PLA білий: 90 г → 95 г')).toBeInTheDocument()
   expect(within(panel).queryByText(/70 г/)).not.toBeInTheDocument()
+})
+
+test('confirming with a mapped plastic deleted meanwhile says so, not "try again" (F5)', async () => {
+  const user = userEvent.setup()
+  serve({
+    update: () =>
+      problem(422, 'importing.plastic_not_found', { field: 'filament_mappings.0.plastic_id' }),
+  })
+  renderItem()
+  const panel = await importResliced()
+  await within(panel).findByText(/60,73 ₴/)
+
+  await user.click(within(panel).getByRole('button', { name: 'Підтвердити' }))
+
+  expect(
+    await screen.findByText(
+      'Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/Спробуйте ще раз/)).not.toBeInTheDocument()
 })

@@ -42,3 +42,18 @@ test.each([
 ])('an item name of only %s is "required" (AC-11)', (_label, ch) => {
   expect(validateItemName(ch + ch)).toBe('Назва виробу обов’язкова')
 })
+
+test('a deleted mapped plastic is explained, not the generic retry (F5)', () => {
+  const error = new ApiError(422, {
+    type: 'about:blank',
+    title: 'Error',
+    status: 422,
+    detail: 'importing.plastic_not_found',
+    code: 'importing.plastic_not_found',
+    field: 'filament_mappings.0.plastic_id',
+  })
+
+  expect(saveError(error).form).toBe(
+    'Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.',
+  )
+})

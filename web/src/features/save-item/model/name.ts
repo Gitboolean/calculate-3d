@@ -18,6 +18,8 @@ export function saveError(error: unknown): { name?: string; form?: string } {
     return { name: 'Виріб з такою назвою вже є в каталозі' }
   if (isProblem(error, 'catalog.plastic_not_found'))
     return { form: 'Один із пластиків уже видалено з налаштувань — оберіть інший.' }
+  if (isProblem(error, 'importing.plastic_not_found'))
+    return { form: 'Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.' }
   if (isProblem(error, 'validation_error')) {
     const fields = (error.problem.errors ?? []).map(issueField)
     if (fields.includes('name')) return { name: `Назва — від 1 до ${MAX_NAME_LENGTH} символів` }

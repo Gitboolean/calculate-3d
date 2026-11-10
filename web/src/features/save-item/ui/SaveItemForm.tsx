@@ -17,9 +17,12 @@ import { saveError, validateItemName } from '../model/name'
 export function SaveItemForm({
   input,
   filamentMappings = [],
+  onSaveError,
 }: {
   input: QuoteInput | null
   filamentMappings?: Schemas['FilamentMappingInput'][]
+  /** Lets the screen react to a rejected save, e.g. ask for a deleted plastic again. */
+  onSaveError?: (error: unknown) => void
 }) {
   const [name, setName] = useState('')
   const [errors, setErrors] = useState<{ name?: string; form?: string }>({})
@@ -43,7 +46,10 @@ export function SaveItemForm({
       },
       {
         onSuccess: (item) => navigate(`/catalog/${item.id}`),
-        onError: (error) => setErrors(saveError(error)),
+        onError: (error) => {
+          setErrors(saveError(error))
+          onSaveError?.(error)
+        },
       },
     )
   }

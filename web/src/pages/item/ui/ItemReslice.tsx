@@ -6,6 +6,7 @@ import { useQuote } from '@/entities/quote'
 import { parseQuoteForm, QuoteError, QuoteForm, quoteFormFrom } from '@/features/quote-form'
 import { saveError } from '@/features/save-item'
 import {
+  clearRejectedChoice,
   compose,
   diffItem,
   FilamentMappingPanel,
@@ -60,7 +61,13 @@ export function ItemReslice({
           filament_mappings: mappingsFor(imported.file, imported.choice),
         },
       },
-      { onSuccess: onDone, onError: (e) => setSaveFailure(saveError(e).form ?? saveError(e).name) },
+      {
+        onSuccess: onDone,
+        onError: (e) => {
+          setSaveFailure(saveError(e).form ?? saveError(e).name)
+          onImportedChange(clearRejectedChoice(imported, e))
+        },
+      },
     )
   }
 

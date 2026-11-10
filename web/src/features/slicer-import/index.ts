@@ -11,6 +11,6 @@ export {
 export { diffItem, type ItemDiff, type PlasticDiff } from './model/diff'
 export { ImportFileButton } from './ui/ImportFileButton'
 export { FilamentMappingPanel } from './ui/FilamentMappingPanel'
-export { startImport, type ImportState } from './model/state'
+export { clearRejectedChoice, startImport, type ImportState } from './model/state'
 export { formatMg } from './model/grams'
 export { WasBecomePanel } from './ui/WasBecomePanel'

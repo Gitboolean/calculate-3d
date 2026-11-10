@@ -48,12 +48,13 @@ function serve({
   plastics = PLASTICS,
   settings = SETTINGS as typeof SETTINGS | null,
   parsed = [] as unknown[],
+  save = undefined as ((call: ApiCall) => Response) | undefined,
 } = {}) {
   let parses = 0
   return mockApi({
     'POST /api/importing/parse': () => json(parsed[parses++] ?? parsed.at(-1)),
     'POST /api/catalog/items': (call: ApiCall) =>
-      json({ id: 'item-1', ...(call.body as object) }, 201),
+      save ? save(call) : json({ id: 'item-1', ...(call.body as object) }, 201),
     'GET /api/pricing/plastics': json({ items: plastics }),
     'GET /api/pricing/settings': json(settings),
     'POST /api/costing/quote': (call: ApiCall) => {
@@ -463,4 +464,51 @@ test('a manual calculation is saved without filament mappings', async () => {
 
   await screen.findByText('Інша сторінка')
   expect(api.callsTo('POST', '/api/catalog/items')[0]?.body).not.toHaveProperty('filament_mappings')
+})
+
+const GONE = 'Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.'
+
+test('cancelling an import drops the mapping panel and its mappings from a later save (F4)', async () => {
+  const user = userEvent.setup()
+  const api = serve({ parsed: [TWO_COLORS] })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByRole('region', { name: 'Філаменти з файлу' })
+  expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
+
+  expect(screen.queryByRole('region', { name: 'Філаменти з файлу' })).not.toBeInTheDocument()
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('3', '30')
+  const donation = await screen.findByRole('status', { name: 'Мінімальний донат' })
+  expect(within(donation).getByText('115,25 ₴')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeEnabled()
+
+  await user.type(screen.getByLabelText('Назва виробу'), 'Брелок')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await screen.findByText('Інша сторінка')
+  expect(api.callsTo('POST', '/api/catalog/items')[0]?.body).not.toHaveProperty('filament_mappings')
+})
+
+test('a save rejected for a deleted mapped plastic says so and asks for the plastic again (F5)', async () => {
+  const user = userEvent.setup()
+  serve({
+    parsed: [VTULKA],
+    save: () =>
+      problem(422, 'importing.plastic_not_found', { field: 'filament_mappings.0.plastic_id' }),
+  })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка')
+
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+
+  expect(await screen.findByText(GONE)).toBeInTheDocument()
+  expect(screen.queryByText(/Спробуйте ще раз/)).not.toBeInTheDocument()
+  expect(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).toHaveValue('')
+  expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
 })

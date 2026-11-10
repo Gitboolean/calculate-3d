@@ -5,7 +5,7 @@
 
 | # | Task | Layer | Owner | Estimate | Blocked by | Status |
 |---|---|---|---|---|---|---|
-| [T1](./T1-promote-filament-mappings-migration.md) | Промоутнути staged-міграцію filament_mappings і дзеркало importing/tables.py | migration | Anton Pohorielov | S | — | todo |
+| [T1](./T1-promote-filament-mappings-migration.md) | Промоутнути staged-міграцію filament_mappings і дзеркало importing/tables.py | migration | Anton Pohorielov | S | — | done |
 | [T2](./T2-slicer-fixtures-and-bad-file-generator.md) | Скопіювати еталонні файли слайсера у фікстури й написати генератор поганих файлів | tests | Anton Pohorielov | M | — | todo |
 | [T3](./T3-parser-archive-limits-and-plate-chain.md) | Парсер: межі читання архіву й ланцюжок «проєкт Bambu → нарізаний → одна пластина» | domain | Anton Pohorielov | M | T2 | todo |
 | [T4](./T4-parser-numbers-normalization-and-merge.md) | Парсер: числа, нормалізація філамента, злиття однакових пар і межі файлу | domain | Anton Pohorielov | L | T3 | todo |

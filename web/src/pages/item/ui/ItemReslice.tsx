@@ -74,7 +74,13 @@ export function ItemReslice({
   return (
     <div className="space-y-6">
       <FilamentMappingPanel state={imported} onChange={changeImport} />
-      <QuoteForm value={value} onChange={setValue} plastics={plastics} errors={errors} />
+      <QuoteForm
+        value={value}
+        onChange={setValue}
+        plastics={plastics}
+        errors={errors}
+        showAllErrors
+      />
       {error && <QuoteError error={error} />}
       <WasBecomePanel
         diff={became ? diffItem(item, became) : null}

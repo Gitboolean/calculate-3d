@@ -117,3 +117,19 @@ test('the remembered mappings are every filament with a chosen plastic (AC-07, A
     { filament_name: PLA, filament_color: '#FFFFFF', plastic_id: 'pla' },
   ])
 })
+
+test.each([
+  [0, 0],
+  [1, 1],
+  [9, 1],
+  [10, 1],
+  [11, 2],
+  [11_543, 1155],
+  [99_999_999_991, 10_000_000_000],
+])('%i mg of one filament is %i cg, rounded up (AC-03, F9)', (usage_mg, usage_cg) => {
+  const parsed = file(filament(usage_mg))
+
+  expect(compose(parsed, initialChoice(parsed), none)).toMatchObject({
+    plastics: [{ plastic_id: 'pla', usage_cg }],
+  })
+})

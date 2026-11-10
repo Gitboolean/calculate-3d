@@ -54,9 +54,15 @@ export function compose(
 
   const plastics = [...groups].map(([plastic_id, filaments]) => {
     const mg = filaments.reduce((sum, f) => sum + f.usage_mg, 0)
-    return { plastic_id, usage_cg: Math.ceil(mg / 10) }
+    return { plastic_id, usage_cg: ceilDiv10(mg) }
   })
   return { kind: 'ready', plastics, print_time_s: file.print_time_s }
+}
+
+/** Integer ceil(mg / 10) — no float (ADR 0004). */
+function ceilDiv10(mg: number): number {
+  const rest = mg % 10
+  return (mg - rest) / 10 + (rest > 0 ? 1 : 0)
 }
 
 /** Every filament with a chosen plastic — even if its row is later removed by hand (AC-08). */

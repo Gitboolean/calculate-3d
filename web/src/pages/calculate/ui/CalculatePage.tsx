@@ -96,7 +96,13 @@ export function CalculatePage() {
                 </Button>
               </>
             )}
-            <QuoteForm value={value} onChange={setValue} plastics={plastics.data} errors={errors} />
+            <QuoteForm
+              value={value}
+              onChange={setValue}
+              plastics={plastics.data}
+              errors={errors}
+              showAllErrors={imported !== null}
+            />
           </CardContent>
         </Card>
         <Card>

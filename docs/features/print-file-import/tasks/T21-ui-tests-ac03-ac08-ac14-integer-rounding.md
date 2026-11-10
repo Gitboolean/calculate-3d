@@ -7,7 +7,7 @@ acs: ["AC-03", "AC-08", "AC-14"]
 files_hint: ["web/src/pages/calculate/ui/CalculatePage.test.tsx", "web/src/features/slicer-import/model/compose.ts", "web/src/features/slicer-import/model/compose.test.ts", "docs/features/print-file-import/test-plan.md"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T21 — UI-тести AC-03/AC-08/AC-14 після імпорту і цілочислове округлення мг → сг

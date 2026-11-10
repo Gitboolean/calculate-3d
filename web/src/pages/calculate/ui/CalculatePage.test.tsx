@@ -28,6 +28,11 @@ const QUOTES: Record<string, unknown> = {
     min_donation_kop: 1882,
     breakdown: { plastic_kop: 462, electricity_kop: 106, wear_kop: 1143, scrap_kop: 171 },
   },
+  // the same file after its filament is re-mapped to PETG (AC-08); only an intermediate state.
+  '[["petg",1154]]|5880': {
+    min_donation_kop: 2500,
+    breakdown: { plastic_kop: 750, electricity_kop: 106, wear_kop: 1143, scrap_kop: 171 },
+  },
   '[["pla",1154]]|6000': {
     min_donation_kop: 1900,
     breakdown: { plastic_kop: 462, electricity_kop: 108, wear_kop: 1166, scrap_kop: 173 },
@@ -511,4 +516,61 @@ test('a save rejected for a deleted mapped plastic says so and asks for the plas
   expect(screen.queryByText(/Спробуйте ще раз/)).not.toBeInTheDocument()
   expect(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).toHaveValue('')
   expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
+})
+
+test('a re-chosen plastic survives manual row edits and is what gets saved (AC-08)', async () => {
+  const user = userEvent.setup()
+  const api = serve({ parsed: [VTULKA] })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  await user.selectOptions(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`), 'petg')
+  await vi.waitFor(() => expect(screen.getAllByLabelText('Пластик')[0]).toHaveValue('petg'))
+
+  await user.click(screen.getByRole('button', { name: 'Прибрати рядок 1' }))
+  await user.click(screen.getByRole('button', { name: 'Додати пластик' }))
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('3', '30')
+  await screen.findByText('115,25 ₴')
+  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+
+  await screen.findByText('Інша сторінка')
+  expect(api.callsTo('POST', '/api/catalog/items')[0]?.body).toMatchObject({
+    plastics: [{ plastic_id: 'petg', usage_cg: 12000 }],
+    filament_mappings: [{ filament_name: PLA, filament_color: '#FFFFFF', plastic_id: 'petg' }],
+  })
+  expect(
+    (api.callsTo('POST', '/api/catalog/items')[0]?.body as { filament_mappings: unknown[] })
+      .filament_mappings,
+  ).toHaveLength(1)
+})
+
+test('an imported usage over 1 000 000 g is explained: no donation, no saving (AC-14)', async () => {
+  const api = serve({
+    parsed: [{ ...VTULKA, filaments: [{ ...VTULKA.filaments[0], usage_mg: 1_000_000_010 }] }],
+  })
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+
+  await importFile()
+
+  expect(await screen.findByText('Витрата — не більше 1 000 000 г')).toBeInTheDocument()
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
+  expect(api.callsTo('POST', '/api/costing/quote')).toHaveLength(0)
+  expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
+})
+
+test('an imported 11 543 mg shows as 11,55 g, rounded up (AC-03)', async () => {
+  serve({
+    parsed: [{ ...VTULKA, filaments: [{ ...VTULKA.filaments[0], usage_mg: 11_543 }] }],
+  })
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+
+  await importFile()
+
+  await vi.waitFor(() => expect(screen.getByLabelText('Витрата, г')).toHaveValue('11,55'))
 })

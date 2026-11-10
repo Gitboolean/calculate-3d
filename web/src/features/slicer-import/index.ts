@@ -10,3 +10,6 @@ export {
 } from './model/compose'
 export { diffItem, type ItemDiff, type PlasticDiff } from './model/diff'
 export { ImportFileButton } from './ui/ImportFileButton'
+export { FilamentMappingPanel } from './ui/FilamentMappingPanel'
+export { startImport, type ImportState } from './model/state'
+export { formatMg } from './model/grams'

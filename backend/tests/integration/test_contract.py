@@ -10,12 +10,18 @@ from fastapi.testclient import TestClient
 
 import calculate3d.modules.catalog.service
 import calculate3d.modules.costing.service
+import calculate3d.modules.importing.service
 import calculate3d.modules.pricing.service  # noqa: F401 — register every AppError subclass
 from calculate3d.core.config import REPO_DIR
 from calculate3d.core.errors import AppError
 
 CONTRACT_PATH = REPO_DIR / "docs" / "features" / "cost-calculator" / "contracts" / "openapi.yaml"
 CONTRACT: dict[str, Any] = yaml.safe_load(CONTRACT_PATH.read_text())
+# print-file-import is a delta contract: only the operations that feature adds or changes.
+IMPORT_CONTRACT_PATH = (
+    REPO_DIR / "docs" / "features" / "print-file-import" / "contracts" / "openapi.yaml"
+)
+IMPORT_CONTRACT: dict[str, Any] = yaml.safe_load(IMPORT_CONTRACT_PATH.read_text())
 METHODS = {"get", "post", "put", "patch", "delete"}
 # Cross-cutting codes rendered by core/errors.py and core/guard.py (not AppError subclasses).
 CORE_CODES = {
@@ -46,9 +52,9 @@ def _walk(node: Any) -> Iterator[Any]:
             yield from _walk(value)
 
 
-def _contract_codes() -> set[str]:
+def _contract_codes(contract: dict[str, Any] = CONTRACT) -> set[str]:
     codes = set()
-    for node in _walk(CONTRACT):
+    for node in _walk(contract):
         if isinstance(node, dict) and isinstance(node.get("code"), str):
             codes.add(node["code"])
         if isinstance(node, dict) and isinstance(node.get("code"), dict):
@@ -105,9 +111,12 @@ def test_app_declares_no_operation_beyond_the_contract_and_health(
 
 def test_error_code_registry_matches_the_contract() -> None:
     contract_codes = _contract_codes()
+    registry = _app_error_codes() | CORE_CODES
 
     assert len(contract_codes) == 13
-    assert _app_error_codes() | CORE_CODES == contract_codes
+    assert contract_codes <= registry
+    # Every code the app can raise is advertised by one of the feature contracts.
+    assert registry <= contract_codes | _contract_codes(IMPORT_CONTRACT)
 
 
 # ── schema-level fidelity (T23, review findings S1-4 / S1-5) ──

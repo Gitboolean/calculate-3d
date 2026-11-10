@@ -9,7 +9,7 @@
 | [T2](./T2-slicer-fixtures-and-bad-file-generator.md) | Скопіювати еталонні файли слайсера у фікстури й написати генератор поганих файлів | tests | Anton Pohorielov | M | — | done |
 | [T3](./T3-parser-archive-limits-and-plate-chain.md) | Парсер: межі читання архіву й ланцюжок «проєкт Bambu → нарізаний → одна пластина» | domain | Anton Pohorielov | M | T2 | done |
 | [T4](./T4-parser-numbers-normalization-and-merge.md) | Парсер: числа, нормалізація філамента, злиття однакових пар і межі файлу | domain | Anton Pohorielov | L | T3 | done |
-| [T5](./T5-importing-repo-and-remember-mappings.md) | importing.repo: пошук зіставлень за (назва, колір) і upsert; remember_mappings у service | infra | Anton Pohorielov | M | T1 | todo |
+| [T5](./T5-importing-repo-and-remember-mappings.md) | importing.repo: пошук зіставлень за (назва, колір) і upsert; remember_mappings у service | infra | Anton Pohorielov | M | T1 | done |
 | [T6](./T6-importing-service-parse-slicer-file.md) | importing.service.parse_slicer_file: готовність налаштувань, розбір, підстановка зіставлень, помилки | app | Anton Pohorielov | M | T4, T5 | todo |
 | [T7](./T7-request-guard-octet-stream-exception.md) | RequestGuard: приймати application/octet-stream лише для POST /api/importing/parse | wiring | Anton Pohorielov | S | — | todo |
 | [T8](./T8-importing-parse-router.md) | Роутер POST /api/importing/parse: потокове читання під межею 100 МБ, problem+json, api-types | ports | Anton Pohorielov | M | T6, T7 | todo |

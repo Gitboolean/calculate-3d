@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import Connection
 
 import calculate3d.modules.catalog.tables
+import calculate3d.modules.importing.tables
 import calculate3d.modules.pricing.tables  # noqa: F401 — register tables on the shared metadata
 from calculate3d.core.db import create_db_engine, metadata
 

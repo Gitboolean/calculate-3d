@@ -17,7 +17,7 @@
 | [T10](./T10-importing-nfr-and-reference-tests.md) | NFR і еталонні тести імпорту: точність донату, латентність 100 МБ, збереженість, перенарізка | tests | Anton Pohorielov | M | T8, T9 | done |
 | [T11](./T11-shared-ui-dialog.md) | Додати shadcn-примітив dialog у shared/ui | ui | Anton Pohorielov | S | — | cancelled (T14: alert-dialog covers AC-10, AC-05 is an inline panel) |
 | [T12](./T12-slicer-import-compose-model.md) | features/slicer-import/model: compose.ts — рядки з точних мг, конфлікти сумування, diff «було → стало» | domain | Anton Pohorielov | M | T8 | done |
-| [T13](./T13-slicer-import-upload-and-rejections.md) | features/slicer-import: кнопка «Імпортувати файл», мутація розбору й повідомлення відмов | ui | Anton Pohorielov | M | T8 | todo |
+| [T13](./T13-slicer-import-upload-and-rejections.md) | features/slicer-import: кнопка «Імпортувати файл», мутація розбору й повідомлення відмов | ui | Anton Pohorielov | M | T8 | done |
 | [T14](./T14-slicer-import-filament-mapping-panel.md) | features/slicer-import: список філаментів, вибір пластику, підтвердження сумування | ui | Anton Pohorielov | L | T11, T12, T13 | todo |
 | [T15](./T15-calculate-page-import-and-save-mappings.md) | Сторінка розрахунку: імпорт у форму і передача зіставлень під час збереження виробу | ui | Anton Pohorielov | M | T9, T14 | todo |
 | [T16](./T16-item-page-reslice-was-became.md) | Сторінка виробу: імпорт перенарізки з «було → стало», підтвердженням і скасуванням | ui | Anton Pohorielov | M | T15 | todo |

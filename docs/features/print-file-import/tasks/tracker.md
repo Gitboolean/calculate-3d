@@ -21,6 +21,6 @@
 | [T14](./T14-slicer-import-filament-mapping-panel.md) | features/slicer-import: список філаментів, вибір пластику, підтвердження сумування | ui | Anton Pohorielov | L | T11, T12, T13 | done |
 | [T15](./T15-calculate-page-import-and-save-mappings.md) | Сторінка розрахунку: імпорт у форму і передача зіставлень під час збереження виробу | ui | Anton Pohorielov | M | T9, T14 | done |
 | [T16](./T16-item-page-reslice-was-became.md) | Сторінка виробу: імпорт перенарізки з «було → стало», підтвердженням і скасуванням | ui | Anton Pohorielov | M | T15 | done |
-| [T17](./T17-docs-mg-suffix-and-contract-reconcile.md) | Документація: суфікс *_mg у CLAUDE.md, закриття D1/D3 у api-sync-report | docs | Anton Pohorielov | S | T10, T16 | todo |
+| [T17](./T17-docs-mg-suffix-and-contract-reconcile.md) | Документація: суфікс *_mg у CLAUDE.md, закриття D1/D3 у api-sync-report | docs | Anton Pohorielov | S | T10, T16 | done |
 
 **Total:** 17 tasks, ~8.5 person-days.

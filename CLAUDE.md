@@ -52,7 +52,9 @@ Python comes from `uv` (system Python 3.9 is too old) — run backend tools as `
   kopecks. API exposes kopecks as ints. Never `float` for money.
 - **Physical units live in the column name:** grams `*_g`, centigrams `*_cg`, seconds `*_s`,
   whole hours `*_h`, watts `*_w`, tenths of a percent `*_permille`, rates `*_per_hour_kop`
-  (cost-calculator ADR 0004: every fractional quantity is a scaled integer).
+  (cost-calculator ADR 0004: every fractional quantity is a scaled integer). Milligrams `*_mg`
+  exist **only** in the slicer-parse response (`usage_mg`, exact filament usage); the web sums
+  them and rounds up to `*_cg`, which is what the DB and `costing` store (print-file-import ADR 0004).
 - **Persistence:** SQLAlchemy 2 Core only (`select/insert/update/delete` on `Table`s sharing
   `core.db.metadata`), no ORM sessions. DB is dumb storage: no CHECK, no TRIGGER, no business
   defaults — validation lives in Pydantic/service. Audit column `created_at` (UTC ISO-8601 `TEXT`)

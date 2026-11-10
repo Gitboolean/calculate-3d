@@ -112,6 +112,25 @@ def _too_many_entries() -> bytes:
     return build_zip([*parts, *filler])
 
 
+def _forged_entry_count(zip64: bool = False) -> bytes:
+    """A small valid archive whose end-of-central-directory record declares 20 000 entries."""
+    body = bytearray(build_zip(_service_parts()))
+    eocd = body.rfind(b"PK\x05\x06")
+    declared = 2 * ENTRY_LIMIT
+    if not zip64:
+        struct.pack_into("<HH", body, eocd + 8, declared, declared)
+        return bytes(body)
+    cd_size, cd_offset = struct.unpack_from("<II", body, eocd + 12)
+    # Zip64 EOCD record + locator go right before the classic EOCD, which then holds 0xFFFF.
+    record = struct.pack(
+        "<IQHHIIQQQQ", 0x06064B50, 44, 45, 45, 0, 0, declared, declared, cd_size, cd_offset
+    )
+    locator = struct.pack("<IIQI", 0x07064B50, 0, eocd, 1)
+    struct.pack_into("<HH", body, eocd + 8, 0xFFFF, 0xFFFF)
+    body[eocd:eocd] = record + locator
+    return bytes(body)
+
+
 def _oversized_part() -> bytes:
     def pad(text: str) -> str:
         return text + " " * (PART_LIMIT + 1 - len(text.encode()))
@@ -271,6 +290,8 @@ BAD_FILES: tuple[BadFile, ...] = (
     BadFile("truncated_zip", build_zip(_service_parts())[:2000], CORRUPTED_FILE),
     BadFile("empty_body", b"", CORRUPTED_FILE),
     BadFile("too_many_entries", _too_many_entries(), CORRUPTED_FILE),
+    BadFile("forged_eocd_entry_count", _forged_entry_count(), CORRUPTED_FILE),
+    BadFile("forged_zip64_entry_count", _forged_entry_count(zip64=True), CORRUPTED_FILE),
     BadFile("oversized_part", _oversized_part(), CORRUPTED_FILE),
     BadFile("lying_size_header", _lying_size_header(), CORRUPTED_FILE),
     BadFile(

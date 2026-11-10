@@ -8,8 +8,10 @@ loads external entities, so a hostile XML part only fails to parse.
 
 import io
 import json
+import struct
 import zipfile
 import zlib
+from collections.abc import Buffer
 from dataclasses import dataclass, replace
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -24,6 +26,7 @@ SERVICE_PARTS = (MODEL, MODEL_SETTINGS, SLICE_INFO, PROJECT_SETTINGS)
 
 MAX_ENTRIES = 10_000
 MAX_PART_BYTES = 8_000_000
+MAX_CD_RECORD_BYTES = 65_535 + 46  # generous cap per central-directory record (name+extra+header)
 BAMBU_APPLICATION_PREFIX = "BambuStudio-"
 MAX_PRINT_TIME_S = 360_000_000  # 100 000 h, as for manual input (AC-14)
 MAX_FILAMENTS = 32  # one mapping key per row, up to 32 rows (data-model)
@@ -80,7 +83,7 @@ class ParsedFile:
     filaments: tuple[ParsedFilament, ...]
 
 
-def parse(body: bytes) -> ParsedFile:
+def parse(body: Buffer) -> ParsedFile:
     """The whole SAD §8 chain: steps 0–3, then integrity (4) and the file bounds (5)."""
     sliced = read_sliced_plate(body)
     print_time_s = normalize.print_time_s(_metadata(sliced.results).get("prediction", ""))
@@ -94,7 +97,7 @@ def parse(body: bytes) -> ParsedFile:
     return ParsedFile(sliced.plate, print_time_s, filaments)
 
 
-def read_sliced_plate(body: bytes) -> SlicedPlate:
+def read_sliced_plate(body: Buffer) -> SlicedPlate:
     """Steps 0–3: archive limits → Bambu Studio project → sliced → exactly one sliced plate."""
     parts = _read_service_parts(body)
     if not _is_bambu_project(parts):
@@ -113,13 +116,15 @@ def read_sliced_plate(body: bytes) -> SlicedPlate:
     return SlicedPlate(Plate(index, name), results[index], project_settings)
 
 
-def _read_service_parts(body: bytes) -> dict[str, bytes]:
+def _read_service_parts(buffer: Buffer) -> dict[str, bytes]:
     """Step 0 — open the ZIP and inflate only the service parts under the read limits."""
+    body = memoryview(buffer)
+    _check_central_directory(body)
     try:
-        archive = zipfile.ZipFile(io.BytesIO(body))
+        archive = zipfile.ZipFile(_BufferReader(body))
     except (zipfile.BadZipFile, ValueError, EOFError) as e:
         # Something ZIP-like that will not open is damaged; anything else is a foreign format.
-        damaged = not body or body.startswith(_ZIP_SIGNATURE)
+        damaged = not body or bytes(body[:2]) == _ZIP_SIGNATURE
         raise ParseError(CORRUPTED_FILE if damaged else NOT_SLICER_PROJECT) from e
     with archive:
         entries = archive.infolist()
@@ -133,6 +138,59 @@ def _read_service_parts(body: bytes) -> dict[str, bytes]:
             for entry in entries
             if entry.filename in SERVICE_PARTS
         }
+
+
+class _BufferReader(io.RawIOBase):
+    """Read-only seekable view over a buffer — `io.BytesIO(buffer)` would copy the body."""
+
+    def __init__(self, data: memoryview) -> None:
+        self._data = data
+        self._pos = 0
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return True
+
+    def tell(self) -> int:
+        return self._pos
+
+    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        base = (0, self._pos, len(self._data))[whence]
+        self._pos = max(0, base + offset)
+        return self._pos
+
+    def readinto(self, buffer: Buffer) -> int:
+        out = memoryview(buffer).cast("B")
+        chunk = self._data[self._pos : self._pos + len(out)]
+        out[: len(chunk)] = chunk
+        self._pos += len(chunk)
+        return len(chunk)
+
+
+def _check_central_directory(body: memoryview) -> None:
+    """Reject an over-limit entry count before `zipfile` builds its entry list (SAD §8).
+
+    Reads the declared count/size from the EOCD (or Zip64 EOCD); a missing or malformed EOCD is
+    left to `zipfile` to report.
+    """
+    tail_start = max(0, len(body) - (22 + 65_535))
+    eocd = bytes(body[tail_start:]).rfind(b"PK\x05\x06")
+    if eocd < 0:
+        return
+    eocd += tail_start
+    if eocd + 22 > len(body):
+        return
+    _, _, _, _, count, size, _, _ = struct.unpack("<4s4H2LH", body[eocd : eocd + 22])
+    if (count == 0xFFFF or size == 0xFFFFFFFF) and eocd >= 20:
+        locator = bytes(body[eocd - 20 : eocd])
+        if locator[:4] == b"PK\x06\x07":
+            (offset,) = struct.unpack("<Q", locator[8:16])
+            if offset + 56 <= len(body) and bytes(body[offset : offset + 4]) == b"PK\x06\x06":
+                count, size = struct.unpack("<QQ", body[offset + 32 : offset + 48])
+    if count > MAX_ENTRIES or size > MAX_ENTRIES * MAX_CD_RECORD_BYTES:
+        raise ParseError(CORRUPTED_FILE)
 
 
 def _is_unsafe_path(name: str) -> bool:

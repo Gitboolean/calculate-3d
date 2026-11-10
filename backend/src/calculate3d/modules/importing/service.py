@@ -2,7 +2,7 @@
 `remember_mappings` inside its item-save transaction, never `repo`/`tables` (ADR 0003, ADR 0005).
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Buffer, Callable, Sequence
 
 from calculate3d.core.errors import AppError
 from calculate3d.modules.importing import parser, repo
@@ -103,7 +103,7 @@ _REJECTIONS: dict[str, Callable[[], AppError]] = {
 }
 
 
-def parse_slicer_file(conn: repo.DbConnection, body: bytes) -> SlicerFile:
+def parse_slicer_file(conn: repo.DbConnection, body: Buffer) -> SlicerFile:
     """Settings readiness (AC-04) → parse (SAD §8) → remembered plastics. Writes nothing."""
     missing = [] if pricing_service.plastics_exist(conn) else ["plastics"]
     if pricing_service.get_settings(conn) is None:

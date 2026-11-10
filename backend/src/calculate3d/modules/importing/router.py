@@ -29,7 +29,7 @@ OCTET_STREAM_BODY = {
 }
 
 
-async def read_body(request: Request) -> bytes:
+async def read_body(request: Request) -> bytearray:
     """The raw body in memory, never on disk; reading stops at the first byte over the limit."""
     declared = request.headers.get("content-length")
     if declared is not None and declared.isdigit() and int(declared) > MAX_BODY_BYTES:
@@ -39,7 +39,7 @@ async def read_body(request: Request) -> bytes:
         body += chunk
         if len(body) > MAX_BODY_BYTES:
             raise service.FileTooLarge
-    return bytes(body)
+    return body
 
 
 @router.post(
@@ -58,6 +58,6 @@ async def read_body(request: Request) -> bytes:
     },
 )
 def parse_slicer_file(
-    body: Annotated[bytes, Depends(read_body)], conn: ConnectionDep
+    body: Annotated[bytearray, Depends(read_body)], conn: ConnectionDep
 ) -> SlicerFile:
     return service.parse_slicer_file(conn, body)

@@ -22,6 +22,8 @@ REQUIRED_CASES = {
     "truncated_zip",
     "empty_body",
     "too_many_entries",
+    "forged_eocd_entry_count",
+    "forged_zip64_entry_count",
     "oversized_part",
     "lying_size_header",
     "gcode_zip_bomb",

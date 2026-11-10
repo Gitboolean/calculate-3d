@@ -7,7 +7,7 @@ acs: ["AC-13"]
 files_hint: ["backend/src/calculate3d/modules/importing/parser.py", "backend/src/calculate3d/modules/importing/router.py", "backend/tests/fixtures/slicer/bad_files.py", "backend/tests/integration/test_nfr_import_latency.py"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T19 — Пам'ять імпорту в бюджеті SAD §7: межа central directory до ZipFile і один буфер тіла

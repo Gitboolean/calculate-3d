@@ -347,6 +347,102 @@
         "backend/CLAUDE.md",
         "docs/features/print-file-import/contracts/api-sync-report.md"
       ]
+    },
+    {
+      "id": "T18",
+      "title": "Парсер: будь-який пошкоджений вміст архіву → importing.corrupted_file, ніколи не 500",
+      "layer": "app",
+      "deps": [
+        "T3",
+        "T4"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Три нові bad-file випадки повертають 422 importing.corrupted_file (тест через TestClient), жоден не дає 500, а make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/integration/test_importing_bad_files.py"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Пам'ять імпорту в бюджеті SAD §7: межа central directory до ZipFile і один буфер тіла",
+      "layer": "infra",
+      "deps": [
+        "T8",
+        "T18"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Тест «величезний central directory» відхиляється за обмежений час без побудови всіх ZipInfo, тіло в роутері тримається одним буфером, а make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/src/calculate3d/modules/importing/router.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/integration/test_nfr_import_latency.py"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Скасування імпорту в розрахунку і пояснення importing.plastic_not_found під час збереження",
+      "layer": "ui",
+      "deps": [
+        "T15",
+        "T16"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-09b"
+      ],
+      "dod": "Тести CalculatePage показують, що після скасування незіставленого імпорту ручні рядки дають донат і зберігаються без filament_mappings, а 422 importing.plastic_not_found дає українське пояснення й знову просить обрати пластик (CalculatePage і ItemPage.reslice); make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/features/slicer-import/ui/FilamentMappingPanel.tsx",
+        "web/src/features/save-item/model/name.ts",
+        "web/src/pages/item/ui/ItemReslice.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "UI-тести AC-03/AC-08/AC-14 після імпорту і цілочислове округлення мг → сг",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-08",
+        "AC-14"
+      ],
+      "dod": "Три нові CalculatePage-тести (AC-03, AC-08, AC-14) зелені через UI, compose округлює мг → сг без float-ділення, test-plan рядок 99 відповідає коду, а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/features/slicer-import/model/compose.ts",
+        "web/src/features/slicer-import/model/compose.test.ts",
+        "docs/features/print-file-import/test-plan.md"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання",
+      "layer": "ui",
+      "deps": [
+        "T13"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Тест ImportFileButton з File розміром понад 100 МБ показує «Файл більший за 100 МБ» і не викликає fetch, а make web-check зелений.",
+      "files_hint": [
+        "web/src/features/slicer-import/ui/ImportFileButton.tsx",
+        "web/src/features/slicer-import/ui/ImportFileButton.test.tsx"
+      ]
     }
   ]
 }

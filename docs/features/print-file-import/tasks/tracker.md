@@ -22,5 +22,10 @@
 | [T15](./T15-calculate-page-import-and-save-mappings.md) | Сторінка розрахунку: імпорт у форму і передача зіставлень під час збереження виробу | ui | Anton Pohorielov | M | T9, T14 | done |
 | [T16](./T16-item-page-reslice-was-became.md) | Сторінка виробу: імпорт перенарізки з «було → стало», підтвердженням і скасуванням | ui | Anton Pohorielov | M | T15 | done |
 | [T17](./T17-docs-mg-suffix-and-contract-reconcile.md) | Документація: суфікс *_mg у CLAUDE.md, закриття D1/D3 у api-sync-report | docs | Anton Pohorielov | S | T10, T16 | done |
+| [T18](./T18-parser-never-500-on-malformed-input.md) | Парсер: будь-який пошкоджений вміст архіву → importing.corrupted_file, ніколи не 500 | app | Anton Pohorielov | S | T3, T4 | todo |
+| [T19](./T19-import-memory-within-sad-budget.md) | Пам'ять імпорту в бюджеті SAD §7: межа central directory до ZipFile і один буфер тіла | infra | Anton Pohorielov | M | T8, T18 | todo |
+| [T20](./T20-cancel-import-and-mapping-plastic-deleted.md) | Скасування імпорту в розрахунку і пояснення importing.plastic_not_found під час збереження | ui | Anton Pohorielov | M | T15, T16 | todo |
+| [T21](./T21-ui-tests-ac03-ac08-ac14-integer-rounding.md) | UI-тести AC-03/AC-08/AC-14 після імпорту і цілочислове округлення мг → сг | ui | Anton Pohorielov | M | T20 | todo |
+| [T22](./T22-client-side-file-size-check.md) | Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання | ui | Anton Pohorielov | S | T13 | todo |
 
-**Total:** 17 tasks, ~8.5 person-days.
+**Total:** 22 tasks, ~8.5 person-days + ~2 person-days of review follow-ups (T18–T22, [review 2026-11-10](../_review/review-2026-11-10.md)).

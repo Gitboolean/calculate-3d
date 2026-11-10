@@ -30,10 +30,4 @@ export default defineConfig([
     ],
     rules: { 'fsd/insignificant-slice': 'off' },
   },
-  {
-    // TEMPORARY (print-file-import T12–T15): the slice is built bottom-up and gets its two
-    // consumers — the calculate (T15) and item (T16) pages — later. T16 removes this block.
-    files: ['./src/features/slicer-import/**'],
-    rules: { 'fsd/insignificant-slice': 'off' },
-  },
 ])

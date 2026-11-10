@@ -5,12 +5,14 @@ import { useItem } from '@/entities/item'
 import { usePlastics } from '@/entities/plastic'
 import { DeleteItemButton } from '@/features/delete-item'
 import { MissingSettings } from '@/features/quote-form'
+import { ImportFileButton, startImport, type ImportState } from '@/features/slicer-import'
 import { isProblem } from '@/shared/api'
 import { formatDecimal } from '@/shared/lib'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
 import { ItemEditor } from './ItemEditor'
+import { ItemReslice } from './ItemReslice'
 
 function formatTime(seconds: number) {
   const minutes = seconds / 60
@@ -22,6 +24,16 @@ export function ItemPage() {
   const item = useItem(itemId)
   const plastics = usePlastics()
   const [editing, setEditing] = useState(false)
+  const [imported, setImported] = useState<ImportState | null>(null)
+  const [importRound, setImportRound] = useState(0)
+
+  /** «Було» is the item as saved now: unsaved edits are dropped and the item is re-read (AC-05). */
+  async function importFile(file: Parameters<typeof startImport>[0]) {
+    setEditing(false)
+    await item.refetch()
+    setImported(startImport(file))
+    setImportRound((n) => n + 1)
+  }
 
   if (isProblem(item.error, 'catalog.item_not_found')) {
     return (
@@ -53,7 +65,17 @@ export function ItemPage() {
   return (
     <section className="space-y-6">
       <h1 className="text-2xl font-semibold">{detail.name}</h1>
-      {editing ? (
+      <ImportFileButton onParsed={(file) => void importFile(file)} />
+      {imported ? (
+        <ItemReslice
+          key={importRound}
+          item={detail}
+          plastics={plastics.data}
+          imported={imported}
+          onImportedChange={setImported}
+          onDone={() => setImported(null)}
+        />
+      ) : editing ? (
         <ItemEditor item={detail} plastics={plastics.data} onDone={() => setEditing(false)} />
       ) : (
         <>

@@ -603,3 +603,78 @@ test('an imported 11 543 mg shows as 11,55 g, rounded up (AC-03)', async () => {
 
   await vi.waitFor(() => expect(screen.getByLabelText('Витрата, г')).toHaveValue('11,55'))
 })
+
+const CONFLICT = {
+  plate: { index: 1, name: 'two whites' },
+  print_time_s: 7200,
+  filaments: [
+    { ...VTULKA.filaments[0], filament_color: '#FFFFFF', usage_mg: 80000, plastic_id: 'pla' },
+    { ...VTULKA.filaments[0], filament_color: '#EEEEEE', usage_mg: 40000, plastic_id: 'pla' },
+  ],
+}
+
+test('importing the same conflicting file again asks about the merge again (AC-10)', async () => {
+  const user = userEvent.setup()
+  serve({ parsed: [CONFLICT] })
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile('two_whites.gcode.3mf')
+  const first = await screen.findByRole('alertdialog')
+  await user.click(within(first).getByRole('button', { name: 'Обрати інший пластик' }))
+  await vi.waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+
+  await importFile('two_whites.gcode.3mf')
+
+  const again = await screen.findByRole('alertdialog')
+  expect(within(again).getByText('Це справді той самий пластик?')).toBeInTheDocument()
+})
+
+test('cancelling a ready import restores the manual rows, time and donation (AC-07)', async () => {
+  const user = userEvent.setup()
+  const api = serve({ parsed: [VTULKA] })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('3', '30')
+  await screen.findByText('115,25 ₴')
+  await importFile()
+  await screen.findByText('18,82 ₴')
+
+  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
+
+  expect(screen.queryByRole('region', { name: 'Філаменти з файлу' })).not.toBeInTheDocument()
+  expect(screen.getAllByLabelText('Пластик')[0]).toHaveValue('petg')
+  expect(screen.getByLabelText('Витрата, г')).toHaveValue('120')
+  expect(screen.getByLabelText('Години')).toHaveValue('3')
+  expect(screen.getByLabelText('Хвилини')).toHaveValue('30')
+  const donation = await screen.findByRole('status', { name: 'Мінімальний донат' })
+  expect(within(donation).getByText('115,25 ₴')).toBeInTheDocument()
+  expect(screen.queryByText('18,82 ₴')).not.toBeInTheDocument()
+
+  await user.type(screen.getByLabelText('Назва виробу'), 'Брелок')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await screen.findByText('Інша сторінка')
+  const body = api.callsTo('POST', '/api/catalog/items')[0]?.body
+  expect(body).not.toHaveProperty('filament_mappings')
+  expect(body).toMatchObject({
+    plastics: [{ plastic_id: 'petg', usage_cg: 12000 }],
+    print_time_s: 12600,
+  })
+})
+
+test('cancelling a ready import over an empty form leaves it empty, no donation (AC-07)', async () => {
+  const user = userEvent.setup()
+  serve({ parsed: [VTULKA] })
+  renderWithProviders(<CalculatePage />)
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('18,82 ₴')
+
+  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
+
+  expect(screen.getByLabelText('Витрата, г')).toHaveValue('')
+  expect(screen.getAllByLabelText('Пластик')[0]).toHaveValue('')
+  expect(screen.getByLabelText('Години')).toHaveValue('')
+  expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
+  expect(screen.queryByText('18,82 ₴')).not.toBeInTheDocument()
+})

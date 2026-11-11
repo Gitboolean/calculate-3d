@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-09b", "AC-10"]
 files_hint: ["web/src/pages/calculate/ui/CalculatePage.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T25 — Імпорт у розрахунку: key панелі за раундом імпорту і відновлення форми після скасування

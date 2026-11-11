@@ -15,7 +15,6 @@ import { SaveItemForm } from '@/features/save-item'
 import {
   clearRejectedChoice,
   compose,
-  filamentKey,
   FilamentMappingPanel,
   ImportFileButton,
   mappingsFor,
@@ -32,6 +31,10 @@ export function CalculatePage() {
   const settings = usePriceSettings()
   const [value, setValue] = useState(emptyQuoteForm)
   const [imported, setImported] = useState<ImportState | null>(null)
+  // Counts imports so a re-imported file mounts a fresh mapping panel (AC-10).
+  const [importRound, setImportRound] = useState(0)
+  // The form as it was before the first import, restored on cancel (AC-07).
+  const [beforeImport, setBeforeImport] = useState<typeof value | null>(null)
   const composition = imported && compose(imported.file, imported.choice, imported.confirmed)
   // An import with a filament still unmapped or an unconfirmed merge prices nothing (AC-09, AC-10).
   const importBlocks = composition !== null && composition.kind !== 'ready'
@@ -40,9 +43,16 @@ export function CalculatePage() {
 
   /** A ready import replaces every row and the time, manual or from an earlier file (AC-01). */
   function applyImport(next: ImportState) {
+    if (imported === null) setBeforeImport(value)
     setImported(next)
     const rows = compose(next.file, next.choice, next.confirmed)
     if (rows.kind === 'ready') setValue(quoteFormFrom(rows))
+  }
+
+  function cancelImport() {
+    if (beforeImport !== null) setValue(beforeImport)
+    setBeforeImport(null)
+    setImported(null)
   }
 
   const heading = <h1 className="text-2xl font-semibold">Розрахунок</h1>
@@ -85,15 +95,16 @@ export function CalculatePage() {
             <CardTitle>Витрата й час зі слайсера</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ImportFileButton onParsed={(file) => applyImport(startImport(file))} />
+            <ImportFileButton
+              onParsed={(file) => {
+                setImportRound((round) => round + 1)
+                applyImport(startImport(file))
+              }}
+            />
             {imported && (
               <>
-                <FilamentMappingPanel
-                  key={imported.file.filaments.map(filamentKey).join('\0')}
-                  state={imported}
-                  onChange={applyImport}
-                />
-                <Button type="button" variant="outline" onClick={() => setImported(null)}>
+                <FilamentMappingPanel key={importRound} state={imported} onChange={applyImport} />
+                <Button type="button" variant="outline" onClick={cancelImport}>
                   Скасувати імпорт
                 </Button>
               </>

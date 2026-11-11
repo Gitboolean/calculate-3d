@@ -29,6 +29,6 @@
 | [T22](./T22-client-side-file-size-check.md) | Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання | ui | Anton Pohorielov | S | T13 | done |
 | [T23](./T23-parser-real-cd-bound-and-ascii-digits.md) | Парсер: межа реального central directory, version > 6.3 і лише ASCII-цифри → importing.corrupted_file | app | Anton Pohorielov | M | T19 | done |
 | [T24](./T24-plastic-not-found-invalidate-and-reslice-test.md) | plastic_not_found: інвалідувати пластики й довести скидання вибору на сторінці виробу | ui | Anton Pohorielov | S | T20 | done |
-| [T25](./T25-calculate-import-round-key-and-cancel-restores-form.md) | Імпорт у розрахунку: key панелі за раундом імпорту і відновлення форми після скасування | ui | Anton Pohorielov | S | T20 | todo |
+| [T25](./T25-calculate-import-round-key-and-cancel-restores-form.md) | Імпорт у розрахунку: key панелі за раундом імпорту і відновлення форми після скасування | ui | Anton Pohorielov | S | T20 | done |
 
 **Total:** 25 tasks, ~8.5 person-days + ~2 person-days of review follow-ups (T18–T22, [review 2026-11-10](../_review/review-2026-11-10.md)) + ~1.5 person-days of re-review follow-ups (T23–T25, [review 2026-11-10 r2](../_review/review-2026-11-10-r2.md)).

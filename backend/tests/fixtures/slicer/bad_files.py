@@ -240,15 +240,40 @@ def _with_cd_records(records: list[bytes]) -> bytes:
     return body[:eocd] + extra + _eocd(count, cd_size + len(extra), cd_offset)
 
 
-# Well over any sane central-directory byte cap (real ones are 1-5 KB), still a few MB to build.
-_FAT_RECORDS = 100  # 100 x 65 535-byte names = 6.5 MB central directory
-_WITHIN_LIMIT_RECORDS = 1_200  # 1 200 x ~5 KB = 6.0 MB central directory, far below ENTRY_LIMIT
+# A little over the 4 MB central-directory byte cap (real ones are 1-5 KB): a raised cap is caught.
+_DISTINCT_OFFSET = 100_000_000  # past the real parts; each record gets its own, so none overlap
+_FAT_RECORDS = 63  # 63 x 65 535-byte names = 4.13 MB central directory
+_WITHIN_LIMIT_RECORDS = 810  # 810 x ~5 KB = 4.1 MB central directory, far below ENTRY_LIMIT
+
+
+def cd_padded_to(cd_size: int) -> bytes:
+    """A valid-looking archive whose central directory is exactly `cd_size` bytes: the real
+    parts plus padding records (distinct header offsets, the slack carried in their comments)."""
+    body = build_zip(_service_parts())
+    real_size = struct.unpack_from("<I", body, body.rfind(b"PK\x05\x06") + 12)[0]
+    slack = cd_size - real_size
+    name_len = len(b"Auxiliaries/p00000")
+    per_record = 46 + name_len + 65_535
+    count = -(-slack // per_record)
+    comments, extra = divmod(slack - count * (46 + name_len), count)
+    records = [
+        _cd_record(
+            f"Auxiliaries/p{n:05d}".encode(),
+            comment=b"c" * (comments + (1 if n < extra else 0)),
+            header_offset=_DISTINCT_OFFSET + n,
+        )
+        for n in range(count)
+    ]
+    return _with_cd_records(records)
 
 
 def _cd_fat_records() -> bytes:
     """Few records, but each carries a 65 535-byte name: the directory is megabytes."""
     return _with_cd_records(
-        [_cd_record(f"{n:05d}".encode().ljust(65_535, b"n")) for n in range(_FAT_RECORDS)]
+        [
+            _cd_record(f"{n:05d}".encode().ljust(65_535, b"n"), header_offset=_DISTINCT_OFFSET + n)
+            for n in range(_FAT_RECORDS)
+        ]
     )
 
 
@@ -256,7 +281,11 @@ def _cd_oversized_within_entry_limit() -> bytes:
     """Under ENTRY_LIMIT records (each with a 5 KB comment), yet the directory is > 4 MB."""
     return _with_cd_records(
         [
-            _cd_record(f"Auxiliaries/f{n}".encode(), comment=b"c" * 5_000)
+            _cd_record(
+                f"Auxiliaries/f{n}".encode(),
+                comment=b"c" * 5_000,
+                header_offset=_DISTINCT_OFFSET + n,
+            )
             for n in range(_WITHIN_LIMIT_RECORDS)
         ]
     )

@@ -33,6 +33,6 @@
 | [T26](./T26-parser-cd-byte-cap-overlap-and-boundary-tests.md) | Парсер: межа байтів central directory, відмова на overlapped-записах і тести меж | app | Anton Pohorielov | M | T23 | done |
 | [T27](./T27-calculate-import-state-functional-updates.md) | Імпорт у розрахунку: один стан форми й імпорту з функціональними оновленнями | ui | Anton Pohorielov | S | T25 | done |
 | [T28](./T28-cancel-locked-while-saving-and-functional-reslice-error.md) | Скасування заблоковане під час збереження; помилка переслайсу — функціональне оновлення | ui | Anton Pohorielov | S | T27 | done |
-| [T29](./T29-cd-byte-cap-boundary-tests-and-sad-sync.md) | Межа байтів central directory у тестах і синхронізація SAD з новими правилами архіву | app | Anton Pohorielov | S | T26 | todo |
+| [T29](./T29-cd-byte-cap-boundary-tests-and-sad-sync.md) | Межа байтів central directory у тестах і синхронізація SAD з новими правилами архіву | app | Anton Pohorielov | S | T26 | done |
 
 **Total:** 29 tasks, ~8.5 person-days + ~2 person-days of review follow-ups (T18–T22, [review 2026-11-10](../_review/review-2026-11-10.md)) + ~1.5 person-days of re-review follow-ups (T23–T25, [review 2026-11-10 r2](../_review/review-2026-11-10-r2.md)) + ~1 person-day of r3 follow-ups (T26–T27, [review 2026-11-11 r3](../_review/review-2026-11-11-r3.md)) + ~0.5 person-day of r4 follow-ups (T28–T29, [review 2026-11-11 r4](../_review/review-2026-11-11-r4.md)).

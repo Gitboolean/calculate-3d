@@ -4,6 +4,7 @@ import zipfile
 
 import pytest
 
+from calculate3d.modules.importing import parser
 from tests.fixtures.slicer import LITTLE_TREES, REFERENCE_FILES, VTULKA_PROJECT, VTULKA_SLICED
 from tests.fixtures.slicer.bad_files import BAD_FILES, BadFile, zip_bomb
 
@@ -117,13 +118,13 @@ def test_cd_flood_cases_are_real_bypasses_that_plain_zipfile_accepts(name: str) 
 
 
 @pytest.mark.parametrize("name", ["cd_fat_records", "cd_oversized_within_entry_limit"])
-def test_cd_byte_cases_stay_under_the_entry_limit_but_over_four_megabytes(name: str) -> None:
+def test_cd_byte_cases_stay_under_the_entry_limit_but_over_the_byte_cap(name: str) -> None:
     (case,) = [c for c in BAD_FILES if c.name == name]
     with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
         assert len(zf.infolist()) <= 10_000
     eocd = case.body.rfind(b"PK\x05\x06")
     (cd_size,) = struct.unpack_from("<I", case.body, eocd + 12)
-    assert cd_size > 4 * 1024 * 1024
+    assert cd_size > parser.MAX_CD_BYTES
 
 
 def test_overlapped_entries_share_one_header_offset_in_plain_zipfile() -> None:

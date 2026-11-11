@@ -173,9 +173,9 @@ class _BufferReader(io.RawIOBase):
 
 
 def _check_central_directory(body: memoryview) -> None:
-    """Reject an over-limit entry count before `zipfile` builds its entry list (SAD §8).
+    """Reject an over-limit entry count or byte size before `zipfile` reads the directory (SAD §8).
 
-    Mirrors zipfile's EOCD / Zip64 lookup so the count is taken from where zipfile reads the
+    Mirrors zipfile's EOCD / Zip64 lookup so both are taken from where zipfile reads the
     directory; a missing or malformed EOCD is left to `zipfile` to report.
     """
     if bytes(body[-22:-18]) == b"PK\x05\x06" and not any(body[-2:]):

@@ -7,7 +7,7 @@ acs: ["AC-13"]
 files_hint: ["backend/src/calculate3d/modules/importing/parser.py", "backend/tests/fixtures/slicer/bad_files.py", "backend/tests/unit/test_importing_archive_budget.py", "backend/tests/unit/test_slicer_bad_files.py", "docs/features/print-file-import/sad.md"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T29 — Межа байтів central directory у тестах і синхронізація SAD з новими правилами архіву
@@ -32,5 +32,5 @@ R8: SAD §8 (`sad.md:542`) і QG-2 (`:579`) не називають ліміт C
 
 > Accept-тест рівно на MAX_CD_BYTES і reject-тест на MAX_CD_BYTES + 1 червоніють на мутантах `>=` і на підвищеному ліміті; byte-cap фікстури не overlapped; SAD §7/§8/§10 називають обидва нові правила; make api-check зелений.
 
-- [ ] Спершу червоний тест, що відтворює знахідку
-- [ ] `make check` зелений
+- [x] Спершу червоний тест, що відтворює знахідку
+- [x] `make check` зелений

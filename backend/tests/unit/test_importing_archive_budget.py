@@ -1,7 +1,10 @@
-"""T19 (review Q1, Q2): the archive entry limit is enforced before ZipFile builds its entry list,
+"""T19 (review Q1, Q2), T29: the archive entry-count and central-directory byte limits are enforced
+before ZipFile builds its entry list,
 and the request body is held in memory once (SAD §7 peak, §8 archive read limits)."""
 
 import asyncio
+import io
+import struct
 import tracemalloc
 import zipfile
 from collections.abc import AsyncIterator
@@ -11,7 +14,7 @@ import pytest
 
 from calculate3d.modules.importing import parser
 from calculate3d.modules.importing.router import read_body
-from tests.fixtures.slicer.bad_files import BAD_FILES, CORRUPTED_FILE
+from tests.fixtures.slicer.bad_files import BAD_FILES, CORRUPTED_FILE, cd_padded_to
 
 OVER_LIMIT_CASES = (
     "too_many_entries",
@@ -28,7 +31,7 @@ OVER_LIMIT_CASES = (
 
 
 @pytest.mark.parametrize("name", OVER_LIMIT_CASES)
-def test_entry_count_over_the_limit_is_rejected_before_zipfile_is_constructed(
+def test_over_limit_central_directory_is_rejected_before_zipfile_is_constructed(
     name: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (case,) = [c for c in BAD_FILES if c.name == name]
@@ -40,6 +43,40 @@ def test_entry_count_over_the_limit_is_rejected_before_zipfile_is_constructed(
 
     with pytest.raises(parser.ParseError) as raised:
         parser.read_sliced_plate(case.body)
+
+    assert raised.value.code == CORRUPTED_FILE
+
+
+def _forbid_zipfile(monkeypatch: pytest.MonkeyPatch) -> None:
+    def forbidden(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("zipfile.ZipFile was constructed for an over-limit central directory")
+
+    monkeypatch.setattr(parser.zipfile, "ZipFile", forbidden)
+
+
+def _cd_size(body: bytes) -> int:
+    (size,) = struct.unpack_from("<I", body, body.rfind(b"PK\x05\x06") + 12)
+    return size
+
+
+def test_central_directory_of_exactly_the_byte_cap_passes_the_archive_limits() -> None:
+    body = cd_padded_to(parser.MAX_CD_BYTES)
+    assert _cd_size(body) == parser.MAX_CD_BYTES
+    with zipfile.ZipFile(io.BytesIO(body)) as zf:
+        assert len(zf.infolist()) <= parser.MAX_ENTRIES
+
+    parser._check_central_directory(memoryview(body))  # must not raise
+
+
+def test_central_directory_one_byte_over_the_cap_is_rejected_before_zipfile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = cd_padded_to(parser.MAX_CD_BYTES + 1)
+    assert _cd_size(body) == parser.MAX_CD_BYTES + 1
+    _forbid_zipfile(monkeypatch)
+
+    with pytest.raises(parser.ParseError) as raised:
+        parser.read_sliced_plate(body)
 
     assert raised.value.code == CORRUPTED_FILE
 

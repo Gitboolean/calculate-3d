@@ -642,6 +642,39 @@
         "web/src/pages/item/ui/ItemEditor.tsx",
         "web/src/pages/item/ui/ItemPage.test.tsx"
       ]
+    },
+    {
+      "id": "T33",
+      "title": "«Змінити» на /item недоступне, поки імпортується файл; тест вікна read-back",
+      "layer": "ui",
+      "deps": [
+        "T32"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06"
+      ],
+      "dod": "Кнопка «Змінити» disabled, поки importing (парсинг ‖ read-back), тож редактор не відкривається у вікні read-back і не з'являється знову після «Скасувати»/«Підтвердити» панелі імпорту; тест у ItemPage.reslice.test.tsx: readGate тримає GET виробу після парсингу → «Змінити» недоступна, 0 PUT; тест: після панелі імпорту форма «Змінити виріб» не відкрита; мутант importing={importing && !reading} червоніє; нові тести червоніють на поточному коді; make check зелений.",
+      "files_hint": [
+        "web/src/pages/item/ui/ItemPage.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx"
+      ]
+    },
+    {
+      "id": "T34",
+      "title": "Межа тіла рівно 100 МБ приймається — функціональний тест, що не пропускається на CI",
+      "layer": "tests",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "У test_importing_api.py тіло рівно MAX_BODY байт (bytes(MAX_BODY)) з Content-Length і chunked отримує відмову парсера 422 importing.not_slicer_project, а не 413; тест не позначено @on_ci; мутант `> MAX_BODY_BYTES` → `>=` у router.py (обидві перевірки) червоніє з CI=1; make check зелений.",
+      "files_hint": [
+        "backend/tests/integration/test_importing_api.py",
+        "backend/src/calculate3d/modules/importing/router.py"
+      ]
     }
   ]
 }

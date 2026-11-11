@@ -449,13 +449,14 @@ test('«Зберегти зміни» is disabled while a file is parsing, so no
   })
   renderItem()
   await screen.findByRole('heading', { level: 1, name: 'Підставка' })
+  // The editor is opened first: while importing «Змінити» itself is locked (R16).
+  await user.click(screen.getByRole('button', { name: 'Змінити' }))
   await userEvent.upload(
     screen.getByLabelText('Файл слайсера'),
     new File([new Uint8Array([0x50, 0x4b])], 'pidstavka.gcode.3mf'),
   )
   await screen.findByRole('button', { name: 'Імпортую…' })
 
-  await user.click(screen.getByRole('button', { name: 'Змінити' }))
   const name = screen.getByLabelText('Назва виробу')
   await user.clear(name)
   await user.type(name, 'Органайзер')
@@ -465,6 +466,98 @@ test('«Зберегти зміни» is disabled while a file is parsing, so no
   fireEvent.submit(screen.getByRole('form', { name: 'Змінити виріб' }))
 
   expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
+  release()
+  expect(await screen.findByRole('region', { name: 'Було → стало' })).toBeInTheDocument()
+  expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
+})
+
+test('«Змінити» is disabled while the item is re-read after the parse, and the form stays closed after the panel closes (R15, R16)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const readGate: { current: Promise<void> | undefined } = { current: undefined }
+  const api = serve({ readGate })
+  renderItem()
+  await screen.findByRole('heading', { level: 1, name: 'Підставка' })
+  readGate.current = new Promise<void>((resolve) => (release = resolve))
+
+  await userEvent.upload(
+    screen.getByLabelText('Файл слайсера'),
+    new File([new Uint8Array([0x50, 0x4b])], 'pidstavka.gcode.3mf'),
+  )
+
+  // The parse resolved at once; only the read-back GET is pending.
+  await vi.waitFor(() => expect(api.callsTo('GET', '/api/catalog/items/i1')).toHaveLength(2))
+  await vi.waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Імпортувати файл' })).toBeEnabled(),
+  )
+  const edit = screen.getByRole('button', { name: 'Змінити' })
+  expect(edit).toBeDisabled()
+  await user.click(edit)
+  expect(screen.queryByRole('form', { name: 'Змінити виріб' })).not.toBeInTheDocument()
+  expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
+
+  readGate.current = undefined
+  release()
+  const panel = await screen.findByRole('region', { name: 'Було → стало' })
+  await user.click(within(panel).getByRole('button', { name: 'Скасувати' }))
+
+  expect(screen.queryByRole('region', { name: 'Було → стало' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('form', { name: 'Змінити виріб' })).not.toBeInTheDocument()
+  expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
+})
+
+test('confirming after a read-back window leaves the edit form closed (R15, R16)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const readGate: { current: Promise<void> | undefined } = { current: undefined }
+  const api = serve({ readGate })
+  renderItem()
+  await screen.findByRole('heading', { level: 1, name: 'Підставка' })
+  readGate.current = new Promise<void>((resolve) => (release = resolve))
+  await userEvent.upload(
+    screen.getByLabelText('Файл слайсера'),
+    new File([new Uint8Array([0x50, 0x4b])], 'pidstavka.gcode.3mf'),
+  )
+  await vi.waitFor(() => expect(api.callsTo('GET', '/api/catalog/items/i1')).toHaveLength(2))
+  expect(screen.getByRole('button', { name: 'Змінити' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Змінити' }))
+
+  readGate.current = undefined
+  release()
+  const panel = await screen.findByRole('region', { name: 'Було → стало' })
+  await within(panel).findByText(/60,73 ₴/)
+  await user.click(within(panel).getByRole('button', { name: 'Підтвердити' }))
+
+  await vi.waitFor(() => expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(1))
+  await vi.waitFor(() =>
+    expect(screen.queryByRole('region', { name: 'Було → стало' })).not.toBeInTheDocument(),
+  )
+  expect(screen.queryByRole('form', { name: 'Змінити виріб' })).not.toBeInTheDocument()
+})
+
+test('«Змінити» is disabled while the file itself is parsing (R15)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const api = serve({
+    parse: async () => {
+      await held
+      return json(RESLICED)
+    },
+  })
+  renderItem()
+  await screen.findByRole('heading', { level: 1, name: 'Підставка' })
+  await userEvent.upload(
+    screen.getByLabelText('Файл слайсера'),
+    new File([new Uint8Array([0x50, 0x4b])], 'pidstavka.gcode.3mf'),
+  )
+  await screen.findByRole('button', { name: 'Імпортую…' })
+
+  const edit = screen.getByRole('button', { name: 'Змінити' })
+  expect(edit).toBeDisabled()
+  await user.click(edit)
+  expect(screen.queryByRole('form', { name: 'Змінити виріб' })).not.toBeInTheDocument()
+
   release()
   expect(await screen.findByRole('region', { name: 'Було → стало' })).toBeInTheDocument()
   expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)

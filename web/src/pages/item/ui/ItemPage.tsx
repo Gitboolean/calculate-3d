@@ -129,7 +129,10 @@ export function ItemPage() {
             </Card>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => setEditing(true)}>Змінити</Button>
+            {/* Opened during an import, the editor would reappear once its panel closes. */}
+            <Button disabled={importing} onClick={() => setEditing(true)}>
+              Змінити
+            </Button>
             <DeleteItemButton item={detail} />
           </div>
         </>

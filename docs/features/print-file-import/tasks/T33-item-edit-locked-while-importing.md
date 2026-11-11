@@ -7,7 +7,7 @@ acs: ["AC-05", "AC-06"]
 files_hint: ["web/src/pages/item/ui/ItemPage.tsx", "web/src/pages/item/ui/ItemPage.reslice.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "XS"
-status: "todo"
+status: "done"
 ---
 
 # T33 — «Змінити» на /item недоступне, поки імпортується файл; тест вікна read-back
@@ -46,5 +46,5 @@ Re-review r8, R15 + R16. T32 заблокувала «Зберегти змін�
 > зберегти його; після панелі імпорту редактор не з'являється сам; нові тести червоніють на
 > поточному коді; `make check` зелений.
 
-- [ ] Спершу червоний тест, що відтворює знахідку
-- [ ] `make check` зелений
+- [x] Спершу червоний тест, що відтворює знахідку
+- [x] `make check` зелений

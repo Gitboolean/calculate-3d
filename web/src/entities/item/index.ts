@@ -3,6 +3,7 @@ export {
   useCreateItem,
   useDeleteItem,
   useIsCreatingItem,
+  useIsUpdatingItem,
   useItem,
   useItems,
   useUpdateItem,

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
-import { useItem } from '@/entities/item'
+import { useIsUpdatingItem, useItem } from '@/entities/item'
 import { usePlastics } from '@/entities/plastic'
 import { DeleteItemButton } from '@/features/delete-item'
 import { MissingSettings } from '@/features/quote-form'
@@ -24,6 +24,7 @@ export function ItemPage() {
   const item = useItem(itemId)
   const plastics = usePlastics()
   const [editing, setEditing] = useState(false)
+  const isUpdating = useIsUpdatingItem()
   const [imported, setImported] = useState<ImportState | null>(null)
   const [importRound, setImportRound] = useState(0)
 
@@ -65,7 +66,7 @@ export function ItemPage() {
   return (
     <section className="space-y-6">
       <h1 className="text-2xl font-semibold">{detail.name}</h1>
-      <ImportFileButton onParsed={(file) => void importFile(file)} />
+      <ImportFileButton disabled={isUpdating} onParsed={(file) => void importFile(file)} />
       {imported ? (
         <ItemReslice
           key={importRound}

@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-08", "AC-13"]
 files_hint: ["web/src/features/slicer-import/model/state.ts", "web/src/pages/calculate/ui/CalculatePage.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx", "web/src/pages/item/ui/ItemReslice.tsx", "web/src/pages/item/ui/ItemPage.tsx", "web/src/pages/item/ui/ItemPage.reslice.test.tsx", "web/src/features/slicer-import/ui/ImportFileButton.tsx", "backend/tests/unit/test_importing_archive_budget.py"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T30 — Відхилений маппінг розв'язується за надісланим масивом; імпорт заблоковано під час збереження
@@ -36,5 +36,5 @@ POST/PUT вибір змінився (філамент скинуто на «О�
 
 > 422 `filament_mappings.<i>` очищує лише той філамент, що був i-м у надісланому масиві, і лише якщо він досі тримає той самий пластик; «Імпортувати файл» недоступна, поки збереження в польоті, на обох сторінках; тест R7b фіксує зникнення панелі і котирування B; accept-тест на межі проходить повний парсинг; кожен новий тест червоніє на поточному коді; `make check` зелений.
 
-- [ ] Спершу червоний тест, що відтворює знахідку
-- [ ] `make check` зелений
+- [x] Спершу червоний тест, що відтворює знахідку
+- [x] `make check` зелений

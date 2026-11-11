@@ -301,3 +301,29 @@ test('a rejected confirm clears only the rejected choice, not one made while it 
   expect(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).toHaveValue('')
   expect(screen.getByLabelText(`Пластик для ${PLA} #000000`)).toHaveValue('abs')
 })
+
+test('«Імпортувати файл» is disabled while the confirm is saving (AC-06, R9)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const api = serve({
+    items: [SAVED, SAVED, NEW_PARAMS],
+    update: async (call) => {
+      await held
+      return json({ id: 'i1', ...(call.body as object) })
+    },
+  })
+  renderItem()
+  const panel = await importResliced()
+  await within(panel).findByText(/60,73 ₴/)
+  expect(screen.getByRole('button', { name: 'Імпортувати файл' })).toBeEnabled()
+
+  await user.click(within(panel).getByRole('button', { name: 'Підтвердити' }))
+  await vi.waitFor(() => expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(1))
+
+  expect(screen.getByRole('button', { name: 'Імпортувати файл' })).toBeDisabled()
+  release()
+  await vi.waitFor(() =>
+    expect(screen.queryByRole('region', { name: 'Було → стало' })).not.toBeInTheDocument(),
+  )
+})

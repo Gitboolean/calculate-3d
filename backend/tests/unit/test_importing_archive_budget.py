@@ -66,6 +66,8 @@ def test_central_directory_of_exactly_the_byte_cap_passes_the_archive_limits() -
         assert len(zf.infolist()) <= parser.MAX_ENTRIES
 
     parser._check_central_directory(memoryview(body))  # must not raise
+    # the full parse also accepts it (AC-13): the cap is inclusive end to end
+    assert parser.read_sliced_plate(body).plate.index == 1
 
 
 def test_central_directory_one_byte_over_the_cap_is_rejected_before_zipfile(

@@ -33,12 +33,18 @@ export function confirmMerge(state: ImportState, group: MergeGroup): ImportState
 
 /**
  * A save rejected for a deleted mapped plastic (`filament_mappings.<i>.plastic_id`): ask for that
- * filament's plastic again. `<i>` indexes the array `mappingsFor` built — chosen filaments only.
+ * filament's plastic again. `<i>` indexes the array that was `sent` with the request, not the
+ * current choices; a choice changed since then is left alone.
  */
-export function clearRejectedChoice(state: ImportState, error: unknown): ImportState {
+export function clearRejectedChoice(
+  state: ImportState,
+  error: unknown,
+  sent: readonly Schemas['FilamentMappingInput'][],
+): ImportState {
   const field = isProblem(error, 'importing.plastic_not_found') ? error.problem.field : undefined
   const index = Number(/^filament_mappings\.(\d+)\./.exec(field ?? '')?.[1])
-  const chosen = state.file.filaments.filter((f) => state.choice[filamentKey(f)])
-  const rejected = chosen[index]
-  return rejected ? choosePlastic(state, filamentKey(rejected), '') : state
+  const rejected = sent[index]
+  if (!rejected) return state
+  const key = filamentKey(rejected)
+  return state.choice[key] === rejected.plastic_id ? choosePlastic(state, key, '') : state
 }

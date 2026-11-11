@@ -1,7 +1,7 @@
-import type { Schemas } from '@/shared/api'
+import { ApiError, type Schemas } from '@/shared/api'
 
 import { filamentKey } from './compose'
-import { choosePlastic, confirmMerge, startImport } from './state'
+import { choosePlastic, clearRejectedChoice, confirmMerge, startImport } from './state'
 
 const FILE: Schemas['SlicerFile'] = {
   plate: { index: 1, name: '' },
@@ -37,4 +37,22 @@ test('choosing and confirming return new states without mutating the old one', (
   expect(chosen.choice[key]).toBe('petg')
   expect(confirmed.confirmed.size).toBe(1)
   expect(chosen.confirmed.size).toBe(0)
+})
+
+test('a rejected mapping is cleared only while the filament still holds the plastic that was sent (AC-08, R9)', () => {
+  const key = filamentKey({ filament_name: 'A', filament_color: '#FFFFFF' })
+  const sent = [{ filament_name: 'A', filament_color: '#FFFFFF', plastic_id: 'pla' }]
+  const rejected = new ApiError(422, {
+    type: 'about:blank',
+    title: 'Plastic not found',
+    status: 422,
+    detail: 'Plastic not found',
+    code: 'importing.plastic_not_found',
+    field: 'filament_mappings.0.plastic_id',
+  })
+  const unchanged = startImport(FILE)
+  const rechosen = choosePlastic(unchanged, key, 'petg')
+
+  expect(clearRejectedChoice(unchanged, rejected, sent).choice[key]).toBe('')
+  expect(clearRejectedChoice(rechosen, rejected, sent).choice[key]).toBe('petg')
 })

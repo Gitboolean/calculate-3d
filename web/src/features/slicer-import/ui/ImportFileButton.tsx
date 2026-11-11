@@ -22,8 +22,11 @@ const TOO_LARGE = new ApiError(413, {
  */
 export function ImportFileButton({
   onParsed,
+  disabled = false,
 }: {
   onParsed: (file: Schemas['SlicerFile']) => void
+  /** The screen is busy elsewhere, e.g. saving: a new import would swap the file under it. */
+  disabled?: boolean
 }) {
   const input = useRef<HTMLInputElement>(null)
   const parse = useParseSlicerFile()
@@ -56,7 +59,7 @@ export function ImportFileButton({
       <Button
         type="button"
         variant="outline"
-        disabled={parse.isPending}
+        disabled={disabled || parse.isPending}
         onClick={() => input.current?.click()}
       >
         {parse.isPending ? 'Імпортую…' : 'Імпортувати файл'}

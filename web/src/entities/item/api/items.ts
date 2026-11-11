@@ -59,9 +59,17 @@ export function useItem(id: string) {
   })
 }
 
+const updateItemKey = ['items', 'update'] as const
+
+/** True while an update request is in flight, wherever the screen that started it lives. */
+export function useIsUpdatingItem() {
+  return useIsMutating({ mutationKey: updateItemKey }) > 0
+}
+
 export function useUpdateItem() {
   const client = useQueryClient()
   return useMutation({
+    mutationKey: updateItemKey,
     mutationFn: ({ id, body }: { id: string; body: ItemInput }) =>
       unwrap(api.PUT('/api/catalog/items/{item_id}', { params: { path: { item_id: id } }, body })),
     onSuccess: () => client.invalidateQueries({ queryKey: itemKeys.all }),

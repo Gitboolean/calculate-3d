@@ -57,13 +57,14 @@ export function ItemReslice({
 
   function confirm() {
     if (!became) return
+    const sent = mappingsFor(imported.file, imported.choice)
     update.mutate(
       {
         id: item.id,
         body: {
           name: item.name,
           ...became,
-          filament_mappings: mappingsFor(imported.file, imported.choice),
+          filament_mappings: sent,
         },
       },
       {
@@ -71,7 +72,7 @@ export function ItemReslice({
         onError: (e) => {
           setSaveFailure(saveError(e).form ?? saveError(e).name)
           if (isProblem(e, 'importing.plastic_not_found')) void refreshPlastics()
-          onImportedUpdate((current) => clearRejectedChoice(current, e))
+          onImportedUpdate((current) => clearRejectedChoice(current, e, sent))
         },
       },
     )

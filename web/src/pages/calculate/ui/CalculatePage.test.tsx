@@ -723,11 +723,15 @@ test('cancelling while a re-import is parsing still brings back the manual form 
   await screen.findByRole('button', { name: 'Імпортую…' })
 
   await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
+  // The first cancel worked at once: A's panel is gone while B is still parsing (R10).
+  expect(screen.queryByRole('region', { name: 'Філаменти з файлу' })).not.toBeInTheDocument()
   release()
   await screen.findByRole('button', { name: 'Імпортувати файл' })
   // The late file is shown as a fresh import (B); cancelling it ends on the manual form.
   const late = await screen.findByRole('region', { name: 'Філаменти з файлу' })
   expect(within(late).getByText(PLA)).toBeInTheDocument()
+  expect(await screen.findByText('19,00 ₴')).toBeInTheDocument()
+  expect(screen.queryByText('18,82 ₴')).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
 
   await expectManualForm()
@@ -816,6 +820,66 @@ test('«Скасувати імпорт» is disabled while the save is in fligh
   await vi.waitFor(() => expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(1))
 
   expect(screen.getByRole('button', { name: 'Скасувати імпорт' })).toBeDisabled()
+  release()
+  await screen.findByText('Інша сторінка')
+})
+
+test('a rejected save resolves the index against what was sent, not the current choices (AC-08, R9)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const two = {
+    ...TWO_COLORS,
+    filaments: [TWO_COLORS.filaments[0], { ...TWO_COLORS.filaments[1], plastic_id: 'petg' }],
+  }
+  const api = serve({
+    parsed: [two],
+    save: async () => {
+      await held
+      return problem(422, 'importing.plastic_not_found', {
+        field: 'filament_mappings.0.plastic_id',
+      })
+    },
+  })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('20,00 ₴')
+  await user.type(screen.getByLabelText('Назва виробу'), 'Ялинка')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await vi.waitFor(() => expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(1))
+
+  // While the save is in flight the first filament goes back to «Оберіть пластик».
+  await user.selectOptions(screen.getByLabelText(`Пластик для ${PLA} #3F8E43`), '')
+  release()
+
+  await screen.findByText('Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.')
+  expect(screen.getByLabelText(`Пластик для ${PLA} #3F8E43`)).toHaveValue('')
+  // The rejected index 0 was the first filament of the SENT array; the second one is untouched.
+  expect(screen.getByLabelText(`Пластик для ${PLA} #000000`)).toHaveValue('petg')
+})
+
+test('«Імпортувати файл» is disabled while the save is in flight (AC-07, R9)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const api = serve({
+    parsed: [VTULKA],
+    save: async (call) => {
+      await held
+      return json({ id: 'item-1', ...(call.body as object) }, 201)
+    },
+  })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await manual120()
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  expect(screen.getByRole('button', { name: 'Імпортувати файл' })).toBeEnabled()
+  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await vi.waitFor(() => expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(1))
+
+  expect(screen.getByRole('button', { name: 'Імпортувати файл' })).toBeDisabled()
   release()
   await screen.findByText('Інша сторінка')
 })

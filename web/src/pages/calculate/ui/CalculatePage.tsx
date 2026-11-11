@@ -119,6 +119,7 @@ export function CalculatePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <ImportFileButton
+              disabled={isSaving}
               onParsed={(file) => {
                 applyImport(startImport(file), true)
               }}
@@ -172,10 +173,10 @@ export function CalculatePage() {
           <SaveItemForm
             input={quote && !importBlocks ? input : null}
             filamentMappings={imported ? mappingsFor(imported.file, imported.choice) : []}
-            onSaveError={(e) => {
+            onSaveError={(e, sent) => {
               if (isProblem(e, 'importing.plastic_not_found')) void refreshPlastics()
               setState((s) =>
-                s.imported ? { ...s, imported: clearRejectedChoice(s.imported, e) } : s,
+                s.imported ? { ...s, imported: clearRejectedChoice(s.imported, e, sent) } : s,
               )
             }}
           />

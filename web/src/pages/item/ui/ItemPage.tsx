@@ -73,6 +73,9 @@ export function ItemPage() {
           plastics={plastics.data}
           imported={imported}
           onImportedChange={setImported}
+          onImportedUpdate={(update) => {
+            setImported((current) => current && update(current))
+          }}
           onDone={() => setImported(null)}
         />
       ) : editing ? (

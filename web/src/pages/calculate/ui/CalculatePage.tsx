@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { useIsCreatingItem } from '@/entities/item'
 import { useRefreshPlastics, usePlastics } from '@/entities/plastic'
 import { usePriceSettings } from '@/entities/price-settings'
 import { useQuote } from '@/entities/quote'
@@ -37,6 +38,7 @@ export function CalculatePage() {
   const plastics = usePlastics()
   const refreshPlastics = useRefreshPlastics()
   const settings = usePriceSettings()
+  const isSaving = useIsCreatingItem()
   // One object so every step is a functional update of the current state: TanStack mutation
   // callbacks fire from stale render closures (AC-07, AC-09b).
   const [state, setState] = useState<PageState>({
@@ -124,7 +126,7 @@ export function CalculatePage() {
             {imported && (
               <>
                 <FilamentMappingPanel key={importRound} state={imported} onChange={applyImport} />
-                <Button type="button" variant="outline" onClick={cancelImport}>
+                <Button type="button" variant="outline" disabled={isSaving} onClick={cancelImport}>
                   Скасувати імпорт
                 </Button>
               </>

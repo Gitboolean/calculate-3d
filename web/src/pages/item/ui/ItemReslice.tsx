@@ -22,6 +22,8 @@ type ItemResliceProps = {
   plastics: Plastic[]
   imported: ImportState
   onImportedChange: (state: ImportState) => void
+  /** Applies a rejection to the import as it is now, not as this render saw it (AC-08). */
+  onImportedUpdate: (update: (current: ImportState) => ImportState) => void
   onDone: () => void
 }
 
@@ -31,6 +33,7 @@ export function ItemReslice({
   plastics,
   imported,
   onImportedChange,
+  onImportedUpdate,
   onDone,
 }: ItemResliceProps) {
   const [value, setValue] = useState(() => {
@@ -68,7 +71,7 @@ export function ItemReslice({
         onError: (e) => {
           setSaveFailure(saveError(e).form ?? saveError(e).name)
           if (isProblem(e, 'importing.plastic_not_found')) void refreshPlastics()
-          onImportedChange(clearRejectedChoice(imported, e))
+          onImportedUpdate((current) => clearRejectedChoice(current, e))
         },
       },
     )

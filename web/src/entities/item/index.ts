@@ -2,6 +2,7 @@ export {
   itemKeys,
   useCreateItem,
   useDeleteItem,
+  useIsCreatingItem,
   useItem,
   useItems,
   useUpdateItem,

@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-07", "AC-08"]
 files_hint: ["web/src/features/slicer-import/ui/WasBecomePanel.tsx", "web/src/pages/item/ui/ItemReslice.tsx", "web/src/pages/item/ui/ItemPage.tsx", "web/src/pages/item/ui/ItemPage.reslice.test.tsx", "web/src/pages/calculate/ui/CalculatePage.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx", "web/src/features/save-item/ui/SaveItemForm.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T28 — Скасування заблоковане під час збереження; помилка переслайсу — функціональне оновлення
@@ -26,11 +26,11 @@ R7b: тест S2 (`CalculatePage.test.tsx:724-726`) з `if (cancel)` не фік
 
 - `WasBecomePanel`: «Скасувати» `disabled` під час `isSaving`; `/calculate`: «Скасувати імпорт» `disabled`, поки create у польоті (стан pending зі `SaveItemForm` угору).
 - `ItemPage`/`ItemReslice`: помилка збереження — функціональне оновлення від поточного імпорту (`onImportedChange((cur) => clearRejectedChoice(cur, e))`).
-- Тести: PUT утримано → «Скасувати» disabled → PUT завершився → панель закрита через `onDone`; те саме для create на `/calculate`; 409 `importing.plastic_not_found` під час PUT не скидає вибір, зроблений для іншого філамента; тест S2 явно перевіряє панель B (VTULKA_B), потім скасування → ручна форма 120 г; тег S4-тесту → AC-07.
+- Тести: PUT утримано → «Скасувати» disabled → PUT завершився → панель закрита через `onDone`; те саме для create на `/calculate`; 422 `importing.plastic_not_found` під час PUT не скидає вибір, зроблений для іншого філамента; тест S2 явно перевіряє панель B (VTULKA_B), потім скасування → ручна форма 120 г; тег S4-тесту → AC-07.
 
 ## Definition of Done
 
-> «Скасувати» на сторінці виробу і «Скасувати імпорт» у розрахунку недоступні, поки збереження в польоті; 409 під час переслайсу скидає лише відхилений вибір від поточного стану; тест S2 фіксує один результат; кожен новий тест червоніє на поточному коді; make web-check зелений.
+> «Скасувати» на сторінці виробу і «Скасувати імпорт» у розрахунку недоступні, поки збереження в польоті; 422 plastic_not_found під час переслайсу скидає лише відхилений вибір від поточного стану; тест S2 фіксує один результат; кожен новий тест червоніє на поточному коді; make web-check зелений.
 
-- [ ] Спершу червоний тест, що відтворює знахідку
-- [ ] `make check` зелений
+- [x] Спершу червоний тест, що відтворює знахідку
+- [x] `make check` зелений

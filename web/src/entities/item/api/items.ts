@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import { api, unwrap, type Schemas } from '@/shared/api'
 
@@ -26,9 +32,17 @@ export function useItems(query: string) {
   })
 }
 
+const createItemKey = ['items', 'create'] as const
+
+/** True while a create request is in flight, wherever the form that started it lives. */
+export function useIsCreatingItem() {
+  return useIsMutating({ mutationKey: createItemKey }) > 0
+}
+
 export function useCreateItem() {
   const client = useQueryClient()
   return useMutation({
+    mutationKey: createItemKey,
     mutationFn: (body: ItemInput) => unwrap(api.POST('/api/catalog/items', { body })),
     onSuccess: () => client.invalidateQueries({ queryKey: itemKeys.all }),
   })

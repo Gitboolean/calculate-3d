@@ -21,7 +21,8 @@ function plasticLine(row: PlasticDiff, name: string): string {
 
 /**
  * AC-05: the saved item («було») next to the import («стало») before anything is saved. Nothing
- * changes until «Підтвердити»; «Скасувати» leaves the item as it was (AC-06).
+ * changes until «Підтвердити»; «Скасувати» leaves the item as it was (AC-06)
+ * and is locked while the save is in flight.
  */
 export function WasBecomePanel({
   diff,
@@ -69,7 +70,7 @@ export function WasBecomePanel({
         <Button type="button" disabled={!canConfirm || isSaving} onClick={onConfirm}>
           Підтвердити
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" disabled={isSaving} onClick={onCancel}>
           Скасувати
         </Button>
       </div>

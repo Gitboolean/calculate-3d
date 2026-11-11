@@ -41,6 +41,10 @@ const QUOTES: Record<string, unknown> = {
     min_donation_kop: 2000,
     breakdown: { plastic_kop: 620, electricity_kop: 99, wear_kop: 1062, scrap_kop: 219 },
   },
+  '[["pla",1549],["abs",223]]|5460': {
+    min_donation_kop: 2100,
+    breakdown: { plastic_kop: 700, electricity_kop: 99, wear_kop: 1062, scrap_kop: 239 },
+  },
   '[["pla",8000],["petg",4000]]|7200': {
     min_donation_kop: 8063,
     breakdown: { plastic_kop: 5800, electricity_kop: 130, wear_kop: 1400, scrap_kop: 733 },
@@ -721,9 +725,10 @@ test('cancelling while a re-import is parsing still brings back the manual form 
   await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
   release()
   await screen.findByRole('button', { name: 'Імпортувати файл' })
-  // Whether the late file is dropped or shown as a fresh import, cancelling it ends on the manual form.
-  const cancel = screen.queryByRole('button', { name: 'Скасувати імпорт' })
-  if (cancel) await user.click(cancel)
+  // The late file is shown as a fresh import (B); cancelling it ends on the manual form.
+  const late = await screen.findByRole('region', { name: 'Філаменти з файлу' })
+  expect(within(late).getByText(PLA)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
 
   await expectManualForm()
   await user.type(screen.getByLabelText('Назва виробу'), 'Брелок')
@@ -757,16 +762,49 @@ test('cancelling after two imports restores the form from before the first one (
   expect(api.callsTo('POST', '/api/catalog/items')[0]?.body).not.toHaveProperty('filament_mappings')
 })
 
-test('cancelling while saving, then a 409, does not bring the import back (AC-09b)', async () => {
+test('a rejected save clears only the rejected choice, not one made while it was saving (AC-07, AC-08)', async () => {
   const user = userEvent.setup()
-  let reject = () => {}
-  const held = new Promise<void>((resolve) => (reject = resolve))
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const two = {
+    ...TWO_COLORS,
+    filaments: [TWO_COLORS.filaments[0], { ...TWO_COLORS.filaments[1], plastic_id: 'petg' }],
+  }
+  const api = serve({
+    parsed: [two],
+    plastics: [...PLASTICS, { id: 'abs', name: 'ABS сірий', price_per_kg_kop: 50000 }],
+    save: async () => {
+      await held
+      return problem(422, 'importing.plastic_not_found', {
+        field: 'filament_mappings.0.plastic_id',
+      })
+    },
+  })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('20,00 ₴')
+  await user.type(screen.getByLabelText('Назва виробу'), 'Ялинка')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await vi.waitFor(() => expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(1))
+
+  await user.selectOptions(screen.getByLabelText(`Пластик для ${PLA} #000000`), 'abs')
+  release()
+
+  await screen.findByText('Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.')
+  expect(screen.getByLabelText(`Пластик для ${PLA} #3F8E43`)).toHaveValue('')
+  expect(screen.getByLabelText(`Пластик для ${PLA} #000000`)).toHaveValue('abs')
+})
+
+test('«Скасувати імпорт» is disabled while the save is in flight (AC-07, R5)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
   const api = serve({
     parsed: [VTULKA],
-    save: async (call, n) => {
-      if (n > 0) return json({ id: 'item-1', ...(call.body as object) }, 201)
+    save: async (call) => {
       await held
-      return problem(409, 'catalog.name_taken')
+      return json({ id: 'item-1', ...(call.body as object) }, 201)
     },
   })
   renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
@@ -777,20 +815,7 @@ test('cancelling while saving, then a 409, does not bring the import back (AC-09
   await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
   await vi.waitFor(() => expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(1))
 
-  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
-  reject()
-  await vi.waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeEnabled(),
-  )
-
-  expect(screen.queryByRole('region', { name: 'Філаменти з файлу' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Скасувати імпорт' })).not.toBeInTheDocument()
-  await expectManualForm()
-  await user.clear(screen.getByLabelText('Назва виробу'))
-  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка 2')
-  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  expect(screen.getByRole('button', { name: 'Скасувати імпорт' })).toBeDisabled()
+  release()
   await screen.findByText('Інша сторінка')
-  const second = api.callsTo('POST', '/api/catalog/items')[1]?.body
-  expect(second).not.toHaveProperty('filament_mappings')
-  expect(second).toMatchObject({ plastics: [{ plastic_id: 'petg', usage_cg: 12000 }] })
 })

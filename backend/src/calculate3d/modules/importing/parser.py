@@ -26,7 +26,6 @@ SERVICE_PARTS = (MODEL, MODEL_SETTINGS, SLICE_INFO, PROJECT_SETTINGS)
 
 MAX_ENTRIES = 10_000
 MAX_PART_BYTES = 8_000_000
-MAX_CD_RECORD_BYTES = 65_535 + 46  # generous cap per central-directory record (name+extra+header)
 BAMBU_APPLICATION_PREFIX = "BambuStudio-"
 MAX_PRINT_TIME_S = 360_000_000  # 100 000 h, as for manual input (AC-14)
 MAX_FILAMENTS = 32  # one mapping key per row, up to 32 rows (data-model)
@@ -122,7 +121,7 @@ def _read_service_parts(buffer: Buffer) -> dict[str, bytes]:
     _check_central_directory(body)
     try:
         archive = zipfile.ZipFile(_BufferReader(body))
-    except (zipfile.BadZipFile, ValueError, EOFError) as e:
+    except (zipfile.BadZipFile, ValueError, EOFError, NotImplementedError) as e:
         # Something ZIP-like that will not open is damaged; anything else is a foreign format.
         damaged = not body or bytes(body[:2]) == _ZIP_SIGNATURE
         raise ParseError(CORRUPTED_FILE if damaged else NOT_SLICER_PROJECT) from e
@@ -172,25 +171,51 @@ class _BufferReader(io.RawIOBase):
 def _check_central_directory(body: memoryview) -> None:
     """Reject an over-limit entry count before `zipfile` builds its entry list (SAD §8).
 
-    Reads the declared count/size from the EOCD (or Zip64 EOCD); a missing or malformed EOCD is
-    left to `zipfile` to report.
+    Mirrors zipfile's EOCD / Zip64 lookup so the count is taken from where zipfile reads the
+    directory; a missing or malformed EOCD is left to `zipfile` to report.
     """
-    tail_start = max(0, len(body) - (22 + 65_535))
-    eocd = bytes(body[tail_start:]).rfind(b"PK\x05\x06")
-    if eocd < 0:
-        return
-    eocd += tail_start
-    if eocd + 22 > len(body):
-        return
+    if bytes(body[-22:-18]) == b"PK\x05\x06" and not any(body[-2:]):
+        eocd = len(body) - 22  # no archive comment: the EOCD is the last 22 bytes
+    else:
+        tail_start = max(0, len(body) - (22 + 65_535))
+        eocd = bytes(body[tail_start:]).rfind(b"PK\x05\x06")
+        if eocd < 0:
+            return
+        eocd += tail_start
+        if eocd + 22 > len(body):
+            return
     _, _, _, _, count, size, _, _ = struct.unpack("<4s4H2LH", body[eocd : eocd + 22])
-    if (count == 0xFFFF or size == 0xFFFFFFFF) and eocd >= 20:
-        locator = bytes(body[eocd - 20 : eocd])
-        if locator[:4] == b"PK\x06\x07":
-            (offset,) = struct.unpack("<Q", locator[8:16])
-            if offset + 56 <= len(body) and bytes(body[offset : offset + 4]) == b"PK\x06\x06":
-                count, size = struct.unpack("<QQ", body[offset + 32 : offset + 48])
-    if count > MAX_ENTRIES or size > MAX_ENTRIES * MAX_CD_RECORD_BYTES:
+    location = eocd  # where the central directory ends: the EOCD or the Zip64 record
+    if eocd >= 20 and bytes(body[eocd - 20 : eocd - 16]) == b"PK\x06\x07":
+        reloff = struct.unpack("<Q", body[eocd - 12 : eocd - 4])[0]
+        location = eocd - 20 - 56
+        if location < 0 or reloff > location:
+            return
+        if bytes(body[reloff : reloff + 4]) == b"PK\x06\x06":
+            location = reloff  # otherwise zipfile falls back to the record right before the locator
+        if bytes(body[location : location + 4]) != b"PK\x06\x06":
+            return
+        count, size = struct.unpack("<QQ", body[location + 32 : location + 48])
+    if count > MAX_ENTRIES:
         raise ParseError(CORRUPTED_FILE)
+    _count_records(body, location - size, location)
+
+
+def _count_records(body: memoryview, pos: int, end: int) -> None:
+    """Walk the central-directory headers `zipfile` will parse (it reads by byte size, not by the
+    declared count) and reject more than MAX_ENTRIES; a directory the walk can't follow is left to
+    `zipfile` to report."""
+    if pos < 0:
+        return
+    records = 0
+    while pos < end:
+        if pos + 46 > len(body) or bytes(body[pos : pos + 4]) != b"PK\x01\x02":
+            return
+        records += 1
+        if records > MAX_ENTRIES:
+            raise ParseError(CORRUPTED_FILE)
+        name, extra, comment = struct.unpack("<3H", body[pos + 28 : pos + 34])
+        pos += 46 + name + extra + comment
 
 
 def _is_unsafe_path(name: str) -> bool:

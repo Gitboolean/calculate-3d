@@ -13,7 +13,15 @@ from calculate3d.modules.importing import parser
 from calculate3d.modules.importing.router import read_body
 from tests.fixtures.slicer.bad_files import BAD_FILES, CORRUPTED_FILE
 
-OVER_LIMIT_CASES = ("too_many_entries", "forged_eocd_entry_count", "forged_zip64_entry_count")
+OVER_LIMIT_CASES = (
+    "too_many_entries",
+    "forged_eocd_entry_count",
+    "forged_zip64_entry_count",
+    "cd_flood_small_declared_count",
+    "cd_flood_eocd_offset_field_has_signature",
+    "cd_flood_zip64_locator_unflagged",
+    "cd_flood_zip64_record_at_locator_minus_56",
+)
 
 
 @pytest.mark.parametrize("name", OVER_LIMIT_CASES)

@@ -97,3 +97,18 @@ def test_too_many_entries_has_10001_entries() -> None:
     (case,) = [c for c in BAD_FILES if c.name == "too_many_entries"]
     with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
         assert len(zf.infolist()) == 10_001
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "cd_flood_small_declared_count",
+        "cd_flood_eocd_offset_field_has_signature",
+        "cd_flood_zip64_locator_unflagged",
+        "cd_flood_zip64_record_at_locator_minus_56",
+    ],
+)
+def test_cd_flood_cases_are_real_bypasses_that_plain_zipfile_accepts(name: str) -> None:
+    (case,) = [c for c in BAD_FILES if c.name == name]
+    with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
+        assert len(zf.infolist()) > 10_000

@@ -27,7 +27,7 @@
 | [T20](./T20-cancel-import-and-mapping-plastic-deleted.md) | Скасування імпорту в розрахунку і пояснення importing.plastic_not_found під час збереження | ui | Anton Pohorielov | M | T15, T16 | done |
 | [T21](./T21-ui-tests-ac03-ac08-ac14-integer-rounding.md) | UI-тести AC-03/AC-08/AC-14 після імпорту і цілочислове округлення мг → сг | ui | Anton Pohorielov | M | T20 | done |
 | [T22](./T22-client-side-file-size-check.md) | Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання | ui | Anton Pohorielov | S | T13 | done |
-| [T23](./T23-parser-real-cd-bound-and-ascii-digits.md) | Парсер: межа реального central directory, version > 6.3 і лише ASCII-цифри → importing.corrupted_file | app | Anton Pohorielov | M | T19 | todo |
+| [T23](./T23-parser-real-cd-bound-and-ascii-digits.md) | Парсер: межа реального central directory, version > 6.3 і лише ASCII-цифри → importing.corrupted_file | app | Anton Pohorielov | M | T19 | done |
 | [T24](./T24-plastic-not-found-invalidate-and-reslice-test.md) | plastic_not_found: інвалідувати пластики й довести скидання вибору на сторінці виробу | ui | Anton Pohorielov | S | T20 | todo |
 | [T25](./T25-calculate-import-round-key-and-cancel-restores-form.md) | Імпорт у розрахунку: key панелі за раундом імпорту і відновлення форми після скасування | ui | Anton Pohorielov | S | T20 | todo |
 

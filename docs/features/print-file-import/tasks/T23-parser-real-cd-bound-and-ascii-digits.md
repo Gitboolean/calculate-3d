@@ -7,7 +7,7 @@ acs: ["AC-13"]
 files_hint: ["backend/src/calculate3d/modules/importing/parser.py", "backend/src/calculate3d/modules/importing/normalize.py", "backend/tests/fixtures/slicer/bad_files.py", "backend/tests/unit/test_importing_archive_budget.py"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T23 — Парсер: межа реального central directory, version > 6.3 і лише ASCII-цифри → importing.corrupted_file

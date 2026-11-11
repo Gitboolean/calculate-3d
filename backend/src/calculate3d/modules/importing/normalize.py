@@ -13,8 +13,8 @@ MG_PER_G = 1000
 S_PER_MIN = 60
 
 _COLOR = re.compile(r"#([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})?")
-_GRAMS = re.compile(r"\d{1,16}(?:\.\d{1,3})?")
-_SECONDS = re.compile(r"\d{1,12}(?:\.\d{1,6})?")
+_GRAMS = re.compile(r"[0-9]{1,16}(?:\.[0-9]{1,3})?")
+_SECONDS = re.compile(r"[0-9]{1,12}(?:\.[0-9]{1,6})?")
 
 
 def filament_color(raw: str) -> str | None:

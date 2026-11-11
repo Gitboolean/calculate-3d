@@ -131,6 +131,86 @@ def _forged_entry_count(zip64: bool = False) -> bytes:
     return bytes(body)
 
 
+def _cd_flood_small_declared_count() -> bytes:
+    """A valid archive whose real central directory holds > ENTRY_LIMIT records, while the EOCD
+    still declares a single entry: `zipfile` reads the directory by its byte size, not the count."""
+    body = bytearray(build_zip(_service_parts()))
+    eocd = body.rfind(b"PK\x05\x06")
+    cd_size, cd_offset = struct.unpack_from("<II", body, eocd + 12)
+    # Central directory header with an empty name, no extra field, no comment, stored, 0 bytes.
+    record = struct.pack(
+        "<4s6H3I5H2I", b"PK\x01\x02", 20, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    )
+    flood = record * (ENTRY_LIMIT + 2_000)
+    body[eocd:eocd] = flood
+    eocd += len(flood)
+    struct.pack_into("<HH", body, eocd + 8, 1, 1)
+    struct.pack_into("<I", body, eocd + 12, cd_size + len(flood))
+    assert struct.unpack_from("<I", body, eocd + 16) == (cd_offset,)
+    return bytes(body)
+
+
+_EMPTY_CD_RECORD = struct.pack("<4s6H3I5H2I", b"PK\x01\x02", 20, 20, *[0] * 12, 0, 0)
+_FLOOD_RECORDS = ENTRY_LIMIT + 2_000
+
+
+def _flooded_parts() -> tuple[bytes, int, int]:
+    """A valid archive cut before its EOCD, with the flood appended to its central directory.
+
+    Returns (body without EOCD, central-directory offset, central-directory size incl. flood).
+    """
+    body = build_zip(_service_parts())
+    eocd = body.rfind(b"PK\x05\x06")
+    cd_size, cd_offset = struct.unpack_from("<II", body, eocd + 12)
+    flood = _EMPTY_CD_RECORD * _FLOOD_RECORDS
+    return body[:eocd] + flood, cd_offset, cd_size + len(flood)
+
+
+def _eocd(count: int, size: int, offset: int) -> bytes:
+    return struct.pack("<4s4H2LH", b"PK\x05\x06", 0, 0, count, count, size, offset, 0)
+
+
+def _cd_flood_eocd_offset_field_has_signature() -> bytes:
+    """Honest comment-less EOCD whose CD-offset field reads b"PK\\x05\\x06" (zipfile ignores it)."""
+    head, _, cd_size = _flooded_parts()
+    count = len(_service_parts()) + _FLOOD_RECORDS
+    return head + _eocd(count, cd_size, struct.unpack("<I", b"PK\x05\x06")[0])
+
+
+def _zip64_tail(record_at: int, reloff: int, diroffset: int, dirsize: int) -> bytes:
+    record = struct.pack("<IQHHIIQQQQ", 0x06064B50, 44, 45, 45, 0, 0, 1, 1, dirsize, diroffset)
+    locator = struct.pack("<IIQI", 0x07064B50, 0, reloff, 1)
+    assert record_at >= 0
+    return record + locator
+
+
+def _cd_flood_zip64_locator_unflagged() -> bytes:
+    """Classic EOCD says 1 entry / 46 bytes (nothing saturated); the Zip64 record has the truth."""
+    head, cd_offset, cd_size = _flooded_parts()
+    reloff = cd_offset + cd_size  # the Zip64 record directly follows the central directory
+    tail = _zip64_tail(reloff, reloff, cd_offset, cd_size)
+    assert len(head) == reloff
+    return head + tail + _eocd(1, 46, cd_offset)
+
+
+def _cd_flood_zip64_record_at_locator_minus_56() -> bytes:
+    """The locator's offset is wrong (no PK\\x06\\x06 there); the record sits at locator - 56."""
+    head, cd_offset, cd_size = _flooded_parts()
+    record_at = cd_offset + cd_size
+    reloff = record_at - len(_EMPTY_CD_RECORD)  # inside the CD: not a Zip64 record signature
+    tail = _zip64_tail(record_at, reloff, reloff - cd_size, cd_size)
+    assert len(head) == record_at
+    return head + tail + _eocd(1, 46, cd_offset)
+
+
+def _cd_extract_version_unsupported() -> bytes:
+    """The first central-directory record needs version 6.4 to extract (zipfile supports 6.3)."""
+    body = bytearray(build_zip(_service_parts()))
+    cd = body.find(b"PK\x01\x02")
+    struct.pack_into("<H", body, cd + 6, 64)
+    return bytes(body)
+
+
 def _oversized_part() -> bytes:
     def pad(text: str) -> str:
         return text + " " * (PART_LIMIT + 1 - len(text.encode()))
@@ -292,6 +372,21 @@ BAD_FILES: tuple[BadFile, ...] = (
     BadFile("too_many_entries", _too_many_entries(), CORRUPTED_FILE),
     BadFile("forged_eocd_entry_count", _forged_entry_count(), CORRUPTED_FILE),
     BadFile("forged_zip64_entry_count", _forged_entry_count(zip64=True), CORRUPTED_FILE),
+    BadFile("cd_flood_small_declared_count", _cd_flood_small_declared_count(), CORRUPTED_FILE),
+    BadFile(
+        "cd_flood_eocd_offset_field_has_signature",
+        _cd_flood_eocd_offset_field_has_signature(),
+        CORRUPTED_FILE,
+    ),
+    BadFile(
+        "cd_flood_zip64_locator_unflagged", _cd_flood_zip64_locator_unflagged(), CORRUPTED_FILE
+    ),
+    BadFile(
+        "cd_flood_zip64_record_at_locator_minus_56",
+        _cd_flood_zip64_record_at_locator_minus_56(),
+        CORRUPTED_FILE,
+    ),
+    BadFile("cd_extract_version_unsupported", _cd_extract_version_unsupported(), CORRUPTED_FILE),
     BadFile("oversized_part", _oversized_part(), CORRUPTED_FILE),
     BadFile("lying_size_header", _lying_size_header(), CORRUPTED_FILE),
     BadFile(
@@ -326,6 +421,7 @@ BAD_FILES: tuple[BadFile, ...] = (
     BadFile("nan_grams", _used_g("NaN"), CORRUPTED_FILE),
     BadFile("infinite_grams", _used_g("Infinity"), CORRUPTED_FILE),
     BadFile("exponent_grams", _used_g("1.154e1"), CORRUPTED_FILE),
+    BadFile("non_ascii_digits_in_usage", _used_g("\u0663" + "11.54"), CORRUPTED_FILE),
     BadFile("negative_grams", _used_g("-11.54"), CORRUPTED_FILE),
     BadFile("too_precise_grams", _used_g("11.5431"), CORRUPTED_FILE),
     BadFile("usage_mg_over_safe_integer", _used_g("9007199254740.992"), CORRUPTED_FILE),

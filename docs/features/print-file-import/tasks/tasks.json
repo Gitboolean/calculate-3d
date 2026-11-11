@@ -500,6 +500,41 @@
         "web/src/pages/calculate/ui/CalculatePage.tsx",
         "web/src/pages/calculate/ui/CalculatePage.test.tsx"
       ]
+    },
+    {
+      "id": "T26",
+      "title": "Парсер: межа байтів central directory, відмова на overlapped-записах і тести меж",
+      "layer": "app",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Bad-file випадки cd_fat_records, cd_oversized_within_entry_limit, cd_flood_zip64_extensible_data, non_ascii_digits_in_print_time і overlapped_entries дають 422 importing.corrupted_file, а ZipFile не будується для CD-випадків; архів рівно з 10 000 записів не відхиляється як corrupted_file; кожен тест червоніє при відкаті свого фіксу; make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/unit/test_importing_archive_budget.py",
+        "backend/tests/unit/test_importing_parser.py"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "Імпорт у розрахунку: один стан форми й імпорту з функціональними оновленнями",
+      "layer": "ui",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-09b"
+      ],
+      "dod": "Три тести CalculatePage (скасування під час розбору повторного імпорту, A → B → скасувати, скасування під час збереження з 409) показують форму до імпорту і збереження без filament_mappings; кожен червоніє на поточному коді; make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
     }
   ]
 }

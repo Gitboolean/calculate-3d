@@ -47,15 +47,18 @@ const keyOf = (b: Body) =>
   `${JSON.stringify(b.plastics.map((p) => [p.plastic_id, p.usage_cg]))}|${b.print_time_s}`
 
 function serve({
-  parse = () => json(RESLICED),
+  parse = (() => json(RESLICED)) as () => Response | Promise<Response>,
   items = [SAVED] as (typeof SAVED)[],
   update = undefined as ((call: ApiCall) => Response | Promise<Response>) | undefined,
   plastics = (() => PLASTICS) as () => typeof PLASTICS,
+  /** While set, the item GET waits for it (the re-read inside «import a file»). */
+  readGate = undefined as { current: Promise<void> | undefined } | undefined,
 } = {}) {
   let reads = 0
   return mockApi({
     'GET /api/pricing/plastics': () => json({ items: plastics() }),
-    'GET /api/catalog/items/i1': () => {
+    'GET /api/catalog/items/i1': async () => {
+      await readGate?.current
       const item = items[Math.min(reads++, items.length - 1)] ?? SAVED
       const kop = QUOTES[keyOf(item)] ?? 1
       return json({ ...item, quote: { min_donation_kop: kop, breakdown: BREAKDOWN } })
@@ -326,4 +329,110 @@ test('«Імпортувати файл» is disabled while the confirm is savin
   await vi.waitFor(() =>
     expect(screen.queryByRole('region', { name: 'Було → стало' })).not.toBeInTheDocument(),
   )
+})
+
+const RESLICED_B = {
+  ...RESLICED,
+  filaments: [{ ...RESLICED.filaments[0], usage_mg: 96000 }],
+}
+
+async function importSecond() {
+  await userEvent.upload(
+    screen.getByLabelText('Файл слайсера'),
+    new File([new Uint8Array([0x50, 0x4b])], 'pidstavka-b.gcode.3mf'),
+  )
+}
+
+test('«Підтвердити» is disabled while a second import is parsing (R12)', async () => {
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  let parses = 0
+  serve({
+    parse: async () => {
+      if (parses++ === 1) await held
+      return json(parses === 1 ? RESLICED : RESLICED_B)
+    },
+  })
+  renderItem()
+  const panel = await importResliced()
+  await within(panel).findByText(/60,73 ₴/)
+  expect(within(panel).getByRole('button', { name: 'Підтвердити' })).toBeEnabled()
+
+  await importSecond()
+
+  await screen.findByRole('button', { name: 'Імпортую…' })
+  expect(within(panel).getByRole('button', { name: 'Підтвердити' })).toBeDisabled()
+  release()
+  const next = await screen.findByText('PLA білий: 80 г → 96 г')
+  expect(next).toBeInTheDocument()
+  await vi.waitFor(() =>
+    expect(
+      within(screen.getByRole('region', { name: 'Було → стало' })).getByRole('button', {
+        name: 'Підтвердити',
+      }),
+    ).toBeEnabled(),
+  )
+})
+
+test('«Підтвердити» stays disabled while the item is re-read after the second parse (R12)', async () => {
+  let release = () => {}
+  const readGate: { current: Promise<void> | undefined } = { current: undefined }
+  serve({ readGate })
+  renderItem()
+  const panel = await importResliced()
+  await within(panel).findByText(/60,73 ₴/)
+  readGate.current = new Promise<void>((resolve) => (release = resolve))
+
+  await importSecond()
+
+  // The parse resolved at once; only the item GET is pending.
+  await vi.waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Імпортувати файл' })).toBeEnabled(),
+  )
+  expect(within(panel).getByRole('button', { name: 'Підтвердити' })).toBeDisabled()
+  readGate.current = undefined
+  release()
+  await vi.waitFor(() =>
+    expect(
+      within(screen.getByRole('region', { name: 'Було → стало' })).getByRole('button', {
+        name: 'Підтвердити',
+      }),
+    ).toBeEnabled(),
+  )
+})
+
+test('a rejected confirm resolves the index against what was sent, not the current choices (R13)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const two = {
+    ...RESLICED,
+    filaments: [
+      RESLICED.filaments[0],
+      { ...RESLICED.filaments[0], filament_color: '#000000', usage_mg: 20000, plastic_id: 'petg' },
+    ],
+  }
+  const api = serve({
+    parse: () => json(two),
+    update: async () => {
+      await held
+      return problem(422, 'importing.plastic_not_found', {
+        field: 'filament_mappings.0.plastic_id',
+      })
+    },
+  })
+  renderItem()
+  const panel = await importResliced()
+  await within(panel).findByText(/70,00 ₴/)
+  await user.click(within(panel).getByRole('button', { name: 'Підтвердити' }))
+  await vi.waitFor(() => expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(1))
+
+  // While the PUT is in flight the first filament goes back to «Оберіть пластик».
+  await user.selectOptions(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`), '')
+  release()
+
+  await screen.findByText('Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.')
+  expect(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).toHaveValue('')
+  // The rejected index 0 was the first filament of the SENT array; the second one is untouched.
+  expect(screen.getByLabelText(`Пластик для ${PLA} #000000`)).toHaveValue('petg')
 })

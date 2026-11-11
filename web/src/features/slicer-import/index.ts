@@ -9,6 +9,7 @@ export {
   type MergeGroup,
 } from './model/compose'
 export { diffItem, type ItemDiff, type PlasticDiff } from './model/diff'
+export { useIsParsingSlicerFile } from './api/parse'
 export { ImportFileButton } from './ui/ImportFileButton'
 export { FilamentMappingPanel } from './ui/FilamentMappingPanel'
 export { clearRejectedChoice, startImport, type ImportState } from './model/state'

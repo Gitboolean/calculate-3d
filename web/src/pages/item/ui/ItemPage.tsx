@@ -5,7 +5,12 @@ import { useIsUpdatingItem, useItem } from '@/entities/item'
 import { usePlastics } from '@/entities/plastic'
 import { DeleteItemButton } from '@/features/delete-item'
 import { MissingSettings } from '@/features/quote-form'
-import { ImportFileButton, startImport, type ImportState } from '@/features/slicer-import'
+import {
+  ImportFileButton,
+  startImport,
+  useIsParsingSlicerFile,
+  type ImportState,
+} from '@/features/slicer-import'
 import { isProblem } from '@/shared/api'
 import { formatDecimal } from '@/shared/lib'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
@@ -27,13 +32,21 @@ export function ItemPage() {
   const isUpdating = useIsUpdatingItem()
   const [imported, setImported] = useState<ImportState | null>(null)
   const [importRound, setImportRound] = useState(0)
+  // From parse success until the re-read item is shown: the file is parsed but not yet imported.
+  const [reading, setReading] = useState(false)
+  const importing = useIsParsingSlicerFile() || reading
 
   /** «Було» is the item as saved now: unsaved edits are dropped and the item is re-read (AC-05). */
   async function importFile(file: Parameters<typeof startImport>[0]) {
     setEditing(false)
-    await item.refetch()
-    setImported(startImport(file))
-    setImportRound((n) => n + 1)
+    setReading(true)
+    try {
+      await item.refetch()
+      setImported(startImport(file))
+      setImportRound((n) => n + 1)
+    } finally {
+      setReading(false)
+    }
   }
 
   if (isProblem(item.error, 'catalog.item_not_found')) {
@@ -73,6 +86,7 @@ export function ItemPage() {
           item={detail}
           plastics={plastics.data}
           imported={imported}
+          importing={importing}
           onImportedChange={setImported}
           onImportedUpdate={(update) => {
             setImported((current) => current && update(current))

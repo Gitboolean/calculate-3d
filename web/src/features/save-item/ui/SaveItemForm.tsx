@@ -18,11 +18,14 @@ export function SaveItemForm({
   input,
   filamentMappings = [],
   onSaveError,
+  disabled = false,
 }: {
   input: QuoteInput | null
   filamentMappings?: Schemas['FilamentMappingInput'][]
   /** Lets the screen react to a rejected save, e.g. ask for a deleted plastic again. */
   onSaveError?: (error: unknown, sent: Schemas['FilamentMappingInput'][]) => void
+  /** The screen is busy elsewhere, e.g. parsing: the file about to land would change what is saved. */
+  disabled?: boolean
 }) {
   const [name, setName] = useState('')
   const [errors, setErrors] = useState<{ name?: string; form?: string }>({})
@@ -31,7 +34,7 @@ export function SaveItemForm({
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (!input) return
+    if (disabled || !input) return
     const nameError = validateItemName(name)
     if (nameError) {
       setErrors({ name: nameError })
@@ -68,7 +71,7 @@ export function SaveItemForm({
         </p>
       )}
       {errors.form && <p className="text-destructive text-sm">{errors.form}</p>}
-      <Button type="submit" disabled={!input || create.isPending}>
+      <Button type="submit" disabled={disabled || !input || create.isPending}>
         Зберегти в каталог
       </Button>
     </form>

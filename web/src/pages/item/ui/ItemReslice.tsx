@@ -21,6 +21,8 @@ type ItemResliceProps = {
   item: ItemDetail
   plastics: Plastic[]
   imported: ImportState
+  /** A newer file is on its way and would remount this panel, dropping the confirm's result (AC-08). */
+  importing: boolean
   onImportedChange: (state: ImportState) => void
   /** Applies a rejection to the import as it is now, not as this render saw it (AC-08). */
   onImportedUpdate: (update: (current: ImportState) => ImportState) => void
@@ -32,6 +34,7 @@ export function ItemReslice({
   item,
   plastics,
   imported,
+  importing,
   onImportedChange,
   onImportedUpdate,
   onDone,
@@ -94,7 +97,7 @@ export function ItemReslice({
         plasticName={(id) => names.get(id) ?? 'Невідомий пластик'}
         wasDonationKop={item.quote.min_donation_kop}
         becameDonationKop={became && quote ? quote.min_donation_kop : null}
-        canConfirm={became !== null && !!quote && !error}
+        canConfirm={!importing && became !== null && !!quote && !error}
         isSaving={update.isPending}
         onConfirm={confirm}
         onCancel={onDone}

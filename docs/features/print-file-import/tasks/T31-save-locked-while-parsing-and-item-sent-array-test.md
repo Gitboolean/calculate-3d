@@ -7,7 +7,7 @@ acs: ["AC-06", "AC-08"]
 files_hint: ["web/src/features/slicer-import/api/parse.ts", "web/src/features/slicer-import/index.ts", "web/src/pages/item/ui/ItemPage.tsx", "web/src/pages/item/ui/ItemReslice.tsx", "web/src/pages/item/ui/ItemPage.reslice.test.tsx", "web/src/pages/calculate/ui/CalculatePage.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T31 — Збереження заблоковане, поки парситься файл; тест /item на надісланий масив
@@ -44,5 +44,5 @@ Re-review r6. R12: T30 блокує «Імпортувати файл», пок�
 > загубитися через ремаунт; на `/item` тест фіксує, що індекс відхиленого маппінгу береться з
 > надісланого масиву; кожен новий тест червоніє на поточному коді; `make check` зелений.
 
-- [ ] Спершу червоний тест, що відтворює знахідку
-- [ ] `make check` зелений
+- [x] Спершу червоний тест, що відтворює знахідку
+- [x] `make check` зелений

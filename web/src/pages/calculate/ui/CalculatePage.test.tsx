@@ -883,3 +883,26 @@ test('«Імпортувати файл» is disabled while the save is in fligh
   release()
   await screen.findByText('Інша сторінка')
 })
+
+test('«Зберегти в каталог» is disabled while a file is parsing (R12)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  serve({ parsed: [VTULKA, VTULKA_B], holdSecondParse: held })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка')
+  expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeEnabled()
+
+  await importFile('vtulka_B.gcode.3mf')
+
+  await screen.findByRole('button', { name: 'Імпортую…' })
+  expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
+  release()
+  expect(await screen.findByText('19,00 ₴')).toBeInTheDocument()
+  await vi.waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeEnabled(),
+  )
+})

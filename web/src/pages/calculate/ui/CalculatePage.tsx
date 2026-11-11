@@ -21,6 +21,7 @@ import {
   ImportFileButton,
   mappingsFor,
   startImport,
+  useIsParsingSlicerFile,
   type ImportState,
 } from '@/features/slicer-import'
 import { isProblem } from '@/shared/api'
@@ -39,6 +40,7 @@ export function CalculatePage() {
   const refreshPlastics = useRefreshPlastics()
   const settings = usePriceSettings()
   const isSaving = useIsCreatingItem()
+  const isParsing = useIsParsingSlicerFile()
   // One object so every step is a functional update of the current state: TanStack mutation
   // callbacks fire from stale render closures (AC-07, AC-09b).
   const [state, setState] = useState<PageState>({
@@ -171,6 +173,7 @@ export function CalculatePage() {
         <CardContent>
           {/* Only a calculation with its donation on screen can be saved (AC-10). */}
           <SaveItemForm
+            disabled={isParsing}
             input={quote && !importBlocks ? input : null}
             filamentMappings={imported ? mappingsFor(imported.file, imported.choice) : []}
             onSaveError={(e, sent) => {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { usePlastics } from '@/entities/plastic'
+import { useRefreshPlastics, usePlastics } from '@/entities/plastic'
 import { usePriceSettings } from '@/entities/price-settings'
 import { useQuote } from '@/entities/quote'
 import {
@@ -22,11 +22,13 @@ import {
   startImport,
   type ImportState,
 } from '@/features/slicer-import'
+import { isProblem } from '@/shared/api'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
 export function CalculatePage() {
   const plastics = usePlastics()
+  const refreshPlastics = useRefreshPlastics()
   const settings = usePriceSettings()
   const [value, setValue] = useState(emptyQuoteForm)
   const [imported, setImported] = useState<ImportState | null>(null)
@@ -135,7 +137,10 @@ export function CalculatePage() {
           <SaveItemForm
             input={quote && !importBlocks ? input : null}
             filamentMappings={imported ? mappingsFor(imported.file, imported.choice) : []}
-            onSaveError={(e) => imported && setImported(clearRejectedChoice(imported, e))}
+            onSaveError={(e) => {
+              if (isProblem(e, 'importing.plastic_not_found')) void refreshPlastics()
+              if (imported) setImported(clearRejectedChoice(imported, e))
+            }}
           />
         </CardContent>
       </Card>

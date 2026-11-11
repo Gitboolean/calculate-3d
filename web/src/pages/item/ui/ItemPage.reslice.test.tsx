@@ -48,10 +48,11 @@ function serve({
   parse = () => json(RESLICED),
   items = [SAVED] as (typeof SAVED)[],
   update = undefined as ((call: ApiCall) => Response) | undefined,
+  plastics = (() => PLASTICS) as () => typeof PLASTICS,
 } = {}) {
   let reads = 0
   return mockApi({
-    'GET /api/pricing/plastics': json({ items: PLASTICS }),
+    'GET /api/pricing/plastics': () => json({ items: plastics() }),
     'GET /api/catalog/items/i1': () => {
       const item = items[Math.min(reads++, items.length - 1)] ?? SAVED
       const kop = QUOTES[keyOf(item)] ?? 1
@@ -192,4 +193,36 @@ test('confirming with a mapped plastic deleted meanwhile says so, not "try again
     ),
   ).toBeInTheDocument()
   expect(screen.queryByText(/Спробуйте ще раз/)).not.toBeInTheDocument()
+  expect(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).toHaveValue('')
+  expect(within(panel).getByRole('button', { name: 'Підтвердити' })).toBeDisabled()
+})
+
+test('a deleted mapped plastic disappears from the plastic choices after the rejected confirm (R4)', async () => {
+  const user = userEvent.setup()
+  let deleted = false
+  serve({
+    plastics: () => (deleted ? PLASTICS.filter((p) => p.id !== 'pla') : PLASTICS),
+    update: () => {
+      deleted = true
+      return problem(422, 'importing.plastic_not_found', {
+        field: 'filament_mappings.0.plastic_id',
+      })
+    },
+  })
+  renderItem()
+  const panel = await importResliced()
+  await within(panel).findByText(/60,73 ₴/)
+  const select = screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)
+  expect(within(select).getByRole('option', { name: 'PLA білий' })).toBeInTheDocument()
+
+  await user.click(within(panel).getByRole('button', { name: 'Підтвердити' }))
+
+  await screen.findByText('Пластик, обраний для філамента з файлу, уже видалено — оберіть інший.')
+  await vi.waitFor(() =>
+    expect(
+      within(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).queryByRole('option', {
+        name: 'PLA білий',
+      }),
+    ).not.toBeInTheDocument(),
+  )
 })

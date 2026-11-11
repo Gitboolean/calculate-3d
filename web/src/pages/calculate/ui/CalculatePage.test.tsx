@@ -50,7 +50,7 @@ const QUOTES: Record<string, unknown> = {
 type Body = { plastics: { plastic_id: string; usage_cg: number }[]; print_time_s: number }
 
 function serve({
-  plastics = PLASTICS,
+  plastics = PLASTICS as typeof PLASTICS | (() => typeof PLASTICS),
   settings = SETTINGS as typeof SETTINGS | null,
   parsed = [] as unknown[],
   save = undefined as ((call: ApiCall) => Response) | undefined,
@@ -60,7 +60,8 @@ function serve({
     'POST /api/importing/parse': () => json(parsed[parses++] ?? parsed.at(-1)),
     'POST /api/catalog/items': (call: ApiCall) =>
       save ? save(call) : json({ id: 'item-1', ...(call.body as object) }, 201),
-    'GET /api/pricing/plastics': json({ items: plastics }),
+    'GET /api/pricing/plastics': () =>
+      json({ items: typeof plastics === 'function' ? plastics() : plastics }),
     'GET /api/pricing/settings': json(settings),
     'POST /api/costing/quote': (call: ApiCall) => {
       const body = call.body as Body
@@ -516,6 +517,34 @@ test('a save rejected for a deleted mapped plastic says so and asks for the plas
   expect(screen.queryByText(/Спробуйте ще раз/)).not.toBeInTheDocument()
   expect(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).toHaveValue('')
   expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeDisabled()
+})
+
+test('a deleted mapped plastic disappears from the plastic choices after the rejected save (R4)', async () => {
+  const user = userEvent.setup()
+  let deleted = false
+  serve({
+    parsed: [VTULKA],
+    plastics: () => (deleted ? PLASTICS.filter((p) => p.id !== 'pla') : PLASTICS),
+    save: () => {
+      deleted = true
+      return problem(422, 'importing.plastic_not_found', {
+        field: 'filament_mappings.0.plastic_id',
+      })
+    },
+  })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка')
+  expect(screen.getAllByRole('option', { name: 'PLA білий' }).length).toBeGreaterThan(0)
+
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+
+  expect(await screen.findByText(GONE)).toBeInTheDocument()
+  await vi.waitFor(() =>
+    expect(screen.queryAllByRole('option', { name: 'PLA білий' })).toHaveLength(0),
+  )
 })
 
 test('a re-chosen plastic survives manual row edits and is what gets saved (AC-08)', async () => {

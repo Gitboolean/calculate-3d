@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { useUpdateItem, type ItemDetail } from '@/entities/item'
-import type { Plastic } from '@/entities/plastic'
+import { useRefreshPlastics, type Plastic } from '@/entities/plastic'
 import { useQuote } from '@/entities/quote'
 import { parseQuoteForm, QuoteError, QuoteForm, quoteFormFrom } from '@/features/quote-form'
 import { saveError } from '@/features/save-item'
@@ -14,6 +14,7 @@ import {
   WasBecomePanel,
   type ImportState,
 } from '@/features/slicer-import'
+import { isProblem } from '@/shared/api'
 
 type ItemResliceProps = {
   /** The item as saved right now — refetched when the file was imported (AC-05 «було»). */
@@ -38,6 +39,7 @@ export function ItemReslice({
   })
   const [saveFailure, setSaveFailure] = useState<string>()
   const update = useUpdateItem()
+  const refreshPlastics = useRefreshPlastics()
   const ready = compose(imported.file, imported.choice, imported.confirmed).kind === 'ready'
   const { input, errors } = parseQuoteForm(value)
   const became = ready ? input : null
@@ -65,6 +67,7 @@ export function ItemReslice({
         onSuccess: onDone,
         onError: (e) => {
           setSaveFailure(saveError(e).form ?? saveError(e).name)
+          if (isProblem(e, 'importing.plastic_not_found')) void refreshPlastics()
           onImportedChange(clearRejectedChoice(imported, e))
         },
       },

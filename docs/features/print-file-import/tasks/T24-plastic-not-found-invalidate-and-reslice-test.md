@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-08"]
 files_hint: ["web/src/entities/plastic/api/plastics.ts", "web/src/entities/plastic/index.ts", "web/src/pages/calculate/ui/CalculatePage.tsx", "web/src/pages/item/ui/ItemReslice.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx", "web/src/pages/item/ui/ItemPage.reslice.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T24 — plastic_not_found: інвалідувати пластики й довести скидання вибору на сторінці виробу

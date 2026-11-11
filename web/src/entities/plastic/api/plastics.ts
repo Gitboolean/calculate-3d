@@ -15,6 +15,12 @@ export function usePlastics() {
   })
 }
 
+/** Refetch only the plastic list (no price eviction) — for a screen that found a plastic gone. */
+export function useRefreshPlastics() {
+  const client = useQueryClient()
+  return () => client.invalidateQueries({ queryKey: plasticsKey })
+}
+
 function useInvalidatePlastics() {
   const client = useQueryClient()
   return () => {

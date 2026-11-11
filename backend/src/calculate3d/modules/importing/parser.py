@@ -25,6 +25,7 @@ PROJECT_SETTINGS = "Metadata/project_settings.config"
 SERVICE_PARTS = (MODEL, MODEL_SETTINGS, SLICE_INFO, PROJECT_SETTINGS)
 
 MAX_ENTRIES = 10_000
+MAX_CD_BYTES = 4_000_000  # real central directories are a few KB
 MAX_PART_BYTES = 8_000_000
 BAMBU_APPLICATION_PREFIX = "BambuStudio-"
 MAX_PRINT_TIME_S = 360_000_000  # 100 000 h, as for manual input (AC-14)
@@ -132,6 +133,9 @@ def _read_service_parts(buffer: Buffer) -> dict[str, bytes]:
             raise ParseError(CORRUPTED_FILE)
         if any(_is_unsafe_path(name) for name in names):
             raise ParseError(CORRUPTED_FILE)
+        # Two entries over the same local header are an overlapped (zip-bomb) layout.
+        if len({entry.header_offset for entry in entries}) != len(entries):
+            raise ParseError(CORRUPTED_FILE)
         return {
             entry.filename: _inflate(archive, entry)
             for entry in entries
@@ -196,7 +200,7 @@ def _check_central_directory(body: memoryview) -> None:
         if bytes(body[location : location + 4]) != b"PK\x06\x06":
             return
         count, size = struct.unpack("<QQ", body[location + 32 : location + 48])
-    if count > MAX_ENTRIES:
+    if count > MAX_ENTRIES or size > MAX_CD_BYTES:
         raise ParseError(CORRUPTED_FILE)
     _count_records(body, location - size, location)
 

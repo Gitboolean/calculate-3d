@@ -203,6 +203,91 @@ def _cd_flood_zip64_record_at_locator_minus_56() -> bytes:
     return head + tail + _eocd(1, 46, cd_offset)
 
 
+def _cd_record(
+    name: bytes, extra: bytes = b"", comment: bytes = b"", header_offset: int = 0
+) -> bytes:
+    """A stored, empty central-directory record (all sizes 0) with the given variable fields."""
+    header = struct.pack(
+        "<4s6H3I5H2I",
+        b"PK\x01\x02",
+        20,
+        20,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        len(name),
+        len(extra),
+        len(comment),
+        0,
+        0,
+        0,
+        header_offset,
+    )
+    return header + name + extra + comment
+
+
+def _with_cd_records(records: list[bytes]) -> bytes:
+    """A valid archive whose central directory also holds `records`, with an honest EOCD."""
+    body = build_zip(_service_parts())
+    eocd = body.rfind(b"PK\x05\x06")
+    cd_size, cd_offset = struct.unpack_from("<II", body, eocd + 12)
+    extra = b"".join(records)
+    count = len(_service_parts()) + len(records)
+    return body[:eocd] + extra + _eocd(count, cd_size + len(extra), cd_offset)
+
+
+# Well over any sane central-directory byte cap (real ones are 1-5 KB), still a few MB to build.
+_FAT_RECORDS = 100  # 100 x 65 535-byte names = 6.5 MB central directory
+_WITHIN_LIMIT_RECORDS = 1_200  # 1 200 x ~5 KB = 6.0 MB central directory, far below ENTRY_LIMIT
+
+
+def _cd_fat_records() -> bytes:
+    """Few records, but each carries a 65 535-byte name: the directory is megabytes."""
+    return _with_cd_records(
+        [_cd_record(f"{n:05d}".encode().ljust(65_535, b"n")) for n in range(_FAT_RECORDS)]
+    )
+
+
+def _cd_oversized_within_entry_limit() -> bytes:
+    """Under ENTRY_LIMIT records (each with a 5 KB comment), yet the directory is > 4 MB."""
+    return _with_cd_records(
+        [
+            _cd_record(f"Auxiliaries/f{n}".encode(), comment=b"c" * 5_000)
+            for n in range(_WITHIN_LIMIT_RECORDS)
+        ]
+    )
+
+
+def _cd_flood_zip64_extensible_data() -> bytes:
+    """Zip64 record with 64 bytes of extensible data: the locator's offset (cd end) is the only
+    place that finds it; classic EOCD says 1 entry / 46 bytes."""
+    head, cd_offset, cd_size = _flooded_parts()
+    ext = b"E" * 64
+    reloff = cd_offset + cd_size
+    record = struct.pack(
+        "<IQHHIIQQQQ", 0x06064B50, 44 + len(ext), 45, 45, 0, 0, 1, 1, cd_size, cd_offset
+    )
+    locator = struct.pack("<IIQI", 0x07064B50, 0, reloff, 1)
+    assert len(head) == reloff
+    return head + record + ext + locator + _eocd(1, 46, cd_offset)
+
+
+def _overlapped_entries() -> bytes:
+    """Two central-directory records (the model part and an extra one) share one header offset."""
+    body = build_zip(_service_parts())
+    eocd = body.rfind(b"PK\x05\x06")
+    cd_size, cd_offset = struct.unpack_from("<II", body, eocd + 12)
+    (name_len,) = struct.unpack_from("<H", body, cd_offset + 28)
+    assert body[cd_offset + 46 : cd_offset + 46 + name_len] == MODEL.encode()
+    (shared,) = struct.unpack_from("<I", body, cd_offset + 42)
+    twin = _cd_record(b"Auxiliaries/twin", header_offset=shared)
+    return body[:eocd] + twin + _eocd(len(_service_parts()) + 1, cd_size + len(twin), cd_offset)
+
+
 def _cd_extract_version_unsupported() -> bytes:
     """The first central-directory record needs version 6.4 to extract (zipfile supports 6.3)."""
     body = bytearray(build_zip(_service_parts()))
@@ -386,6 +471,10 @@ BAD_FILES: tuple[BadFile, ...] = (
         _cd_flood_zip64_record_at_locator_minus_56(),
         CORRUPTED_FILE,
     ),
+    BadFile("cd_fat_records", _cd_fat_records(), CORRUPTED_FILE),
+    BadFile("cd_oversized_within_entry_limit", _cd_oversized_within_entry_limit(), CORRUPTED_FILE),
+    BadFile("cd_flood_zip64_extensible_data", _cd_flood_zip64_extensible_data(), CORRUPTED_FILE),
+    BadFile("overlapped_entries", _overlapped_entries(), CORRUPTED_FILE),
     BadFile("cd_extract_version_unsupported", _cd_extract_version_unsupported(), CORRUPTED_FILE),
     BadFile("oversized_part", _oversized_part(), CORRUPTED_FILE),
     BadFile("lying_size_header", _lying_size_header(), CORRUPTED_FILE),
@@ -451,6 +540,7 @@ BAD_FILES: tuple[BadFile, ...] = (
     BadFile("unknown_xml_encoding", _unknown_xml_encoding(), CORRUPTED_FILE),
     BadFile("local_header_name_not_utf8", _local_name_not_utf8(), CORRUPTED_FILE),
     # Step 5 — file bounds (AC-14).
+    BadFile("non_ascii_digits_in_print_time", _prediction("\u0663" + "600"), CORRUPTED_FILE),
     BadFile("zero_print_time", _prediction("0"), PRINT_TIME_OUT_OF_RANGE),
     BadFile("too_long_print_time", _prediction("360000001"), PRINT_TIME_OUT_OF_RANGE),
     BadFile("no_filament_usage", _used_g("0.00"), NO_FILAMENT_USAGE),

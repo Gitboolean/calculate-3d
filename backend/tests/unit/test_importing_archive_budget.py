@@ -21,6 +21,9 @@ OVER_LIMIT_CASES = (
     "cd_flood_eocd_offset_field_has_signature",
     "cd_flood_zip64_locator_unflagged",
     "cd_flood_zip64_record_at_locator_minus_56",
+    "cd_flood_zip64_extensible_data",
+    "cd_fat_records",
+    "cd_oversized_within_entry_limit",
 )
 
 

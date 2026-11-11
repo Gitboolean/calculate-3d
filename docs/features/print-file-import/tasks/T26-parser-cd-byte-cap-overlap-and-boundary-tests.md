@@ -7,7 +7,7 @@ acs: ["AC-13"]
 files_hint: ["backend/src/calculate3d/modules/importing/parser.py", "backend/tests/fixtures/slicer/bad_files.py", "backend/tests/unit/test_importing_archive_budget.py", "backend/tests/unit/test_importing_parser.py"]
 owner: "Anton Pohorielov"
 estimate: "M"
-status: "todo"
+status: "done"
 ---
 
 # T26 — Парсер: межа байтів central directory, відмова на overlapped-записах і тести меж

@@ -1,6 +1,8 @@
+import io
 import json
 import re
 import time
+import warnings
 import zipfile
 from collections.abc import Callable
 
@@ -17,10 +19,12 @@ from calculate3d.modules.importing.parser import (
 from tests.fixtures.slicer import LITTLE_TREES, VTULKA_PROJECT, VTULKA_SLICED
 from tests.fixtures.slicer.bad_files import (
     BAD_FILES,
+    ENTRY_LIMIT,
     PROJECT_SETTINGS,
     SERVICE_PARTS,
     SLICE_INFO,
     BadFile,
+    _service_parts,
     build_zip,
 )
 
@@ -228,3 +232,29 @@ def test_every_bad_file_is_rejected_with_its_code(case: BadFile) -> None:
     with pytest.raises(ParseError) as err:
         parse(case.body)
     assert err.value.code == case.expected_code
+
+
+def test_archive_with_exactly_the_entry_limit_is_not_rejected_by_the_archive_limits() -> None:
+    parts = _service_parts()
+    filler = [(f"Auxiliaries/f{n}", b"") for n in range(ENTRY_LIMIT - len(parts))]
+    body = build_zip([*parts, *filler])
+    with zipfile.ZipFile(io.BytesIO(body)) as zf:
+        assert len(zf.infolist()) == ENTRY_LIMIT
+
+    # Valid in every other respect, so it must import; any ParseError here is a boundary bug.
+    assert parse(body).print_time_s > 0
+
+
+def test_overlapped_entries_are_rejected_without_zipfile_warning_or_stderr_noise(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (case,) = _cases({"overlapped_entries"})
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with pytest.raises(ParseError) as err:
+            read_sliced_plate(case.body)
+    assert err.value.code == "importing.corrupted_file"
+    assert not caught, [str(w.message) for w in caught]
+    out = capsys.readouterr()
+    assert "Overlapped" not in out.err + out.out
+    assert "twin" not in str(err.value)  # nothing file-derived reaches the error

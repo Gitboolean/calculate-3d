@@ -1,4 +1,5 @@
 import io
+import struct
 import zipfile
 
 import pytest
@@ -106,9 +107,27 @@ def test_too_many_entries_has_10001_entries() -> None:
         "cd_flood_eocd_offset_field_has_signature",
         "cd_flood_zip64_locator_unflagged",
         "cd_flood_zip64_record_at_locator_minus_56",
+        "cd_flood_zip64_extensible_data",
     ],
 )
 def test_cd_flood_cases_are_real_bypasses_that_plain_zipfile_accepts(name: str) -> None:
     (case,) = [c for c in BAD_FILES if c.name == name]
     with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
         assert len(zf.infolist()) > 10_000
+
+
+@pytest.mark.parametrize("name", ["cd_fat_records", "cd_oversized_within_entry_limit"])
+def test_cd_byte_cases_stay_under_the_entry_limit_but_over_four_megabytes(name: str) -> None:
+    (case,) = [c for c in BAD_FILES if c.name == name]
+    with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
+        assert len(zf.infolist()) <= 10_000
+    eocd = case.body.rfind(b"PK\x05\x06")
+    (cd_size,) = struct.unpack_from("<I", case.body, eocd + 12)
+    assert cd_size > 4 * 1024 * 1024
+
+
+def test_overlapped_entries_share_one_header_offset_in_plain_zipfile() -> None:
+    (case,) = [c for c in BAD_FILES if c.name == "overlapped_entries"]
+    with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
+        offsets = [info.header_offset for info in zf.infolist()]
+    assert len(offsets) != len(set(offsets))

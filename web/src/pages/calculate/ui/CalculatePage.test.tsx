@@ -53,13 +53,20 @@ function serve({
   plastics = PLASTICS as typeof PLASTICS | (() => typeof PLASTICS),
   settings = SETTINGS as typeof SETTINGS | null,
   parsed = [] as unknown[],
-  save = undefined as ((call: ApiCall) => Response) | undefined,
+  save = undefined as ((call: ApiCall, n: number) => Response | Promise<Response>) | undefined,
+  /** Holds the response of the second parse until this promise settles. */
+  holdSecondParse = undefined as Promise<void> | undefined,
 } = {}) {
   let parses = 0
+  let saves = 0
   return mockApi({
-    'POST /api/importing/parse': () => json(parsed[parses++] ?? parsed.at(-1)),
+    'POST /api/importing/parse': async () => {
+      const n = parses++
+      if (n === 1) await holdSecondParse
+      return json(parsed[n] ?? parsed.at(-1))
+    },
     'POST /api/catalog/items': (call: ApiCall) =>
-      save ? save(call) : json({ id: 'item-1', ...(call.body as object) }, 201),
+      save ? save(call, saves++) : json({ id: 'item-1', ...(call.body as object) }, 201),
     'GET /api/pricing/plastics': () =>
       json({ items: typeof plastics === 'function' ? plastics() : plastics }),
     'GET /api/pricing/settings': json(settings),
@@ -677,4 +684,113 @@ test('cancelling a ready import over an empty form leaves it empty, no donation 
   expect(screen.getByLabelText('Години')).toHaveValue('')
   expect(screen.queryByRole('status', { name: 'Мінімальний донат' })).not.toBeInTheDocument()
   expect(screen.queryByText('18,82 ₴')).not.toBeInTheDocument()
+})
+
+// The same file with another print time: a second ready import with its own quote.
+const VTULKA_B = { ...VTULKA, print_time_s: 6000 }
+
+async function manual120() {
+  await screen.findByRole('option', { name: 'PETG чорний' })
+  await fillRow(0, 'PETG чорний', '120')
+  await fillTime('3', '30')
+  await screen.findByText('115,25 ₴')
+}
+
+async function expectManualForm() {
+  expect(screen.queryByRole('region', { name: 'Філаменти з файлу' })).not.toBeInTheDocument()
+  expect(screen.getAllByLabelText('Пластик')[0]).toHaveValue('petg')
+  expect(screen.getByLabelText('Витрата, г')).toHaveValue('120')
+  expect(screen.getByLabelText('Години')).toHaveValue('3')
+  expect(screen.getByLabelText('Хвилини')).toHaveValue('30')
+  const donation = await screen.findByRole('status', { name: 'Мінімальний донат' })
+  expect(within(donation).getByText('115,25 ₴')).toBeInTheDocument()
+}
+
+test('cancelling while a re-import is parsing still brings back the manual form (AC-07)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const api = serve({ parsed: [VTULKA, VTULKA_B], holdSecondParse: held })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await manual120()
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  await importFile('vtulka_B.gcode.3mf')
+  await screen.findByRole('button', { name: 'Імпортую…' })
+
+  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
+  release()
+  await screen.findByRole('button', { name: 'Імпортувати файл' })
+  // Whether the late file is dropped or shown as a fresh import, cancelling it ends on the manual form.
+  const cancel = screen.queryByRole('button', { name: 'Скасувати імпорт' })
+  if (cancel) await user.click(cancel)
+
+  await expectManualForm()
+  await user.type(screen.getByLabelText('Назва виробу'), 'Брелок')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await screen.findByText('Інша сторінка')
+  const body = api.callsTo('POST', '/api/catalog/items')[0]?.body
+  expect(body).not.toHaveProperty('filament_mappings')
+  expect(body).toMatchObject({
+    plastics: [{ plastic_id: 'petg', usage_cg: 12000 }],
+    print_time_s: 12600,
+  })
+})
+
+test('cancelling after two imports restores the form from before the first one (AC-07)', async () => {
+  const user = userEvent.setup()
+  const api = serve({ parsed: [VTULKA, VTULKA_B] })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await manual120()
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  await importFile('vtulka_B.gcode.3mf')
+  await screen.findByText('19,00 ₴')
+
+  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
+
+  await expectManualForm()
+  expect(screen.queryByText('19,00 ₴')).not.toBeInTheDocument()
+  await user.type(screen.getByLabelText('Назва виробу'), 'Брелок')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await screen.findByText('Інша сторінка')
+  expect(api.callsTo('POST', '/api/catalog/items')[0]?.body).not.toHaveProperty('filament_mappings')
+})
+
+test('cancelling while saving, then a 409, does not bring the import back (AC-09b)', async () => {
+  const user = userEvent.setup()
+  let reject = () => {}
+  const held = new Promise<void>((resolve) => (reject = resolve))
+  const api = serve({
+    parsed: [VTULKA],
+    save: async (call, n) => {
+      if (n > 0) return json({ id: 'item-1', ...(call.body as object) }, 201)
+      await held
+      return problem(409, 'catalog.name_taken')
+    },
+  })
+  renderWithProviders(<CalculatePage />, { path: '/calculate', pattern: '/calculate' })
+  await manual120()
+  await importFile()
+  await screen.findByText('18,82 ₴')
+  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await vi.waitFor(() => expect(api.callsTo('POST', '/api/catalog/items')).toHaveLength(1))
+
+  await user.click(screen.getByRole('button', { name: 'Скасувати імпорт' }))
+  reject()
+  await vi.waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Зберегти в каталог' })).toBeEnabled(),
+  )
+
+  expect(screen.queryByRole('region', { name: 'Філаменти з файлу' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Скасувати імпорт' })).not.toBeInTheDocument()
+  await expectManualForm()
+  await user.clear(screen.getByLabelText('Назва виробу'))
+  await user.type(screen.getByLabelText('Назва виробу'), 'Втулка 2')
+  await user.click(screen.getByRole('button', { name: 'Зберегти в каталог' }))
+  await screen.findByText('Інша сторінка')
+  const second = api.callsTo('POST', '/api/catalog/items')[1]?.body
+  expect(second).not.toHaveProperty('filament_mappings')
+  expect(second).toMatchObject({ plastics: [{ plastic_id: 'petg', usage_cg: 12000 }] })
 })

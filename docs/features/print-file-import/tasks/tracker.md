@@ -31,6 +31,6 @@
 | [T24](./T24-plastic-not-found-invalidate-and-reslice-test.md) | plastic_not_found: інвалідувати пластики й довести скидання вибору на сторінці виробу | ui | Anton Pohorielov | S | T20 | done |
 | [T25](./T25-calculate-import-round-key-and-cancel-restores-form.md) | Імпорт у розрахунку: key панелі за раундом імпорту і відновлення форми після скасування | ui | Anton Pohorielov | S | T20 | done |
 | [T26](./T26-parser-cd-byte-cap-overlap-and-boundary-tests.md) | Парсер: межа байтів central directory, відмова на overlapped-записах і тести меж | app | Anton Pohorielov | M | T23 | done |
-| [T27](./T27-calculate-import-state-functional-updates.md) | Імпорт у розрахунку: один стан форми й імпорту з функціональними оновленнями | ui | Anton Pohorielov | S | T25 | todo |
+| [T27](./T27-calculate-import-state-functional-updates.md) | Імпорт у розрахунку: один стан форми й імпорту з функціональними оновленнями | ui | Anton Pohorielov | S | T25 | done |
 
 **Total:** 27 tasks, ~8.5 person-days + ~2 person-days of review follow-ups (T18–T22, [review 2026-11-10](../_review/review-2026-11-10.md)) + ~1.5 person-days of re-review follow-ups (T23–T25, [review 2026-11-10 r2](../_review/review-2026-11-10-r2.md)) + ~1 person-day of r3 follow-ups (T26–T27, [review 2026-11-11 r3](../_review/review-2026-11-11-r3.md)).

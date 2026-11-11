@@ -7,7 +7,7 @@ acs: ["AC-07", "AC-09b"]
 files_hint: ["web/src/pages/calculate/ui/CalculatePage.tsx", "web/src/pages/calculate/ui/CalculatePage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "S"
-status: "todo"
+status: "done"
 ---
 
 # T27 — Імпорт у розрахунку: один стан форми й імпорту з функціональними оновленнями

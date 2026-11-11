@@ -10,6 +10,7 @@ import {
   QuoteError,
   QuoteForm,
   quoteFormFrom,
+  type QuoteFormValue,
 } from '@/features/quote-form'
 import { SaveItemForm } from '@/features/save-item'
 import {
@@ -25,16 +26,28 @@ import { isProblem } from '@/shared/api'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
+interface PageState {
+  value: QuoteFormValue
+  imported: ImportState | null
+  importRound: number
+  beforeImport: QuoteFormValue | null
+}
+
 export function CalculatePage() {
   const plastics = usePlastics()
   const refreshPlastics = useRefreshPlastics()
   const settings = usePriceSettings()
-  const [value, setValue] = useState(emptyQuoteForm)
-  const [imported, setImported] = useState<ImportState | null>(null)
-  // Counts imports so a re-imported file mounts a fresh mapping panel (AC-10).
-  const [importRound, setImportRound] = useState(0)
-  // The form as it was before the first import, restored on cancel (AC-07).
-  const [beforeImport, setBeforeImport] = useState<typeof value | null>(null)
+  // One object so every step is a functional update of the current state: TanStack mutation
+  // callbacks fire from stale render closures (AC-07, AC-09b).
+  const [state, setState] = useState<PageState>({
+    value: emptyQuoteForm(),
+    imported: null,
+    // Counts imports so a re-imported file mounts a fresh mapping panel (AC-10).
+    importRound: 0,
+    // The form as it was before the first import, restored on cancel (AC-07).
+    beforeImport: null,
+  })
+  const { value, imported, importRound } = state
   const composition = imported && compose(imported.file, imported.choice, imported.confirmed)
   // An import with a filament still unmapped or an unconfirmed merge prices nothing (AC-09, AC-10).
   const importBlocks = composition !== null && composition.kind !== 'ready'
@@ -42,17 +55,25 @@ export function CalculatePage() {
   const { quote, error, isCalculating } = useQuote(importBlocks ? null : input)
 
   /** A ready import replaces every row and the time, manual or from an earlier file (AC-01). */
-  function applyImport(next: ImportState) {
-    if (imported === null) setBeforeImport(value)
-    setImported(next)
-    const rows = compose(next.file, next.choice, next.confirmed)
-    if (rows.kind === 'ready') setValue(quoteFormFrom(rows))
+  function applyImport(next: ImportState, isNewFile = false) {
+    setState((s) => {
+      const rows = compose(next.file, next.choice, next.confirmed)
+      return {
+        value: rows.kind === 'ready' ? quoteFormFrom(rows) : s.value,
+        imported: next,
+        importRound: isNewFile ? s.importRound + 1 : s.importRound,
+        beforeImport: s.imported === null ? s.value : s.beforeImport,
+      }
+    })
   }
 
   function cancelImport() {
-    if (beforeImport !== null) setValue(beforeImport)
-    setBeforeImport(null)
-    setImported(null)
+    setState((s) => ({
+      ...s,
+      value: s.beforeImport ?? s.value,
+      imported: null,
+      beforeImport: null,
+    }))
   }
 
   const heading = <h1 className="text-2xl font-semibold">Розрахунок</h1>
@@ -97,8 +118,7 @@ export function CalculatePage() {
           <CardContent className="space-y-4">
             <ImportFileButton
               onParsed={(file) => {
-                setImportRound((round) => round + 1)
-                applyImport(startImport(file))
+                applyImport(startImport(file), true)
               }}
             />
             {imported && (
@@ -111,7 +131,9 @@ export function CalculatePage() {
             )}
             <QuoteForm
               value={value}
-              onChange={setValue}
+              onChange={(next) => {
+                setState((s) => ({ ...s, value: next }))
+              }}
               plastics={plastics.data}
               errors={errors}
               showAllErrors={imported !== null}
@@ -150,7 +172,9 @@ export function CalculatePage() {
             filamentMappings={imported ? mappingsFor(imported.file, imported.choice) : []}
             onSaveError={(e) => {
               if (isProblem(e, 'importing.plastic_not_found')) void refreshPlastics()
-              if (imported) setImported(clearRejectedChoice(imported, e))
+              setState((s) =>
+                s.imported ? { ...s, imported: clearRejectedChoice(s.imported, e) } : s,
+              )
             }}
           />
         </CardContent>

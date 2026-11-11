@@ -7,7 +7,7 @@ acs: ["AC-13"]
 files_hint: ["backend/tests/integration/test_importing_api.py", "backend/src/calculate3d/modules/importing/router.py"]
 owner: "Anton Pohorielov"
 estimate: "XS"
-status: "todo"
+status: "done"
 ---
 
 # T34 — Межа тіла рівно 100 МБ приймається — функціональний тест, що не пропускається на CI
@@ -31,5 +31,5 @@ Re-review r8, R17. PRD §6 «Межа розміру ≤ 100 МБ»: тіло р
 > Межу 100 МБ на обох шляхах читання тіла (Content-Length і chunked) перевіряє тест, що працює на
 > CI; мутант `>` → `>=` червоніє з `CI=1`; `make check` зелений.
 
-- [ ] Спершу тест, що вбиває мутант (на поточному коді зелений — це тест на межу, не на баг)
-- [ ] `make check` зелений
+- [x] Спершу тест, що вбиває мутант (на поточному коді зелений — це тест на межу, не на баг)
+- [x] `make check` зелений

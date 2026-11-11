@@ -99,6 +99,29 @@ def test_chunked_body_over_the_limit_is_413(client: TestClient, white: str) -> N
     assert response.json()["code"] == "importing.file_too_large"
 
 
+def test_body_of_exactly_the_limit_reaches_the_parser_by_content_length(
+    client: TestClient, white: str
+) -> None:
+    # PRD §6: ≤ 100 MB is accepted — zeros are no archive, so the parser rejects it, not the size.
+    response = _parse(client, bytes(MAX_BODY))
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "importing.not_slicer_project"
+
+
+def test_chunked_body_of_exactly_the_limit_reaches_the_parser(
+    client: TestClient, white: str
+) -> None:
+    def chunks() -> Iterator[bytes]:
+        for _ in range(100):
+            yield bytes(1_000_000)
+
+    response = client.post(PARSE, content=chunks(), headers=OCTET)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "importing.not_slicer_project"
+
+
 def test_oversized_content_length_is_rejected_before_settings(client: TestClient) -> None:
     # Size is checked before settings readiness (contract order: 413 before 409).
     response = _parse(client, bytes(MAX_BODY + 1))

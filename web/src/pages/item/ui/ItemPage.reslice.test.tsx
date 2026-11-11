@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { json, mockApi, problem, renderWithProviders, type ApiCall } from '@/shared/testing'
@@ -435,4 +435,37 @@ test('a rejected confirm resolves the index against what was sent, not the curre
   expect(screen.getByLabelText(`Пластик для ${PLA} #FFFFFF`)).toHaveValue('')
   // The rejected index 0 was the first filament of the SENT array; the second one is untouched.
   expect(screen.getByLabelText(`Пластик для ${PLA} #000000`)).toHaveValue('petg')
+})
+
+test('«Зберегти зміни» is disabled while a file is parsing, so no PUT can be lost (R14)', async () => {
+  const user = userEvent.setup()
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const api = serve({
+    parse: async () => {
+      await held
+      return json(RESLICED)
+    },
+  })
+  renderItem()
+  await screen.findByRole('heading', { level: 1, name: 'Підставка' })
+  await userEvent.upload(
+    screen.getByLabelText('Файл слайсера'),
+    new File([new Uint8Array([0x50, 0x4b])], 'pidstavka.gcode.3mf'),
+  )
+  await screen.findByRole('button', { name: 'Імпортую…' })
+
+  await user.click(screen.getByRole('button', { name: 'Змінити' }))
+  const name = screen.getByLabelText('Назва виробу')
+  await user.clear(name)
+  await user.type(name, 'Органайзер')
+  const save = screen.getByRole('button', { name: 'Зберегти зміни' })
+  await vi.waitFor(() => expect(save).toBeDisabled())
+  await user.click(save)
+  fireEvent.submit(screen.getByRole('form', { name: 'Змінити виріб' }))
+
+  expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
+  release()
+  expect(await screen.findByRole('region', { name: 'Було → стало' })).toBeInTheDocument()
+  expect(api.callsTo('PUT', '/api/catalog/items/i1')).toHaveLength(0)
 })

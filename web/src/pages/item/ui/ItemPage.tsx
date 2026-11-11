@@ -94,7 +94,12 @@ export function ItemPage() {
           onDone={() => setImported(null)}
         />
       ) : editing ? (
-        <ItemEditor item={detail} plastics={plastics.data} onDone={() => setEditing(false)} />
+        <ItemEditor
+          item={detail}
+          plastics={plastics.data}
+          importing={importing}
+          onDone={() => setEditing(false)}
+        />
       ) : (
         <>
           <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">

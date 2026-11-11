@@ -7,7 +7,7 @@ acs: ["AC-05", "AC-06"]
 files_hint: ["web/src/pages/item/ui/ItemPage.tsx", "web/src/pages/item/ui/ItemEditor.tsx", "web/src/pages/item/ui/ItemPage.test.tsx"]
 owner: "Anton Pohorielov"
 estimate: "XS"
-status: "todo"
+status: "done"
 ---
 
 # T32 — «Зберегти зміни» на /item заблоковане, поки парситься файл
@@ -38,5 +38,5 @@ DoD T31 («поки парсинг у польоті, збереження не�
 > загубитися через розмонтування редактора; новий тест червоніє на поточному коді; `make check`
 > зелений.
 
-- [ ] Спершу червоний тест, що відтворює знахідку
-- [ ] `make check` зелений
+- [x] Спершу червоний тест, що відтворює знахідку
+- [x] `make check` зелений

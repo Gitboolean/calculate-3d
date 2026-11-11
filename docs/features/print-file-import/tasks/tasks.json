@@ -624,6 +624,24 @@
         "web/src/pages/calculate/ui/CalculatePage.tsx",
         "web/src/pages/calculate/ui/CalculatePage.test.tsx"
       ]
+    },
+    {
+      "id": "T32",
+      "title": "«Зберегти зміни» на /item заблоковане, поки парситься файл",
+      "layer": "ui",
+      "deps": [
+        "T31"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06"
+      ],
+      "dod": "«Зберегти зміни» в ItemEditor disabled, і submit нічого не надсилає, поки парсинг файлу в польоті (importing з ItemPage або useIsParsingSlicerFile); тест у ItemPage.test.tsx: парсинг на паузі → «Змінити» → перейменувати → «Зберегти зміни» недоступна; мутант «ItemEditor ігнорує importing» червоніє; новий тест червоніє на поточному коді; make check зелений.",
+      "files_hint": [
+        "web/src/pages/item/ui/ItemPage.tsx",
+        "web/src/pages/item/ui/ItemEditor.tsx",
+        "web/src/pages/item/ui/ItemPage.test.tsx"
+      ]
     }
   ]
 }

@@ -443,6 +443,63 @@
         "web/src/features/slicer-import/ui/ImportFileButton.tsx",
         "web/src/features/slicer-import/ui/ImportFileButton.test.tsx"
       ]
+    },
+    {
+      "id": "T23",
+      "title": "Парсер: межа реального central directory, version > 6.3 і лише ASCII-цифри → importing.corrupted_file",
+      "layer": "app",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Bad-file випадки cd_flood_small_declared_count (CD > 10 000 записів при EOCD count ≤ 10 000), cd_extract_version_unsupported і non_ascii_digits_in_usage дають 422 importing.corrupted_file; тест бюджету показує, що ZipFile не будується для CD-flood; make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/src/calculate3d/modules/importing/normalize.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/unit/test_importing_archive_budget.py"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "plastic_not_found: інвалідувати пластики й довести скидання вибору на сторінці виробу",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08"
+      ],
+      "dod": "Після 422 importing.plastic_not_found на CalculatePage і ItemPage.reslice видалений пластик зникає зі списку (запит пластиків інвалідовано), вибір філамента порожній, «Зберегти»/«Підтвердити» вимкнені — це перевіряють тести обох сторінок; make web-check зелений.",
+      "files_hint": [
+        "web/src/entities/plastic/api/plastics.ts",
+        "web/src/entities/plastic/index.ts",
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/item/ui/ItemReslice.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Імпорт у розрахунку: key панелі за раундом імпорту і відновлення форми після скасування",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-09b",
+        "AC-10"
+      ],
+      "dod": "Тест CalculatePage: два імпорти того самого файлу з конфліктом знову відкривають діалог сумування; після готового імпорту «Скасувати імпорт» повертає форму до стану перед імпортом (рядки, час, донат) і зберігає без filament_mappings; make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
     }
   ]
 }

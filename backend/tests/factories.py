@@ -8,6 +8,7 @@ from calculate3d.core.ids import new_id
 from calculate3d.core.text import name_key
 from calculate3d.modules.catalog.tables import item_plastics
 from calculate3d.modules.catalog.tables import items as items_table
+from calculate3d.modules.importing.tables import filament_mappings
 from calculate3d.modules.pricing.repo import SETTINGS_ID
 from calculate3d.modules.pricing.tables import plastics as plastics_table
 from calculate3d.modules.pricing.tables import price_settings
@@ -37,6 +38,26 @@ def make_plastic(
 
 def make_price_settings(conn: Connection, **overrides: int) -> None:
     conn.execute(insert(price_settings).values(id=SETTINGS_ID, **{**AC04_SETTINGS, **overrides}))
+
+
+def make_filament_mapping(
+    conn: Connection,
+    *,
+    plastic_id: str,
+    filament_name: str = "Bambu PLA Basic @BBL A1M",
+    filament_color: str = "#FFFFFF",
+) -> str:
+    """A remembered «filament → plastic» choice; defaults are the vtulka_A reference (AC-01)."""
+    mapping_id = new_id()
+    conn.execute(
+        insert(filament_mappings).values(
+            id=mapping_id,
+            filament_name=filament_name,
+            filament_color=filament_color,
+            plastic_id=plastic_id,
+        )
+    )
+    return mapping_id
 
 
 def make_item(

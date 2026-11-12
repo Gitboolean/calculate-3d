@@ -132,6 +132,23 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/importing/parse': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Parse Slicer File */
+    post: operations['parseSlicerFile']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
@@ -162,6 +179,22 @@ export interface components {
       /** Field */
       field: string
     }
+    /**
+     * FilamentMappingInput
+     * @description The author's choice «slicer filament → plastic»; upserted by (name, color) (AC-07, AC-08).
+     */
+    FilamentMappingInput: {
+      /** Filament Name */
+      filament_name: string
+      /** Filament Color */
+      filament_color: string
+      /**
+       * Plastic Id
+       * Format: uuid
+       * @description filament_mappings.plastic_id → plastics.id
+       */
+      plastic_id: string
+    }
     /** HealthOut */
     HealthOut: {
       /**
@@ -174,6 +207,49 @@ export interface components {
        * @enum {string}
        */
       db: 'ok' | 'down'
+    }
+    /**
+     * ImportRejectedProblem
+     * @description A rejection of the SAD §8 check chain — one reason per code (AC-12, AC-13, AC-14).
+     */
+    ImportRejectedProblem: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Status */
+      status: number
+      /** Detail */
+      detail: string
+      /**
+       * Code
+       * @enum {string}
+       */
+      code:
+        | 'importing.not_slicer_project'
+        | 'importing.not_sliced'
+        | 'importing.multiple_sliced_plates'
+        | 'importing.corrupted_file'
+        | 'importing.print_time_out_of_range'
+        | 'importing.no_filament_usage'
+    }
+    /** ImportSettingsMissingProblem */
+    ImportSettingsMissingProblem: {
+      /** Type */
+      type: string
+      /** Title */
+      title: string
+      /** Status */
+      status: number
+      /** Detail */
+      detail: string
+      /**
+       * Code
+       * @constant
+       */
+      code: 'importing.settings_missing'
+      /** Missing */
+      missing: ('plastics' | 'price_settings')[]
     }
     /** Item */
     Item: {
@@ -224,6 +300,11 @@ export interface components {
       print_time_s: number
       /** Name */
       name: string
+      /**
+       * Filament Mappings
+       * @description Необов'язково (ADR 0003): зіставлення з імпорту, що запам'ятовуються разом із виробом; у відповіді виробу не повертаються
+       */
+      filament_mappings?: components['schemas']['FilamentMappingInput'][]
     }
     /** ItemList */
     ItemList: {
@@ -417,6 +498,61 @@ export interface components {
       code: string
       /** Missing */
       missing: ('plastics' | 'price_settings')[]
+    }
+    /**
+     * SlicedPlate
+     * @description Which plate was imported (AC-02) — the only one with slicing results.
+     */
+    SlicedPlate: {
+      /**
+       * Index
+       * @description Номер пластини в проєкті (`slice_info.config` index)
+       */
+      index: number
+      /**
+       * Name
+       * @description `plater_name` як у слайсері; може бути порожньою
+       */
+      name: string
+    }
+    /**
+     * SlicerFilament
+     * @description A slicer filament as the slicer wrote it, plus the remembered plastic (AC-07).
+     */
+    SlicerFilament: {
+      /** Filament Name */
+      filament_name: string
+      /**
+       * Filament Type
+       * @description Тип філамента з результатів нарізки; лише для показу
+       */
+      filament_type: string
+      /** Filament Color */
+      filament_color: string
+      /**
+       * Usage Mg
+       * @description Точна витрата в мг разом із промивкою (ADR 0004); usage_cg складає веб
+       */
+      usage_mg: number
+      /**
+       * Plastic Id
+       * @description Пластик із запам'ятаного зіставлення або null (AC-07, AC-09)
+       */
+      plastic_id: string | null
+    }
+    /**
+     * SlicerFile
+     * @description The parsed file; it lives only in the response and the web form state (ADR 0001).
+     */
+    SlicerFile: {
+      plate: components['schemas']['SlicedPlate']
+      /**
+       * Print Time S
+       * @description Час друку в секундах, кратний 60, до 360 000 000 (100 000 год)
+       */
+      print_time_s: number
+      /** Filaments */
+      filaments: components['schemas']['SlicerFilament'][]
     }
     /** ValidationIssue */
     ValidationIssue: {
@@ -1310,6 +1446,94 @@ export interface operations {
         }
         content: {
           'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Неочікувана помилка сервера */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+    }
+  }
+  parseSlicerFile: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** @description Байти файлу слайсера, ≤ 100 000 000 (ADR 0002); тип — за вмістом */
+    requestBody: {
+      content: {
+        'application/octet-stream': string
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SlicerFile']
+        }
+      }
+      /** @description Host поза переліком дозволених (AC-16, ADR 0007) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Запит зі стороннього сайту (AC-16b, ADR 0007) */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Бракує пластиків або налаштувань цін (AC-04) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ImportSettingsMissingProblem']
+        }
+      }
+      /** @description Тіло понад 100 000 000 байт (AC-13, ADR 0002) */
+      413: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Тіло не application/octet-stream (AC-15, ADR 0002) */
+      415: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['Problem']
+        }
+      }
+      /** @description Файл непридатний — код називає причину (AC-12…AC-14) */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ImportRejectedProblem']
         }
       }
       /** @description Неочікувана помилка сервера */

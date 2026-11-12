@@ -9,10 +9,16 @@ import { normalizeName } from '@/shared/lib'
 import { Button, FormField } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
-type ItemEditorProps = { item: ItemDetail; plastics: Plastic[]; onDone: () => void }
+type ItemEditorProps = {
+  item: ItemDetail
+  plastics: Plastic[]
+  /** A slicer file is being parsed or read back: saving is locked so no PUT can be lost (R14). */
+  importing: boolean
+  onDone: () => void
+}
 
 /** Name + the same quote form as /calculate, with a live donation (AC-14b, AC-14c). */
-export function ItemEditor({ item, plastics, onDone }: ItemEditorProps) {
+export function ItemEditor({ item, plastics, importing, onDone }: ItemEditorProps) {
   const [name, setName] = useState(item.name)
   const [value, setValue] = useState(() => quoteFormFrom(item))
   const [showAllErrors, setShowAllErrors] = useState(false)
@@ -23,6 +29,7 @@ export function ItemEditor({ item, plastics, onDone }: ItemEditorProps) {
 
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (importing) return
     const nameError = validateItemName(name)
     if (nameError || !input) {
       // Nothing is sent: the item keeps its saved parameters (AC-14c).
@@ -63,7 +70,10 @@ export function ItemEditor({ item, plastics, onDone }: ItemEditorProps) {
       </div>
       {errors.form && <p className="text-destructive text-sm">{errors.form}</p>}
       <div className="flex gap-2">
-        <Button type="submit" disabled={update.isPending || !!error || (input !== null && !quote)}>
+        <Button
+          type="submit"
+          disabled={importing || update.isPending || !!error || (input !== null && !quote)}
+        >
           Зберегти зміни
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>

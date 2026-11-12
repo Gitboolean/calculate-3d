@@ -1,16 +1,23 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 
-import { useItem } from '@/entities/item'
+import { useIsUpdatingItem, useItem } from '@/entities/item'
 import { usePlastics } from '@/entities/plastic'
 import { DeleteItemButton } from '@/features/delete-item'
 import { MissingSettings } from '@/features/quote-form'
+import {
+  ImportFileButton,
+  startImport,
+  useIsParsingSlicerFile,
+  type ImportState,
+} from '@/features/slicer-import'
 import { isProblem } from '@/shared/api'
 import { formatDecimal } from '@/shared/lib'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { CostBreakdown } from '@/widgets/cost-breakdown'
 
 import { ItemEditor } from './ItemEditor'
+import { ItemReslice } from './ItemReslice'
 
 function formatTime(seconds: number) {
   const minutes = seconds / 60
@@ -22,6 +29,25 @@ export function ItemPage() {
   const item = useItem(itemId)
   const plastics = usePlastics()
   const [editing, setEditing] = useState(false)
+  const isUpdating = useIsUpdatingItem()
+  const [imported, setImported] = useState<ImportState | null>(null)
+  const [importRound, setImportRound] = useState(0)
+  // From parse success until the re-read item is shown: the file is parsed but not yet imported.
+  const [reading, setReading] = useState(false)
+  const importing = useIsParsingSlicerFile() || reading
+
+  /** «Було» is the item as saved now: unsaved edits are dropped and the item is re-read (AC-05). */
+  async function importFile(file: Parameters<typeof startImport>[0]) {
+    setEditing(false)
+    setReading(true)
+    try {
+      await item.refetch()
+      setImported(startImport(file))
+      setImportRound((n) => n + 1)
+    } finally {
+      setReading(false)
+    }
+  }
 
   if (isProblem(item.error, 'catalog.item_not_found')) {
     return (
@@ -53,8 +79,27 @@ export function ItemPage() {
   return (
     <section className="space-y-6">
       <h1 className="text-2xl font-semibold">{detail.name}</h1>
-      {editing ? (
-        <ItemEditor item={detail} plastics={plastics.data} onDone={() => setEditing(false)} />
+      <ImportFileButton disabled={isUpdating} onParsed={(file) => void importFile(file)} />
+      {imported ? (
+        <ItemReslice
+          key={importRound}
+          item={detail}
+          plastics={plastics.data}
+          imported={imported}
+          importing={importing}
+          onImportedChange={setImported}
+          onImportedUpdate={(update) => {
+            setImported((current) => current && update(current))
+          }}
+          onDone={() => setImported(null)}
+        />
+      ) : editing ? (
+        <ItemEditor
+          item={detail}
+          plastics={plastics.data}
+          importing={importing}
+          onDone={() => setEditing(false)}
+        />
       ) : (
         <>
           <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
@@ -84,7 +129,10 @@ export function ItemPage() {
             </Card>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => setEditing(true)}>Змінити</Button>
+            {/* Opened during an import, the editor would reappear once its panel closes. */}
+            <Button disabled={importing} onClick={() => setEditing(true)}>
+              Змінити
+            </Button>
             <DeleteItemButton item={detail} />
           </div>
         </>

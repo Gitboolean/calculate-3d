@@ -6,6 +6,7 @@ from sqlalchemy import Engine, func, select
 
 from calculate3d.modules.catalog.tables import item_plastics
 from calculate3d.modules.catalog.tables import items as items_table
+from calculate3d.modules.importing.tables import filament_mappings
 from tests.factories import make_item, make_plastic, make_price_settings
 
 
@@ -301,3 +302,156 @@ def test_openapi_declares_409_on_create_and_update(
     schema = operation["responses"]["409"]["content"]["application/problem+json"]["schema"]
     refs = {variant["$ref"].rsplit("/", 1)[-1] for variant in schema.get("anyOf", [schema])}
     assert {"FieldProblem", "SettingsMissingProblem"} <= refs
+
+
+# ── print-file-import: filament mappings saved with the item (ADR 0003) ──
+PLA_PRESET = "Bambu PLA Basic @BBL A1M"
+PETG_PRESET = "Bambu PETG Basic @BBL A1M"
+
+
+def mappings_in(engine: Engine) -> list[tuple[str, str, str]]:
+    c = filament_mappings.c
+    with engine.connect() as conn:
+        rows = conn.execute(
+            select(c.filament_name, c.filament_color, c.plastic_id).order_by(c.filament_name)
+        )
+        return [tuple(r) for r in rows]
+
+
+def mapping(name: str, color: str, plastic_id: str) -> dict[str, str]:
+    return {"filament_name": name, "filament_color": color, "plastic_id": plastic_id}
+
+
+def test_created_item_remembers_two_filaments_on_one_plastic(
+    client: TestClient, engine: Engine, ids: dict[str, str]
+) -> None:
+    payload = body("Втулка A", (ids["pla"], 1154), print_time_s=5880)
+    payload["filament_mappings"] = [
+        mapping(PLA_PRESET, "#FFFFFF", ids["pla"]),
+        mapping(PETG_PRESET, "#000000", ids["pla"]),  # AC-10: confirmed merge
+    ]
+
+    created = create(client, payload)
+
+    assert "filament_mappings" not in created
+    assert mappings_in(engine) == [
+        (PETG_PRESET, "#000000", ids["pla"]),
+        (PLA_PRESET, "#FFFFFF", ids["pla"]),
+    ]
+
+
+def test_updated_item_replaces_a_mapping_and_other_items_keep_their_plastic(
+    client: TestClient, engine: Engine, ids: dict[str, str]
+) -> None:
+    first = create(
+        client,
+        body("Втулка A", (ids["pla"], 1154), print_time_s=5880)
+        | {"filament_mappings": [mapping(PLA_PRESET, "#FFFFFF", ids["pla"])]},
+    )
+    other = create(client, body("Гайка", (ids["pla"], 500)))
+
+    response = client.put(
+        f"/api/catalog/items/{first['id']}",
+        json=body("Втулка A", (ids["petg"], 1154), print_time_s=5880)
+        | {"filament_mappings": [mapping(PLA_PRESET, "#FFFFFF", ids["petg"])]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert mappings_in(engine) == [(PLA_PRESET, "#FFFFFF", ids["petg"])]
+    assert client.get(f"/api/catalog/items/{other['id']}").json()["plastics"] == [
+        {"plastic_id": ids["pla"], "usage_cg": 500}
+    ]
+
+
+def test_mapping_of_a_removed_row_is_still_remembered(
+    client: TestClient, engine: Engine, ids: dict[str, str]
+) -> None:
+    # AC-08: the PETG row was deleted by hand, its choice is still saved.
+    create(
+        client,
+        body("Підставка", (ids["pla"], 9500), print_time_s=8100)
+        | {"filament_mappings": [mapping(PETG_PRESET, "#000000", ids["petg"])]},
+    )
+
+    assert mappings_in(engine) == [(PETG_PRESET, "#000000", ids["petg"])]
+
+
+def test_taken_name_saves_neither_the_item_nor_its_mappings(
+    client: TestClient, engine: Engine, ids: dict[str, str]
+) -> None:
+    create(client, body("Втулка A", (ids["pla"], 1154)))
+
+    response = client.post(
+        "/api/catalog/items",
+        json=body("втулка a", (ids["pla"], 1154))
+        | {"filament_mappings": [mapping(PLA_PRESET, "#FFFFFF", ids["pla"])]},
+    )
+
+    problem(response, 409, "catalog.name_taken")
+    assert mappings_in(engine) == []
+
+
+def test_vanished_mapping_plastic_rolls_back_the_whole_create(
+    client: TestClient, engine: Engine, ids: dict[str, str]
+) -> None:
+    response = client.post(
+        "/api/catalog/items",
+        json=body("Втулка A", (ids["pla"], 1154))
+        | {
+            "filament_mappings": [
+                mapping(PLA_PRESET, "#FFFFFF", ids["pla"]),
+                mapping(PETG_PRESET, "#000000", "01900000-0000-7000-8000-0000000000ff"),
+            ]
+        },
+    )
+
+    payload = problem(response, 422, "importing.plastic_not_found")
+    assert payload["field"] == "filament_mappings.1.plastic_id"
+    assert mappings_in(engine) == []
+    assert client.get("/api/catalog/items").json() == {"items": []}
+
+
+def test_vanished_mapping_plastic_rolls_back_the_whole_update(
+    client: TestClient, engine: Engine, ids: dict[str, str]
+) -> None:
+    item = create(client, body("Підставка", (ids["pla"], 8000), (ids["petg"], 4000)))
+
+    response = client.put(
+        f"/api/catalog/items/{item['id']}",
+        json=body("Підставка", (ids["pla"], 9500), print_time_s=8100)
+        | {"filament_mappings": [mapping(PLA_PRESET, "#FFFFFF", "gone")]},
+    )
+
+    problem(response, 422, "importing.plastic_not_found")
+    after = client.get(f"/api/catalog/items/{item['id']}").json()
+    # getItem orders the rows by plastic_id, so compare them regardless of order.
+    assert sorted(after["plastics"], key=str) == sorted(item["plastics"], key=str)
+    assert after["print_time_s"] == 12600
+    assert mappings_in(engine) == []
+
+
+@pytest.mark.parametrize(
+    "mappings",
+    [
+        [mapping(PLA_PRESET, "#ffffff", "p")],
+        [mapping(f" {PLA_PRESET}", "#FFFFFF", "p")],
+        [mapping("x" * 201, "#FFFFFF", "p")],
+        [mapping(PLA_PRESET, "#FFFFFF", "p"), mapping(PLA_PRESET, "#FFFFFF", "q")],
+        [mapping(PLA_PRESET, f"#0000{n:02X}", "p") for n in range(33)],
+    ],
+    ids=["lower-color", "padded-name", "long-name", "same-pair-twice", "33-mappings"],
+)
+def test_invalid_mappings_are_a_validation_error(
+    client: TestClient, engine: Engine, ids: dict[str, str], mappings: list[dict[str, str]]
+) -> None:
+    response = client.post(
+        "/api/catalog/items",
+        json=body("Втулка A", (ids["pla"], 1154)) | {"filament_mappings": mappings},
+    )
+
+    errors = problem(response, 422, "validation_error")["errors"]
+    assert errors
+    for error in errors:
+        assert error["loc"][:2] == ["body", "filament_mappings"]
+        assert error["msg"] != "Extra inputs are not permitted"
+    assert mappings_in(engine) == []

@@ -1,6 +1,13 @@
 // Test-only fake of the HTTP API: routes are 'METHOD /path' → handler; every call is recorded.
 
-export type ApiCall = { method: string; path: string; search: string; body: unknown }
+export type ApiCall = {
+  method: string
+  path: string
+  search: string
+  contentType: string | null
+  /** Parsed JSON, or the raw bytes of a non-JSON body (the slicer file). */
+  body: unknown
+}
 type Handler = (call: ApiCall) => Response | Promise<Response>
 export type ApiRoutes = Record<string, Handler | Response | (() => Response)>
 
@@ -21,12 +28,16 @@ export function mockApi(routes: ApiRoutes) {
   const calls: ApiCall[] = []
   const fetchMock = vi.fn(async (request: Request) => {
     const url = new URL(request.url)
-    const text = await request.text()
+    const contentType = request.headers.get('content-type')
+    const bytes = new Uint8Array(await request.arrayBuffer())
+    const isJson = contentType === null || contentType.startsWith('application/json')
+    const text = isJson ? new TextDecoder().decode(bytes) : ''
     const call: ApiCall = {
       method: request.method,
       path: url.pathname,
       search: url.search,
-      body: text ? JSON.parse(text) : undefined,
+      contentType,
+      body: isJson ? (text ? JSON.parse(text) : undefined) : bytes,
     }
     calls.push(call)
     const route = routes[`${call.method} ${call.path}`]

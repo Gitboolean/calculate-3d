@@ -1,0 +1,680 @@
+{
+  "slug": "print-file-import",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Промоутнути staged-міграцію filament_mappings і дзеркало importing/tables.py",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-07",
+        "AC-11"
+      ],
+      "dod": "Ревізія create_filament_mappings проходить upgrade → downgrade → upgrade у test_migrations, а видалення пластику каскадно видаляє його рядок filament_mappings.",
+      "files_hint": [
+        "docs/features/print-file-import/migrations/20261110120000_create_filament_mappings.up.sql",
+        "docs/features/print-file-import/migrations/20261110120000_create_filament_mappings.down.sql",
+        "backend/src/calculate3d/modules/importing/__init__.py",
+        "backend/src/calculate3d/modules/importing/tables.py",
+        "backend/tests/factories.py",
+        "backend/tests/integration/test_migrations.py"
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Скопіювати еталонні файли слайсера у фікстури й написати генератор поганих файлів",
+      "layer": "tests",
+      "deps": [],
+      "acs": [
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "backend/tests/fixtures/slicer/ містить три еталони, а bad_files.py будує в пам'яті кожен випадок переліку SAD §10 QG-2 з очікуваним кодом importing.* і самоперевіркою, що кожен випадок генерується.",
+      "files_hint": [
+        "backend/tests/fixtures/slicer/"
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Парсер: межі читання архіву й ланцюжок «проєкт Bambu → нарізаний → одна пластина»",
+      "layer": "domain",
+      "deps": [
+        "T2"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "Юніт-тести парсера показують: не-ZIP і CAD-3MF/OrcaSlicer → not_slicer_project, vtulka_A.3mf → not_sliced, дві нарізані пластини → multiple_sliced_plates, кожне порушення меж архіву → corrupted_file, а LITTLE_TREES дає пластину 1 «mini christmas tree».",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/tests/unit/test_importing_parser.py"
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Парсер: числа, нормалізація філамента, злиття однакових пар і межі файлу",
+      "layer": "domain",
+      "deps": [
+        "T3"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-03",
+        "AC-09",
+        "AC-10",
+        "AC-13",
+        "AC-14"
+      ],
+      "dod": "Юніт-тести парсера дають для vtulka_A 11 540 мг і 5 880 с, для LITTLE_TREES 15 490 / 2 230 / 2 360 мг і 5 460 с без коричневого, і очікувані коди для кожного числового поганого випадку T2.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/tests/unit/test_importing_parser.py"
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "importing.repo: пошук зіставлень за (назва, колір) і upsert; remember_mappings у service",
+      "layer": "infra",
+      "deps": [
+        "T1"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "Інтеграційні тести repo показують: пошук до 32 пар повертає plastic_id лише для збережених пар, upsert замінює plastic_id і зберігає id/created_at, а FK-порушення стає repo-винятком, який remember_mappings мапить на доменну помилку.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/repo.py",
+        "backend/src/calculate3d/modules/importing/service.py",
+        "backend/tests/integration/test_importing_repo.py",
+        "backend/tests/unit/test_importing_service.py"
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "importing.service.parse_slicer_file: готовність налаштувань, розбір, підстановка зіставлень, помилки",
+      "layer": "app",
+      "deps": [
+        "T4",
+        "T5"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-04",
+        "AC-07",
+        "AC-09",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14"
+      ],
+      "dod": "Юніт-тести service показують: без пластиків чи налаштувань — ImportSettingsMissing з переліком missing до розбору, кожен ParseError — свій AppError importing.* з українським повідомленням, а підставлений plastic_id береться лише з наявного зіставлення (інакше null).",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/service.py",
+        "backend/src/calculate3d/modules/importing/schemas.py",
+        "backend/tests/unit/test_importing_service.py"
+      ]
+    },
+    {
+      "id": "T7",
+      "title": "RequestGuard: приймати application/octet-stream лише для POST /api/importing/parse",
+      "layer": "wiring",
+      "deps": [],
+      "acs": [
+        "AC-15"
+      ],
+      "dod": "Інтеграційні тести захисту показують 415 для multipart/form-data і text/plain на маршруті імпорту та для octet-stream на будь-якому іншому змінному /api-маршруті, а перевірки Host/Origin/Sec-Fetch-Site діють на маршруті імпорту без змін.",
+      "files_hint": [
+        "backend/src/calculate3d/core/guard.py",
+        "backend/tests/integration/test_request_guard.py"
+      ]
+    },
+    {
+      "id": "T8",
+      "title": "Роутер POST /api/importing/parse: потокове читання під межею 100 МБ, problem+json, api-types",
+      "layer": "ports",
+      "deps": [
+        "T6",
+        "T7"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-04",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "dod": "Інтеграційні тести показують, що parseSlicerFile повертає контрактний SlicerFile для обох нарізаних еталонів, 413 importing.file_too_large для 100 000 001 байт, очікуваний код для кожного випадку bad_files без 500, 0 нових файлів на диску, а make api-types-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/router.py",
+        "backend/src/calculate3d/main.py",
+        "backend/tests/integration/test_importing_api.py",
+        "backend/tests/integration/test_importing_bad_files.py",
+        "backend/tests/integration/test_importing_no_disk.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T9",
+      "title": "catalog: ItemInput.filament_mappings і remember_mappings у транзакції збереження виробу",
+      "layer": "app",
+      "deps": [
+        "T5"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-08",
+        "AC-10"
+      ],
+      "dod": "Інтеграційні тести catalog показують, що createItem/updateItem із filament_mappings зберігають виріб і зіставлення разом, а 409 catalog.name_taken чи 422 importing.plastic_not_found не лишають ні виробу, ні змін виробу, ні жодного зіставлення.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/catalog/schemas.py",
+        "backend/src/calculate3d/modules/catalog/service.py",
+        "backend/tests/unit/test_catalog_service.py",
+        "backend/tests/integration/test_catalog_api.py",
+        "web/src/shared/api/schema.d.ts"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "NFR і еталонні тести імпорту: точність донату, латентність 100 МБ, збереженість, перенарізка",
+      "layer": "tests",
+      "deps": [
+        "T8",
+        "T9"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-05",
+        "AC-11",
+        "AC-13"
+      ],
+      "dod": "Інтеграційні тести показують донат 18,82 ₴ для vtulka_A і 22,00 ₴ після зміни ціни, 60,73 ₴ після перенарізки «Підставки», p95 ≤ 5 с для еталонів і файлу рівно 100 000 000 байт, а зіставлення переживає перезапуск застосунку й забувається після видалення пластику.",
+      "files_hint": [
+        "backend/tests/integration/test_importing_reference_files.py",
+        "backend/tests/integration/test_nfr_import_latency.py",
+        "backend/tests/integration/test_importing_durability.py",
+        "backend/tests/integration/test_importing_item_reslice.py"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Додати shadcn-примітив dialog у shared/ui",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "shared/ui експортує Dialog, а Vitest-тест показує, що він відкривається, має доступну назву й закривається Escape.",
+      "files_hint": [
+        "web/src/shared/ui/dialog.tsx",
+        "web/src/shared/ui/index.ts",
+        "web/package.json"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "features/slicer-import/model: compose.ts — рядки з точних мг, конфлікти сумування, diff «було → стало»",
+      "layer": "domain",
+      "deps": [
+        "T8"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-05",
+        "AC-09",
+        "AC-10",
+        "AC-14"
+      ],
+      "dod": "Vitest compose.test.ts показує 11 543 мг → 1 155 сг, 2 001 + 2 001 мг → 401 сг, незіставлений філамент блокує результат, дві різні пари на один пластик без підтвердження дають конфлікт, а diff «Підставки» дає 80 → 95 г, PETG прибрано, 2:00 → 2:15.",
+      "files_hint": [
+        "web/src/features/slicer-import/model/",
+        "web/src/features/slicer-import/index.ts"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "features/slicer-import: кнопка «Імпортувати файл», мутація розбору й повідомлення відмов",
+      "layer": "ui",
+      "deps": [
+        "T8"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "dod": "Vitest-тести показують, що вибір файлу надсилає його сирим тілом application/octet-stream, а кожен код importing.* і 409 settings_missing дає своє українське пояснення з пропозицією ввести дані вручну (і посиланням на налаштування для AC-04).",
+      "files_hint": [
+        "web/src/features/slicer-import/api/",
+        "web/src/features/slicer-import/ui/ImportFileButton.tsx",
+        "web/src/features/slicer-import/ui/ImportRejection.tsx",
+        "web/src/features/slicer-import/ui/*.test.tsx"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "features/slicer-import: список філаментів, вибір пластику, підтвердження сумування",
+      "layer": "ui",
+      "deps": [
+        "T11",
+        "T12",
+        "T13"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-09",
+        "AC-09b",
+        "AC-10"
+      ],
+      "dod": "Vitest-тести панелі показують філамент як у слайсері (назва, тип, зразок кольору, грами) з Select пластику, блок доната до вибору кожного пластику, пояснення AC-09b за порожніх пластиків, діалог сумування для двох різних пар на один пластик і номер та назву імпортованої пластини.",
+      "files_hint": [
+        "web/src/features/slicer-import/ui/FilamentMappingPanel.tsx",
+        "web/src/features/slicer-import/ui/MergeConfirmDialog.tsx",
+        "web/src/features/slicer-import/model/state.ts",
+        "web/src/features/slicer-import/index.ts"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Сторінка розрахунку: імпорт у форму і передача зіставлень під час збереження виробу",
+      "layer": "ui",
+      "deps": [
+        "T9",
+        "T14"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-07",
+        "AC-08",
+        "AC-14"
+      ],
+      "dod": "Vitest-тест CalculatePage показує, що імпорт vtulka_A замінює всі рядки й час (1 год 38 хв), показує донат з quoteCost, ручна правка після імпорту працює, а збереження виробу надсилає filament_mappings з вибором кожного філамента; без збереження зіставлення не надсилаються.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/",
+        "web/src/features/save-item/",
+        "web/src/features/quote-form/"
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Сторінка виробу: імпорт перенарізки з «було → стало», підтвердженням і скасуванням",
+      "layer": "ui",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-08"
+      ],
+      "dod": "Vitest-тест ItemPage показує для «Підставки» «було → стало» 80 → 95 г, PETG прибрано, 2:00 → 2:15, 80,63 → 60,73 ₴ з «було» зі свіжого getItem, перерахунок «стало» після ручної правки, а скасування чи відмова файлу не надсилає updateItem.",
+      "files_hint": [
+        "web/src/pages/item/ui/",
+        "web/src/features/slicer-import/ui/WasBecomePanel.tsx",
+        "web/src/features/save-item/"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Документація: суфікс *_mg у CLAUDE.md, закриття D1/D3 у api-sync-report",
+      "layer": "docs",
+      "deps": [
+        "T10",
+        "T16"
+      ],
+      "acs": [
+        "AC-03"
+      ],
+      "dod": "CLAUDE.md § Money/units називає суфікс *_mg (лише у відповіді розбору), api-sync-report.md позначає D1 і D3 закритими з посиланням на тести T6/T8, а make check зелений.",
+      "files_hint": [
+        "CLAUDE.md",
+        "backend/CLAUDE.md",
+        "docs/features/print-file-import/contracts/api-sync-report.md"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Парсер: будь-який пошкоджений вміст архіву → importing.corrupted_file, ніколи не 500",
+      "layer": "app",
+      "deps": [
+        "T3",
+        "T4"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Три нові bad-file випадки повертають 422 importing.corrupted_file (тест через TestClient), жоден не дає 500, а make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/integration/test_importing_bad_files.py"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Пам'ять імпорту в бюджеті SAD §7: межа central directory до ZipFile і один буфер тіла",
+      "layer": "infra",
+      "deps": [
+        "T8",
+        "T18"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Тест «величезний central directory» відхиляється за обмежений час без побудови всіх ZipInfo, тіло в роутері тримається одним буфером, а make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/src/calculate3d/modules/importing/router.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/integration/test_nfr_import_latency.py"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Скасування імпорту в розрахунку і пояснення importing.plastic_not_found під час збереження",
+      "layer": "ui",
+      "deps": [
+        "T15",
+        "T16"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-09b"
+      ],
+      "dod": "Тести CalculatePage показують, що після скасування незіставленого імпорту ручні рядки дають донат і зберігаються без filament_mappings, а 422 importing.plastic_not_found дає українське пояснення й знову просить обрати пластик (CalculatePage і ItemPage.reslice); make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/features/slicer-import/ui/FilamentMappingPanel.tsx",
+        "web/src/features/save-item/model/name.ts",
+        "web/src/pages/item/ui/ItemReslice.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "UI-тести AC-03/AC-08/AC-14 після імпорту і цілочислове округлення мг → сг",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-08",
+        "AC-14"
+      ],
+      "dod": "Три нові CalculatePage-тести (AC-03, AC-08, AC-14) зелені через UI, compose округлює мг → сг без float-ділення, test-plan рядок 99 відповідає коду, а make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/features/slicer-import/model/compose.ts",
+        "web/src/features/slicer-import/model/compose.test.ts",
+        "docs/features/print-file-import/test-plan.md"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "Кнопка імпорту: файл понад 100 МБ відхиляється в браузері без надсилання",
+      "layer": "ui",
+      "deps": [
+        "T13"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Тест ImportFileButton з File розміром понад 100 МБ показує «Файл більший за 100 МБ» і не викликає fetch, а make web-check зелений.",
+      "files_hint": [
+        "web/src/features/slicer-import/ui/ImportFileButton.tsx",
+        "web/src/features/slicer-import/ui/ImportFileButton.test.tsx"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Парсер: межа реального central directory, version > 6.3 і лише ASCII-цифри → importing.corrupted_file",
+      "layer": "app",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Bad-file випадки cd_flood_small_declared_count (CD > 10 000 записів при EOCD count ≤ 10 000), cd_extract_version_unsupported і non_ascii_digits_in_usage дають 422 importing.corrupted_file; тест бюджету показує, що ZipFile не будується для CD-flood; make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/src/calculate3d/modules/importing/normalize.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/unit/test_importing_archive_budget.py"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "plastic_not_found: інвалідувати пластики й довести скидання вибору на сторінці виробу",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08"
+      ],
+      "dod": "Після 422 importing.plastic_not_found на CalculatePage і ItemPage.reslice видалений пластик зникає зі списку (запит пластиків інвалідовано), вибір філамента порожній, «Зберегти»/«Підтвердити» вимкнені — це перевіряють тести обох сторінок; make web-check зелений.",
+      "files_hint": [
+        "web/src/entities/plastic/api/plastics.ts",
+        "web/src/entities/plastic/index.ts",
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/item/ui/ItemReslice.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "Імпорт у розрахунку: key панелі за раундом імпорту і відновлення форми після скасування",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-09b",
+        "AC-10"
+      ],
+      "dod": "Тест CalculatePage: два імпорти того самого файлу з конфліктом знову відкривають діалог сумування; після готового імпорту «Скасувати імпорт» повертає форму до стану перед імпортом (рядки, час, донат) і зберігає без filament_mappings; make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T26",
+      "title": "Парсер: межа байтів central directory, відмова на overlapped-записах і тести меж",
+      "layer": "app",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Bad-file випадки cd_fat_records, cd_oversized_within_entry_limit, cd_flood_zip64_extensible_data, non_ascii_digits_in_print_time і overlapped_entries дають 422 importing.corrupted_file, а ZipFile не будується для CD-випадків; архів рівно з 10 000 записів не відхиляється як corrupted_file; кожен тест червоніє при відкаті свого фіксу; make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/unit/test_importing_archive_budget.py",
+        "backend/tests/unit/test_importing_parser.py"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "Імпорт у розрахунку: один стан форми й імпорту з функціональними оновленнями",
+      "layer": "ui",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-09b"
+      ],
+      "dod": "Три тести CalculatePage (скасування під час розбору повторного імпорту, A → B → скасувати, скасування під час збереження з 409) показують форму до імпорту і збереження без filament_mappings; кожен червоніє на поточному коді; make web-check зелений.",
+      "files_hint": [
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "Скасування заблоковане під час збереження; помилка переслайсу — функціональне оновлення",
+      "layer": "ui",
+      "deps": [
+        "T27"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-07",
+        "AC-08"
+      ],
+      "dod": "«Скасувати» на сторінці виробу і «Скасувати імпорт» у розрахунку недоступні, поки збереження в польоті; 422 plastic_not_found під час переслайсу скидає лише відхилений вибір від поточного стану; тест S2 фіксує один результат; кожен новий тест червоніє на поточному коді; make web-check зелений.",
+      "files_hint": [
+        "web/src/features/slicer-import/ui/WasBecomePanel.tsx",
+        "web/src/pages/item/ui/ItemReslice.tsx",
+        "web/src/pages/item/ui/ItemPage.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/features/save-item/ui/SaveItemForm.tsx"
+      ]
+    },
+    {
+      "id": "T29",
+      "title": "Межа байтів central directory у тестах і синхронізація SAD з новими правилами архіву",
+      "layer": "app",
+      "deps": [
+        "T26"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "Accept-тест рівно на MAX_CD_BYTES і reject-тест на MAX_CD_BYTES + 1 червоніють на мутантах `>=` і на підвищеному ліміті; byte-cap фікстури не overlapped; SAD §7/§8/§10 називають обидва нові правила; make api-check зелений.",
+      "files_hint": [
+        "backend/src/calculate3d/modules/importing/parser.py",
+        "backend/tests/fixtures/slicer/bad_files.py",
+        "backend/tests/unit/test_importing_archive_budget.py",
+        "backend/tests/unit/test_slicer_bad_files.py",
+        "docs/features/print-file-import/sad.md"
+      ]
+    },
+    {
+      "id": "T30",
+      "title": "Відхилений маппінг розв'язується за надісланим масивом; імпорт заблоковано під час збереження",
+      "layer": "ui",
+      "deps": [
+        "T28",
+        "T29"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-13"
+      ],
+      "dod": "422 filament_mappings.<i> очищує лише той філамент, що був i-м у надісланому масиві, і лише якщо він досі тримає той самий пластик; «Імпортувати файл» disabled, поки create/update у польоті, на /calculate і /item; тест R7b перевіряє зникнення панелі після першого скасування і котирування B; accept-тест на MAX_CD_BYTES проходить і повний read_sliced_plate; кожен новий тест червоніє на поточному коді; make check зелений.",
+      "files_hint": [
+        "web/src/features/slicer-import/model/state.ts",
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx",
+        "web/src/pages/item/ui/ItemReslice.tsx",
+        "web/src/pages/item/ui/ItemPage.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx",
+        "web/src/features/slicer-import/ui/ImportFileButton.tsx",
+        "backend/tests/unit/test_importing_archive_budget.py"
+      ]
+    },
+    {
+      "id": "T31",
+      "title": "Збереження заблоковане, поки парситься файл; тест /item на надісланий масив",
+      "layer": "ui",
+      "deps": [
+        "T30"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-08"
+      ],
+      "dod": "«Підтвердити» на /item і «Зберегти» на /calculate disabled, поки парсинг файлу в польоті (useIsParsingSlicerFile з features/slicer-import за mutationKey); тест «парсинг на паузі → Confirm недоступна», а з PUT на паузі результат PUT (помилка 422 / onDone) не губиться; /item-двійник тесту R9: скинути #FFFFFF під час PUT, 422 на індекс 0 → #000000 лишається petg, і мутант M7 (індекс з поточного стану в ItemReslice) червоніє; кожен новий тест червоніє на поточному коді; make check зелений.",
+      "files_hint": [
+        "web/src/features/slicer-import/api/parse.ts",
+        "web/src/features/slicer-import/index.ts",
+        "web/src/pages/item/ui/ItemPage.tsx",
+        "web/src/pages/item/ui/ItemReslice.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.tsx",
+        "web/src/pages/calculate/ui/CalculatePage.test.tsx"
+      ]
+    },
+    {
+      "id": "T32",
+      "title": "«Зберегти зміни» на /item заблоковане, поки парситься файл",
+      "layer": "ui",
+      "deps": [
+        "T31"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06"
+      ],
+      "dod": "«Зберегти зміни» в ItemEditor disabled, і submit нічого не надсилає, поки парсинг файлу в польоті (importing з ItemPage або useIsParsingSlicerFile); тест у ItemPage.test.tsx: парсинг на паузі → «Змінити» → перейменувати → «Зберегти зміни» недоступна; мутант «ItemEditor ігнорує importing» червоніє; новий тест червоніє на поточному коді; make check зелений.",
+      "files_hint": [
+        "web/src/pages/item/ui/ItemPage.tsx",
+        "web/src/pages/item/ui/ItemEditor.tsx",
+        "web/src/pages/item/ui/ItemPage.test.tsx"
+      ]
+    },
+    {
+      "id": "T33",
+      "title": "«Змінити» на /item недоступне, поки імпортується файл; тест вікна read-back",
+      "layer": "ui",
+      "deps": [
+        "T32"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06"
+      ],
+      "dod": "Кнопка «Змінити» disabled, поки importing (парсинг ‖ read-back), тож редактор не відкривається у вікні read-back і не з'являється знову після «Скасувати»/«Підтвердити» панелі імпорту; тест у ItemPage.reslice.test.tsx: readGate тримає GET виробу після парсингу → «Змінити» недоступна, 0 PUT; тест: після панелі імпорту форма «Змінити виріб» не відкрита; мутант importing={importing && !reading} червоніє; нові тести червоніють на поточному коді; make check зелений.",
+      "files_hint": [
+        "web/src/pages/item/ui/ItemPage.tsx",
+        "web/src/pages/item/ui/ItemPage.reslice.test.tsx"
+      ]
+    },
+    {
+      "id": "T34",
+      "title": "Межа тіла рівно 100 МБ приймається — функціональний тест, що не пропускається на CI",
+      "layer": "tests",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "У test_importing_api.py тіло рівно MAX_BODY байт (bytes(MAX_BODY)) з Content-Length і chunked отримує відмову парсера 422 importing.not_slicer_project, а не 413; тест не позначено @on_ci; мутант `> MAX_BODY_BYTES` → `>=` у router.py (обидві перевірки) червоніє з CI=1; make check зелений.",
+      "files_hint": [
+        "backend/tests/integration/test_importing_api.py",
+        "backend/src/calculate3d/modules/importing/router.py"
+      ]
+    }
+  ]
+}

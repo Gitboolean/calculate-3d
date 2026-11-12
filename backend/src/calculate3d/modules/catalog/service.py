@@ -10,6 +10,7 @@ from calculate3d.modules.catalog import repo
 from calculate3d.modules.catalog.schemas import Item, ItemDetail, ItemInput, ItemSummary
 from calculate3d.modules.costing import service as costing_service
 from calculate3d.modules.costing.service import PlasticUsage, QuoteInput
+from calculate3d.modules.importing import service as importing_service
 from calculate3d.modules.pricing import service as pricing_service
 
 
@@ -81,6 +82,8 @@ def _save(conn: repo.DbConnection, item_id: str, data: ItemInput, *, is_new: boo
         }
         index = next((i for i, u in enumerate(data.plastics) if u.plastic_id not in now_known), 0)
         raise PlasticNotFound(index) from exc
+    # Same Connection, same BEGIN IMMEDIATE: a rejected mapping rolls the item back (ADR 0003).
+    importing_service.remember_mappings(conn, data.filament_mappings)
     return _to_item(record)
 
 

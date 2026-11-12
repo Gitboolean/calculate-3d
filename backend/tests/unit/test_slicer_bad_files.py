@@ -1,0 +1,134 @@
+import io
+import struct
+import zipfile
+
+import pytest
+
+from calculate3d.modules.importing import parser
+from tests.fixtures.slicer import LITTLE_TREES, REFERENCE_FILES, VTULKA_PROJECT, VTULKA_SLICED
+from tests.fixtures.slicer.bad_files import BAD_FILES, BadFile, zip_bomb
+
+# ImportRejectedProblem.code enum of openapi.yaml (FileTooLarge is built by T10, not here).
+CONTRACT_REJECTION_CODES = {
+    "importing.not_slicer_project",
+    "importing.not_sliced",
+    "importing.multiple_sliced_plates",
+    "importing.corrupted_file",
+    "importing.print_time_out_of_range",
+    "importing.no_filament_usage",
+}
+
+# SAD §10 QG-2 + T2: every reason has its own case.
+REQUIRED_CASES = {
+    "not_zip",
+    "truncated_zip",
+    "empty_body",
+    "too_many_entries",
+    "forged_eocd_entry_count",
+    "forged_zip64_entry_count",
+    "oversized_part",
+    "lying_size_header",
+    "gcode_zip_bomb",
+    "billion_laughs",
+    "xxe",
+    "cad_3mf",
+    "orca_slicer",
+    "unsliced_project",
+    "two_sliced_plates",
+    "duplicate_part_names",
+    "path_traversal",
+    "missing_slice_info",
+    "missing_prediction",
+    "nan_grams",
+    "infinite_grams",
+    "exponent_grams",
+    "negative_grams",
+    "too_precise_grams",
+    "zero_print_time",
+    "too_long_print_time",
+    "no_filament_usage",
+    "filament_without_name",
+    "too_long_filament_name",
+    "non_canonical_color",
+    "too_many_filament_pairs",
+    "usage_mg_over_safe_integer",
+    "huge_plate_index",
+    "huge_filament_id",
+    "huge_plater_id",
+    "unknown_xml_encoding",
+    "local_header_name_not_utf8",
+}
+
+
+def test_reference_files_are_the_three_slicer_references() -> None:
+    assert {p.name for p in REFERENCE_FILES} == {
+        "vtulka_A.3mf",
+        "vtulka_A.gcode.3mf",
+        "LITTLE_TREES_-_multicolor.gcode.3mf",
+    }
+    for path in (VTULKA_PROJECT, VTULKA_SLICED, LITTLE_TREES):
+        assert zipfile.is_zipfile(path)
+
+
+def test_every_required_bad_case_is_present_once() -> None:
+    names = [case.name for case in BAD_FILES]
+    assert len(names) == len(set(names))
+    assert set(names) >= REQUIRED_CASES
+
+
+@pytest.mark.parametrize("case", BAD_FILES, ids=lambda c: c.name)
+def test_each_bad_case_builds_with_a_contract_code(case: BadFile) -> None:
+    assert isinstance(case.body, bytes)
+    assert case.expected_code in CONTRACT_REJECTION_CODES
+
+
+def test_empty_body_is_really_empty() -> None:
+    (case,) = [c for c in BAD_FILES if c.name == "empty_body"]
+    assert case.body == b""
+
+
+def test_zip_bomb_is_small_but_inflates_to_gigabytes() -> None:
+    body = zip_bomb()
+    assert len(body) < 1_000_000
+    with zipfile.ZipFile(io.BytesIO(body)) as zf:
+        gcode = zf.getinfo("Metadata/plate_1.gcode")
+    assert gcode.file_size >= 1_000_000_000
+
+
+def test_too_many_entries_has_10001_entries() -> None:
+    (case,) = [c for c in BAD_FILES if c.name == "too_many_entries"]
+    with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
+        assert len(zf.infolist()) == 10_001
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "cd_flood_small_declared_count",
+        "cd_flood_eocd_offset_field_has_signature",
+        "cd_flood_zip64_locator_unflagged",
+        "cd_flood_zip64_record_at_locator_minus_56",
+        "cd_flood_zip64_extensible_data",
+    ],
+)
+def test_cd_flood_cases_are_real_bypasses_that_plain_zipfile_accepts(name: str) -> None:
+    (case,) = [c for c in BAD_FILES if c.name == name]
+    with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
+        assert len(zf.infolist()) > 10_000
+
+
+@pytest.mark.parametrize("name", ["cd_fat_records", "cd_oversized_within_entry_limit"])
+def test_cd_byte_cases_stay_under_the_entry_limit_but_over_the_byte_cap(name: str) -> None:
+    (case,) = [c for c in BAD_FILES if c.name == name]
+    with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
+        assert len(zf.infolist()) <= 10_000
+    eocd = case.body.rfind(b"PK\x05\x06")
+    (cd_size,) = struct.unpack_from("<I", case.body, eocd + 12)
+    assert cd_size > parser.MAX_CD_BYTES
+
+
+def test_overlapped_entries_share_one_header_offset_in_plain_zipfile() -> None:
+    (case,) = [c for c in BAD_FILES if c.name == "overlapped_entries"]
+    with zipfile.ZipFile(io.BytesIO(case.body)) as zf:
+        offsets = [info.header_offset for info in zf.infolist()]
+    assert len(offsets) != len(set(offsets))

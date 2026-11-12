@@ -1,5 +1,9 @@
 """Request guard (cost-calculator ADR 0007): Host allowlist, same-origin `/api`, JSON-only writes.
 
+One exception (print-file-import ADR 0002): `POST /api/importing/parse` takes only a raw
+`application/octet-stream` body — the slicer file — and nothing else; Host and origin checks
+stay the same for it.
+
 A pure ASGI middleware, so a rejected request never reaches routing or opens a DB transaction.
 """
 
@@ -10,6 +14,9 @@ from calculate3d.core.errors import problem
 
 MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CROSS_SITE = frozenset({"cross-site", "same-site"})
+JSON = "application/json"
+OCTET_STREAM = "application/octet-stream"
+IMPORT_ROUTE = ("POST", "/api/importing/parse")
 
 
 def _is_api(path: str) -> bool:
@@ -25,9 +32,12 @@ def _declares_body(headers: Headers) -> bool:
     )
 
 
-def _is_json(headers: Headers) -> bool:
-    media_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
-    return media_type == "application/json"
+def _media_type(headers: Headers) -> str:
+    return headers.get("content-type", "").split(";", 1)[0].strip().lower()
+
+
+def _required_media_type(scope: Scope) -> str:
+    return OCTET_STREAM if (scope["method"], scope["path"]) == IMPORT_ROUTE else JSON
 
 
 class RequestGuard:
@@ -57,10 +67,10 @@ class RequestGuard:
             elif (
                 scope["method"] in MUTATING_METHODS
                 and _declares_body(headers)
-                and not _is_json(headers)
+                and _media_type(headers) != (required := _required_media_type(scope))
             ):
                 response = problem(
-                    415, "Content-Type must be application/json", "unsupported_media_type"
+                    415, f"Content-Type must be {required}", "unsupported_media_type"
                 )
         if response is not None:
             await response(scope, receive, send)

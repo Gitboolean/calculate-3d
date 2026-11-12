@@ -1,0 +1,793 @@
+# Derived by /sdlc:api-forge print-file-import (scenario A) from:
+#   fields + constraints  ← data-model.md (filament_mappings) + SAD §8 (parser: чесні межі й нормалізація)
+#   error responses       ← sad.md §6 alt-branches (flows 1–7 + cross-cutting) + SAD §8 Error handling
+#   endpoint list + shape ← PRD.md §4 US-01..US-05 / §5 AC-01..AC-15; ADR 0001–0004
+# Delta contract: only operations this feature adds or changes. Unchanged operations it consumes
+# (quoteCost, getItem, listPlastics, updatePlastic, getPriceSettings) stay in
+# ../../cost-calculator/contracts/openapi.yaml; shared components are repeated here verbatim so this
+# file validates on its own.
+# Repo deviations from the api-forge defaults (api-sync-report.md §Deviations,
+# .claude/rules/openapi.md § Repo adaptation): no BearerAuth (project ADR 0004), /api/<module>
+# without /v1 (CLAUDE.md), RFC 9457 problem+json instead of {code,message,details?}
+# (core/errors.py), no cursor (no list endpoints here), raw octet-stream body (feature ADR 0002).
+openapi: 3.1.0
+
+info:
+  title: calculate-3d — print-file-import API
+  version: 0.1.0
+  description: |
+    Імпорт файлу слайсера — етап 2 інструмента автора (PRD §1). Автор завантажує нарізаний файл
+    проєкту Bambu Studio в розрахунок або в наявний виріб, а сервер бере з нього витрату кожного
+    філамента слайсера (разом із промивкою та вежею очищення) і час друку, підставляє запам'ятовані
+    зіставлення пластиків і повертає результат, нічого не записуючи. Рядки розрахунку з точних
+    міліграмів складає веб (ADR 0004), ціну рахує наявний `POST /api/costing/quote`, а вибір
+    пластиків запам'ятовується лише разом зі збереженим виробом (ADR 0003). Самого файлу
+    інструмент не зберігає (ADR 0001, PRD §6).
+
+    Файл надсилається сирим тілом `application/octet-stream` (ADR 0002); це єдиний змінний
+    маршрут `/api`, що приймає не JSON. Межа тіла — 100 000 000 байт. Усі дробові величини —
+    масштабовані цілі з одиницею в назві (`*_mg` міліграми лише у відповіді розбору, `*_cg`,
+    `*_s`; cost-calculator ADR 0004). Сервер слухає лише `127.0.0.1` без автентифікації; захист
+    запитів — cost-calculator ADR 0007 + поправка ADR 0002 (AC-15).
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: make run — UI + API in one process
+  - url: http://localhost:5173
+    description: make dev — Vite, proxies /api to :8000
+
+# Local-only, no authentication (project ADR 0004). Protection = bind 127.0.0.1 + request guard.
+security: []
+
+tags:
+  - name: importing
+    description: Розбір файлу слайсера й зіставлення пластиків; розбір нічого не зберігає (US-01..US-05)
+  - name: catalog
+    description: Збереження виробу тепер приймає зіставлення пластиків (ADR 0003; US-01..US-03)
+  - name: pricing
+    description: Видалення пластику каскадно забуває його зіставлення (AC-11); форма без змін
+
+paths:
+  # ───────────────────────────── importing ─────────────────────────────
+  /api/importing/parse:
+    post:
+      tags: [importing]
+      summary: Розібрати файл слайсера — пластина, час друку, філаменти, підставлені пластики
+      description: |
+        Тіло — байти файлу проєкту Bambu Studio (`*.gcode.3mf` / `*.3mf`), `Content-Type:
+        application/octet-stream` (ADR 0002). Файл читається лише в пам'яті й відкидається після
+        відповіді; у БД нічого не пишеться (ADR 0001, PRD §6 «Файл не зберігається»).
+
+        Порядок перевірок (перша, що спрацювала, дає відповідь):
+        1. Захист запитів — `Host` (400), джерело (403), тип тіла лише `application/octet-stream`
+           (415) (AC-15, ADR 0002).
+        2. Розмір: `Content-Length` > 100 000 000 → `413` до читання тіла; без `Content-Length`
+           читання обривається на першому байті понад межу → `413` (AC-13, PRD §6).
+        3. Готовність налаштувань цін — жодного пластику або тариф/потужність/знос/брак не
+           збережено → `409 importing.settings_missing`, файл не розбирається (AC-04, потік 4).
+        4. Ланцюжок SAD §8 → `422` зі своїм `code` на кожну причину: межі архіву й цілісність
+           (`corrupted_file`), не проєкт Bambu Studio (`not_slicer_project`, зокрема CAD-3MF і
+           OrcaSlicer), не нарізаний (`not_sliced`), понад одна нарізана пластина
+           (`multiple_sliced_plates`), межі файлу — час (`print_time_out_of_range`) і витрата
+           (`no_filament_usage`) (AC-12, AC-13, AC-14).
+
+        Успіх (AC-01, AC-02, AC-03, AC-07, AC-09, AC-10): єдина нарізана пластина (ненарізані
+        пропущено), час `prediction` округлено вгору до цілої хвилини, філаменти з витратою > 0 —
+        по одному на пару (назва, колір) після нормалізації (однакові слоти злито з сумою точних мг),
+        кожен з пластиком із запам'ятаного зіставлення або `plastic_id: null`.
+      operationId: parseSlicerFile
+      requestBody:
+        required: true
+        description: Байти файлу слайсера, ≤ 100 000 000 (ADR 0002). Тип визначається за вмістом, не за назвою.
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              maxLength: 100000000
+            examples:
+              vtulka:
+                summary: Еталон «vtulka_A» — нарізана пластина, один філамент (AC-01)
+                externalValue: ../example-import/vtulka_A.gcode.3mf
+              little_trees:
+                summary: Еталон «LITTLE_TREES» — 10 пластин, нарізана одна, 3 використані філаменти (AC-02)
+                externalValue: ../example-import/LITTLE_TREES_-_multicolor.gcode.3mf
+              project_not_sliced:
+                summary: Еталон «vtulka_A», збережений як проєкт без нарізки (AC-12)
+                externalValue: ../example-import/vtulka_A.3mf
+      responses:
+        "200":
+          description: Розібраний файл; нічого не записано (AC-01, AC-02, AC-07)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlicerFile" }
+              examples:
+                vtulka_mapped:
+                  summary: «vtulka_A» з наявним зіставленням → «PLA білий» (AC-01; 5 828 с → 5 880 с, AC-03)
+                  value:
+                    plate: { index: 1, name: "" }
+                    print_time_s: 5880
+                    filaments:
+                      - filament_name: "Bambu PLA Basic @BBL A1M"
+                        filament_type: "PLA"
+                        filament_color: "#FFFFFF"
+                        usage_mg: 11540
+                        plastic_id: "01900000-0000-7000-8000-00000000a002"
+                little_trees_partly_mapped:
+                  summary: «LITTLE_TREES» — жовтий ще не зіставлено (AC-02, AC-07, AC-09; 5 401 с → 5 460 с)
+                  value:
+                    plate: { index: 1, name: "mini christmas tree" }
+                    print_time_s: 5460
+                    filaments:
+                      - filament_name: "Bambu PLA Basic @BBL A1M"
+                        filament_type: "PLA"
+                        filament_color: "#3F8E43"
+                        usage_mg: 15490
+                        plastic_id: "01900000-0000-7000-8000-00000000a003"
+                      - filament_name: "Bambu PLA Basic @BBL A1M"
+                        filament_type: "PLA"
+                        filament_color: "#000000"
+                        usage_mg: 2230
+                        plastic_id: "01900000-0000-7000-8000-00000000a004"
+                      - filament_name: "Bambu PLA Basic @BBL A1M"
+                        filament_type: "PLA"
+                        filament_color: "#FEC600"
+                        usage_mg: 2360
+                        plastic_id: null
+        "409": { $ref: "#/components/responses/ImportSettingsMissing" }
+        "413": { $ref: "#/components/responses/FileTooLarge" }
+        "422": { $ref: "#/components/responses/ImportRejected" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/OctetStreamRequired" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  # ───────────────────────────── catalog (changed) ─────────────────────────────
+  /api/catalog/items:
+    post:
+      tags: [catalog]
+      summary: Зберегти розрахунок як виріб — разом із зіставленнями пластиків з імпорту
+      description: |
+        Як в етапі 1 (AC-10, AC-11 cost-calculator) плюс необов'язкове `filament_mappings`
+        (ADR 0003). Виріб, його рядки витрати й upsert зіставлень за (назва, колір) пишуться
+        в одній транзакції: якщо назва зайнята, бракує налаштувань чи пластик зіставлення тим
+        часом видалено — не лишається ні виробу, ні зіставлень (AC-07, AC-08, потік 6).
+        Пластик зіставлення не мусить бути серед рядків виробу (AC-08: рядок видалено вручну).
+        Без `filament_mappings` поведінка етапу 1 не змінюється.
+      operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemInput" }
+            example:
+              name: "Втулка A"
+              plastics:
+                - plastic_id: "01900000-0000-7000-8000-00000000a002"
+                  usage_cg: 1154
+              print_time_s: 5880
+              filament_mappings:
+                - filament_name: "Bambu PLA Basic @BBL A1M"
+                  filament_color: "#FFFFFF"
+                  plastic_id: "01900000-0000-7000-8000-00000000a002"
+      responses:
+        "201":
+          description: Виріб у каталозі, без ціни; зіставлення запам'ятовано (AC-07)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+              example:
+                id: "01900000-0000-7000-8000-00000000b002"
+                name: "Втулка A"
+                plastics:
+                  - plastic_id: "01900000-0000-7000-8000-00000000a002"
+                    usage_cg: 1154
+                print_time_s: 5880
+        "409": { $ref: "#/components/responses/ItemNameTakenOrSettingsMissing" }
+        "422": { $ref: "#/components/responses/ItemInvalid" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/catalog/items/{item_id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    put:
+      tags: [catalog]
+      summary: Підтвердити «було → стало» — замінити параметри виробу й запам'ятати зіставлення
+      description: |
+        Замінює весь набір пластиків і час друку виробу (AC-05, AC-14b/14c cost-calculator); назву
+        веб передає незмінною. «Було» веб бере з `GET /api/catalog/items/{item_id}` — збереженого
+        виробу, а не стану форми (SAD §5). Зіставлення — як у `createItem`, у тій самій транзакції
+        (ADR 0003). Скасування «було → стало» — це відсутність цього запиту: виріб і зіставлення
+        не змінюються (AC-06, потік 2 `else автор скасовує`). Зміна застосовується лише цілком.
+      operationId: updateItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemInput" }
+            example:
+              name: "Підставка"
+              plastics:
+                - plastic_id: "01900000-0000-7000-8000-00000000a002"
+                  usage_cg: 9500
+              print_time_s: 8100
+              filament_mappings:
+                - filament_name: "Bambu PLA Basic @BBL A1M"
+                  filament_color: "#FFFFFF"
+                  plastic_id: "01900000-0000-7000-8000-00000000a002"
+      responses:
+        "200":
+          description: Оновлений виріб; каталог покаже новий мінімальний донат (AC-05)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+              example:
+                id: "01900000-0000-7000-8000-00000000b001"
+                name: "Підставка"
+                plastics:
+                  - plastic_id: "01900000-0000-7000-8000-00000000a002"
+                    usage_cg: 9500
+                print_time_s: 8100
+        "404": { $ref: "#/components/responses/ItemNotFound" }
+        "409": { $ref: "#/components/responses/ItemNameTakenOrSettingsMissing" }
+        "422": { $ref: "#/components/responses/ItemInvalid" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  # ───────────────────────────── pricing (behaviour note) ─────────────────────────────
+  /api/pricing/plastics/{plastic_id}:
+    parameters:
+      - $ref: "#/components/parameters/PlasticId"
+    delete:
+      tags: [pricing]
+      summary: Видалити пластик — його зіставлення забуваються каскадом
+      description: |
+        Форма відповіді — як в етапі 1. Нове: зіставлення пластиків, що вказують на цей пластик,
+        видаляються разом із ним (FK `ON DELETE CASCADE`), тож наступний імпорт знову просить
+        обрати пластик, а видалений пластик ніколи не підставляється (AC-11, потік 7). Видалення
+        блокують лише вироби (`pricing.plastic_in_use`), а зіставлення — ні.
+      operationId: deletePlastic
+      responses:
+        "204": { description: Пластик видалено разом із його зіставленнями (AC-11) }
+        "404": { $ref: "#/components/responses/PlasticNotFound" }
+        "409": { $ref: "#/components/responses/PlasticInUse" }
+        "400": { $ref: "#/components/responses/HostNotAllowed" }
+        "403": { $ref: "#/components/responses/CrossOriginForbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+components:
+  parameters:
+    PlasticId:
+      in: path
+      name: plastic_id
+      required: true
+      description: plastics.id (UUIDv7)
+      schema: { $ref: "#/components/schemas/Id" }
+    ItemId:
+      in: path
+      name: item_id
+      required: true
+      description: items.id (UUIDv7)
+      schema: { $ref: "#/components/schemas/Id" }
+
+  responses:
+    # ── importing ──
+    ImportSettingsMissing:
+      description: Бракує пластиків або налаштувань цін — файл не розбирається (AC-04, потік 4)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ImportSettingsMissingProblem" }
+          example:
+            type: "about:blank"
+            title: "Conflict"
+            status: 409
+            detail: "Price settings are not set"
+            code: "importing.settings_missing"
+            missing: ["plastics"]
+    FileTooLarge:
+      description: Тіло понад 100 000 000 байт; читання обірвано на межі (AC-13, PRD §6, ADR 0002)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Content Too Large"
+            status: 413
+            detail: "Slicer file is larger than 100000000 bytes"
+            code: "importing.file_too_large"
+    ImportRejected:
+      description: |
+        Файл непридатний; нічого не змінено, жодних нулів (AC-12, AC-13, AC-14 — межі файлу;
+        потік 3). `code` називає причину, людський текст UI формує українською за ним (SAD §8).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ImportRejectedProblem" }
+          examples:
+            not_slicer_project:
+              summary: Не файл проєкту Bambu Studio — не ZIP, CAD-3MF, OrcaSlicer (AC-12, AC-13)
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "Not a Bambu Studio project file"
+                code: "importing.not_slicer_project"
+            not_sliced:
+              summary: Проєкт без результатів нарізки (AC-12)
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "Project has no sliced plate"
+                code: "importing.not_sliced"
+            multiple_sliced_plates:
+              summary: Понад одна нарізана пластина (AC-13)
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "More than one plate is sliced"
+                code: "importing.multiple_sliced_plates"
+            corrupted_file:
+              summary: Межі архіву, цілісність, хибні числа чи понад 32 філаменти (AC-13, SAD §8)
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "Slicer file is corrupted"
+                code: "importing.corrupted_file"
+            print_time_out_of_range:
+              summary: Час друку нульовий або понад 100 000 год (AC-14)
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "Print time is out of range"
+                code: "importing.print_time_out_of_range"
+            no_filament_usage:
+              summary: Жодного філамента з ненульовою витратою (AC-14)
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "No filament has non-zero usage"
+                code: "importing.no_filament_usage"
+    OctetStreamRequired:
+      description: Тіло розбору не `application/octet-stream`, напр. HTML-форма чи multipart (AC-15, ADR 0002)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Unsupported Media Type"
+            status: 415
+            detail: "Content-Type must be application/octet-stream"
+            code: "unsupported_media_type"
+
+    # ── catalog ──
+    ItemInvalid:
+      description: |
+        Хибні параметри виробу: `validation_error` — як в етапі 1 (назва, порожній список пластиків,
+        межі витрати й часу, понад 32 пластики, повтор пластику) плюс хибне зіставлення (назва
+        філамента порожня, з пробілами на краях чи понад 200 символів; колір не `#RRGGBB` у
+        верхньому регістрі; понад 32 зіставлення; та сама пара назва+колір двічі);
+        `catalog.plastic_not_found` — пластика рядка виробу немає;
+        `importing.plastic_not_found` — пластика зіставлення немає, зокрема видалено між імпортом і
+        збереженням (потік 6; транзакцію відкочено).
+      content:
+        application/problem+json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ValidationProblem"
+              - $ref: "#/components/schemas/FieldProblem"
+          examples:
+            mapping_plastic_not_found:
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "Plastic not found"
+                code: "importing.plastic_not_found"
+                field: "filament_mappings.0.plastic_id"
+            item_plastic_not_found:
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "Plastic not found"
+                code: "catalog.plastic_not_found"
+                field: "plastics.0.plastic_id"
+            bad_mapping_color:
+              value:
+                type: "about:blank"
+                title: "Unprocessable Content"
+                status: 422
+                detail: "Request validation failed"
+                code: "validation_error"
+                errors:
+                  - loc: ["body", "filament_mappings", 0, "filament_color"]
+                    msg: "String should match pattern '^#[0-9A-F]{6}$'"
+    ItemNameTakenOrSettingsMissing:
+      description: Назва вже є в каталозі (AC-11, AC-14c етапу 1) або бракує налаштувань цін (AC-10 етапу 1); зіставлень не записано (ADR 0003)
+      content:
+        application/problem+json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/FieldProblem"
+              - $ref: "#/components/schemas/SettingsMissingProblem"
+          examples:
+            name_taken:
+              value:
+                type: "about:blank"
+                title: "Conflict"
+                status: 409
+                detail: "Item name is already taken"
+                code: "catalog.name_taken"
+                field: "name"
+            settings_missing:
+              value:
+                type: "about:blank"
+                title: "Conflict"
+                status: 409
+                detail: "Price settings are not set"
+                code: "costing.settings_missing"
+                missing: ["price_settings"]
+    ItemNotFound:
+      description: Виробу з таким id немає
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Not Found"
+            status: 404
+            detail: "Item not found"
+            code: "catalog.item_not_found"
+
+    # ── pricing ──
+    PlasticNotFound:
+      description: Пластика з таким id немає
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Not Found"
+            status: 404
+            detail: "Plastic not found"
+            code: "pricing.plastic_not_found"
+    PlasticInUse:
+      description: Пластик використовують вироби — лише вони блокують видалення, зіставлення ні (AC-11)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/PlasticInUseProblem" }
+          example:
+            type: "about:blank"
+            title: "Conflict"
+            status: 409
+            detail: "Plastic is used by catalog items"
+            code: "pricing.plastic_in_use"
+            items: ["Підставка"]
+
+    # ── core / request guard (cost-calculator ADR 0007) ──
+    HostNotAllowed:
+      description: Host поза переліком дозволених, зокрема DNS rebinding (AC-15)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Bad Request"
+            status: 400
+            detail: "Host is not allowed"
+            code: "host_not_allowed"
+    CrossOriginForbidden:
+      description: Запит зі стороннього сайту — Sec-Fetch-Site cross-site/same-site або чужий Origin (AC-15)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Forbidden"
+            status: 403
+            detail: "Cross-origin request is forbidden"
+            code: "cross_origin_forbidden"
+    UnsupportedMediaType:
+      description: Змінний запит не у форматі application/json (AC-15, cost-calculator ADR 0007)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Unsupported Media Type"
+            status: 415
+            detail: "Content-Type must be application/json"
+            code: "unsupported_media_type"
+    InternalError:
+      description: Неочікувана помилка сервера; без деталей файлу (SAD §8 Logging)
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+          example:
+            type: "about:blank"
+            title: "Internal Server Error"
+            status: 500
+            detail: "Internal server error"
+            code: "internal_error"
+
+  schemas:
+    # ── shared primitives (verbatim from cost-calculator) ──
+    Id:
+      type: string
+      format: uuid
+      description: UUIDv7, generated by the app (core/ids.py::new_id), 36-char TEXT in SQLite
+    Name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      pattern: "\\S"
+      description: Назва пластику чи виробу — NFC, обрізана, 1–100 символів (cost-calculator ADR 0006)
+
+    # ── error envelope: RFC 9457 problem+json (core/errors.py::problem) ──
+    Problem:
+      type: object
+      required: [type, title, status, detail, code]
+      properties:
+        type: { type: string, example: "about:blank" }
+        title: { type: string, description: HTTP reason phrase }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail:
+          type: string
+          description: Технічний текст англійською; людський текст UI формує за `code` (SAD §8)
+        code:
+          type: string
+          pattern: "^[a-z_]+(\\.[a-z_]+)?$"
+          description: "`<module>.<error_name>` для помилок модулів; без простору імен для core"
+    ValidationProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [errors]
+          properties:
+            code: { const: "validation_error" }
+            errors:
+              type: array
+              items: { $ref: "#/components/schemas/ValidationIssue" }
+    ValidationIssue:
+      type: object
+      required: [loc, msg]
+      additionalProperties: false
+      properties:
+        loc:
+          type: array
+          items: { type: [string, integer] }
+          description: Шлях до хибного поля, напр. ["body", "filament_mappings", 0, "filament_color"]
+        msg: { type: string }
+    FieldProblem:
+      description: Доменна помилка, прив'язана до одного поля форми (розширення `field`)
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [field]
+          properties:
+            field:
+              type: string
+              description: Шлях поля через крапку, напр. "name" чи "filament_mappings.0.plastic_id"
+    PlasticInUseProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [items]
+          properties:
+            code: { const: "pricing.plastic_in_use" }
+            items:
+              type: array
+              minItems: 1
+              items: { type: string }
+              description: Назви виробів, що використовують пластик
+    SettingsMissingProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [missing]
+          properties:
+            code: { const: "costing.settings_missing" }
+            missing: { $ref: "#/components/schemas/MissingSettings" }
+    MissingSettings:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items: { type: string, enum: [plastics, price_settings] }
+      description: Чого бракує — жодного пластику та/або налаштування цін не збережено (AC-04)
+
+    # ── importing: problems ──
+    ImportSettingsMissingProblem:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [missing]
+          properties:
+            code: { const: "importing.settings_missing" }
+            missing: { $ref: "#/components/schemas/MissingSettings" }
+    ImportRejectedProblem:
+      description: Відмова ланцюжка перевірок SAD §8 — одна причина на код (AC-12, AC-13, AC-14)
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - importing.not_slicer_project
+                - importing.not_sliced
+                - importing.multiple_sliced_plates
+                - importing.corrupted_file
+                - importing.print_time_out_of_range
+                - importing.no_filament_usage
+
+    # ── importing: filament keys (data-model.md → filament_mappings) ──
+    FilamentName:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: "^\\S(.*\\S)?$"
+      description: |
+        Назва пресету філамента (`filament_settings_id[id-1]`), обрізана від пробілів на краях, з
+        урахуванням регістру, без NFC і `casefold` (AC-09, SAD §8). 1–200 code points
+        (filament_mappings.filament_name). Задовга назва у файлі → `importing.corrupted_file`.
+        Показується лише як текст (PRD §6.1).
+      example: "Bambu PLA Basic @BBL A1M"
+    FilamentColor:
+      type: string
+      pattern: "^#[0-9A-F]{6}$"
+      description: |
+        Колір `#RRGGBB` у верхньому регістрі (filament_mappings.filament_color). Розбір нормалізує
+        `#ffffff` і `#FFFFFFFF` до `#FFFFFF`, а будь-яку іншу форму відхиляє як пошкоджений файл
+        (AC-09, SAD §8); вхід збереження приймає лише канонічну форму.
+      example: "#FFFFFF"
+
+    # ── importing: parse result (response only, never stored — ADR 0001) ──
+    SlicerFile:
+      description: Розібраний файл слайсера; живе лише у відповіді й стані форми вебу (ADR 0001)
+      type: object
+      required: [plate, print_time_s, filaments]
+      additionalProperties: false
+      properties:
+        plate: { $ref: "#/components/schemas/SlicedPlate" }
+        print_time_s:
+          allOf:
+            - $ref: "#/components/schemas/PrintTime"
+          description: |
+            `prediction` пластини (повний розрахунковий час разом зі змінами філаменту), округлений
+            вгору до цілої хвилини (AC-02, AC-03): 5 828 с → 5 880 с; рівно 5 820 с не змінюється.
+        filaments: { $ref: "#/components/schemas/SlicerFilamentList" }
+    SlicedPlate:
+      description: Яку пластину імпортовано (AC-02) — єдину з результатами нарізки
+      type: object
+      required: [index, name]
+      additionalProperties: false
+      properties:
+        index:
+          type: integer
+          minimum: 1
+          description: Номер пластини в проєкті (`slice_info.config` `index`), з 1
+        name:
+          type: string
+          description: Назва пластини (`plater_name`) як у слайсері; може бути порожньою — тоді UI показує лише номер
+    SlicerFilamentList:
+      type: array
+      minItems: 1
+      maxItems: 32
+      description: |
+        Використані філаменти — лише з записом у результатах нарізки й витратою > 0 (AC-02), по
+        одному на пару (`filament_name`, `filament_color`): однакові слоти злито, `usage_mg`
+        додано точно (AC-10, виняток «дві однакові котушки»). Понад 32 таких пари →
+        `importing.corrupted_file` (data-model «до 32 пар»).
+      items: { $ref: "#/components/schemas/SlicerFilament" }
+    SlicerFilament:
+      description: Філамент слайсера так, як його записав слайсер, плюс підставлений пластик (AC-07)
+      type: object
+      required: [filament_name, filament_type, filament_color, usage_mg, plastic_id]
+      additionalProperties: false
+      properties:
+        filament_name: { $ref: "#/components/schemas/FilamentName" }
+        filament_type:
+          type: string
+          description: Тип філамента з результатів нарізки (`<filament type>`), напр. "PLA"; лише для показу (AC-07)
+          example: "PLA"
+        filament_color: { $ref: "#/components/schemas/FilamentColor" }
+        usage_mg:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          description: |
+            Точна витрата в міліграмах разом із промивкою й вежею очищення (`used_g` × 1000; ADR
+            0004): 11,54 г → 11540. Більш ніж 3 знаки після коми чи понад 2^53−1 →
+            `importing.corrupted_file`. Рядок `usage_cg` складає веб: ceil(сума мг / 10) (AC-03).
+        plastic_id:
+          description: |
+            Пластик за запам'ятаним зіставленням (назва + колір) або `null`, якщо зіставлення немає
+            (AC-07, AC-09). Каскад FK гарантує, що видалений пластик тут не з'явиться (AC-11).
+          anyOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+
+    # ── importing: mapping input (persisted into filament_mappings, ADR 0003) ──
+    FilamentMappingInput:
+      description: Вибір автора «філамент слайсера → пластик»; upsert за (назва, колір) (AC-07, AC-08)
+      type: object
+      required: [filament_name, filament_color, plastic_id]
+      additionalProperties: false
+      properties:
+        filament_name: { $ref: "#/components/schemas/FilamentName" }
+        filament_color: { $ref: "#/components/schemas/FilamentColor" }
+        plastic_id:
+          allOf:
+            - $ref: "#/components/schemas/Id"
+          description: filament_mappings.plastic_id → plastics.id; немає → `importing.plastic_not_found`
+    FilamentMappingList:
+      type: array
+      minItems: 0
+      maxItems: 32
+      description: |
+        До 32 зіставлень, кожна пара (назва, колір) не більше одного разу (UNIQUE
+        filament_mappings) → інакше `validation_error`. Кілька пар можуть вести до одного пластику
+        (AC-10). Містить вибір для кожного філамента, навіть якщо його рядок потім видалено (AC-08).
+      items: { $ref: "#/components/schemas/FilamentMappingInput" }
+
+    # ── costing (verbatim from cost-calculator) ──
+    PlasticUsage:
+      description: Витрата одного пластику на один друк (рядок item_plastics)
+      type: object
+      required: [plastic_id, usage_cg]
+      additionalProperties: false
+      properties:
+        plastic_id: { $ref: "#/components/schemas/Id" }
+        usage_cg:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+          description: Витрата в сотих грама, > 0, до 100 000 000; з імпорту — ceil(сума usage_mg / 10) (ADR 0004)
+    PlasticUsageList:
+      type: array
+      minItems: 1
+      maxItems: 32
+      description: Від 1 до 32 пластиків; той самий plastic_id двічі — 422 (AC-14 — так само, як вручну)
+      items: { $ref: "#/components/schemas/PlasticUsage" }
+    PrintTime:
+      type: integer
+      minimum: 60
+      maximum: 360000000
+      multipleOf: 60
+      description: Час друку в секундах — цілі години й хвилини, до 360 000 000 (100 000 год)
+
+    # ── catalog ──
+    ItemInput:
+      type: object
+      required: [name, plastics, print_time_s]
+      additionalProperties: false
+      properties:
+        name: { $ref: "#/components/schemas/Name" }
+        plastics: { $ref: "#/components/schemas/PlasticUsageList" }
+        print_time_s: { $ref: "#/components/schemas/PrintTime" }
+        filament_mappings:
+          allOf:
+            - $ref: "#/components/schemas/FilamentMappingList"
+          description: |
+            Необов'язково (ADR 0003): зіставлення з імпорту, які треба запам'ятати разом із виробом.
+            Відсутнє чи порожнє — поведінка етапу 1; у відповіді виробу не повертається.
+    Item:
+      description: Виріб — лише параметри, без ціни й без зіставлень (зіставлення виробу не належать)
+      type: object
+      required: [id, name, plastics, print_time_s]
+      additionalProperties: false
+      properties:
+        id: { $ref: "#/components/schemas/Id" }
+        name: { $ref: "#/components/schemas/Name" }
+        plastics: { $ref: "#/components/schemas/PlasticUsageList" }
+        print_time_s: { $ref: "#/components/schemas/PrintTime" }

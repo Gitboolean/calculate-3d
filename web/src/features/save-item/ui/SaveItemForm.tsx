@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 
 import { useCreateItem } from '@/entities/item'
 import type { QuoteInput } from '@/entities/quote'
+import type { Schemas } from '@/shared/api'
 import { normalizeName } from '@/shared/lib'
 import { Button, FormField } from '@/shared/ui'
 
@@ -10,9 +11,22 @@ import { saveError, validateItemName } from '../model/name'
 
 /**
  * Saves the shown calculation as a catalog item — its parameters only, never a price (AC-10).
- * `input` is null until the donation for the current values is on screen.
+ * `input` is null until the donation for the current values is on screen. `filamentMappings`
+ * from a slicer import are remembered together with the item, never on their own (ADR 0003).
  */
-export function SaveItemForm({ input }: { input: QuoteInput | null }) {
+export function SaveItemForm({
+  input,
+  filamentMappings = [],
+  onSaveError,
+  disabled = false,
+}: {
+  input: QuoteInput | null
+  filamentMappings?: Schemas['FilamentMappingInput'][]
+  /** Lets the screen react to a rejected save, e.g. ask for a deleted plastic again. */
+  onSaveError?: (error: unknown, sent: Schemas['FilamentMappingInput'][]) => void
+  /** The screen is busy elsewhere, e.g. parsing: the file about to land would change what is saved. */
+  disabled?: boolean
+}) {
   const [name, setName] = useState('')
   const [errors, setErrors] = useState<{ name?: string; form?: string }>({})
   const create = useCreateItem()
@@ -20,7 +34,7 @@ export function SaveItemForm({ input }: { input: QuoteInput | null }) {
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (!input) return
+    if (disabled || !input) return
     const nameError = validateItemName(name)
     if (nameError) {
       setErrors({ name: nameError })
@@ -28,10 +42,17 @@ export function SaveItemForm({ input }: { input: QuoteInput | null }) {
     }
     setErrors({})
     create.mutate(
-      { name: normalizeName(name), ...input },
+      {
+        name: normalizeName(name),
+        ...input,
+        ...(filamentMappings.length > 0 ? { filament_mappings: filamentMappings } : {}),
+      },
       {
         onSuccess: (item) => navigate(`/catalog/${item.id}`),
-        onError: (error) => setErrors(saveError(error)),
+        onError: (error) => {
+          setErrors(saveError(error))
+          onSaveError?.(error, filamentMappings)
+        },
       },
     )
   }
@@ -50,7 +71,7 @@ export function SaveItemForm({ input }: { input: QuoteInput | null }) {
         </p>
       )}
       {errors.form && <p className="text-destructive text-sm">{errors.form}</p>}
-      <Button type="submit" disabled={!input || create.isPending}>
+      <Button type="submit" disabled={disabled || !input || create.isPending}>
         Зберегти в каталог
       </Button>
     </form>

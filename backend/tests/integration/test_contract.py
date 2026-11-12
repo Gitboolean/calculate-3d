@@ -10,12 +10,18 @@ from fastapi.testclient import TestClient
 
 import calculate3d.modules.catalog.service
 import calculate3d.modules.costing.service
+import calculate3d.modules.importing.service
 import calculate3d.modules.pricing.service  # noqa: F401 — register every AppError subclass
 from calculate3d.core.config import REPO_DIR
 from calculate3d.core.errors import AppError
 
 CONTRACT_PATH = REPO_DIR / "docs" / "features" / "cost-calculator" / "contracts" / "openapi.yaml"
 CONTRACT: dict[str, Any] = yaml.safe_load(CONTRACT_PATH.read_text())
+# print-file-import is a delta contract: only the operations that feature adds or changes.
+IMPORT_CONTRACT_PATH = (
+    REPO_DIR / "docs" / "features" / "print-file-import" / "contracts" / "openapi.yaml"
+)
+IMPORT_CONTRACT: dict[str, Any] = yaml.safe_load(IMPORT_CONTRACT_PATH.read_text())
 METHODS = {"get", "post", "put", "patch", "delete"}
 # Cross-cutting codes rendered by core/errors.py and core/guard.py (not AppError subclasses).
 CORE_CODES = {
@@ -27,10 +33,10 @@ CORE_CODES = {
 }
 
 
-def _contract_operations() -> list[tuple[str, str]]:
+def _contract_operations(contract: dict[str, Any] = CONTRACT) -> list[tuple[str, str]]:
     return [
         (path, method)
-        for path, item in CONTRACT["paths"].items()
+        for path, item in contract["paths"].items()
         for method in item
         if method in METHODS
     ]
@@ -46,13 +52,14 @@ def _walk(node: Any) -> Iterator[Any]:
             yield from _walk(value)
 
 
-def _contract_codes() -> set[str]:
+def _contract_codes(contract: dict[str, Any] = CONTRACT) -> set[str]:
     codes = set()
-    for node in _walk(CONTRACT):
+    for node in _walk(contract):
         if isinstance(node, dict) and isinstance(node.get("code"), str):
             codes.add(node["code"])
         if isinstance(node, dict) and isinstance(node.get("code"), dict):
             codes.add(node["code"].get("const"))
+            codes.update(node["code"].get("enum", []))
     return codes - {None}
 
 
@@ -79,11 +86,18 @@ def app_openapi(migrated_db_template: Any) -> dict[str, Any]:
     return schema
 
 
-@pytest.mark.parametrize(("path", "method"), _contract_operations())
+@pytest.mark.parametrize(
+    ("contract", "path", "method"),
+    [
+        pytest.param(contract, path, method, id=f"{name}:{method} {path}")
+        for name, contract in (("cost-calculator", CONTRACT), ("import", IMPORT_CONTRACT))
+        for path, method in _contract_operations(contract)
+    ],
+)
 def test_every_contract_operation_exists_with_its_error_responses(
-    app_openapi: dict[str, Any], path: str, method: str
+    app_openapi: dict[str, Any], contract: dict[str, Any], path: str, method: str
 ) -> None:
-    expected = CONTRACT["paths"][path][method]
+    expected = contract["paths"][path][method]
     actual = app_openapi["paths"].get(path, {}).get(method)
 
     assert actual is not None, f"{method.upper()} {path} is missing"
@@ -100,14 +114,17 @@ def test_app_declares_no_operation_beyond_the_contract_and_health(
 ) -> None:
     actual = {(p, m) for p, item in app_openapi["paths"].items() for m in item if m in METHODS}
 
-    assert actual - set(_contract_operations()) == {("/api/health", "get")}
+    contract_ops = set(_contract_operations()) | set(_contract_operations(IMPORT_CONTRACT))
+    assert actual - contract_ops == {("/api/health", "get")}
 
 
 def test_error_code_registry_matches_the_contract() -> None:
     contract_codes = _contract_codes()
+    registry = _app_error_codes() | CORE_CODES
 
     assert len(contract_codes) == 13
-    assert _app_error_codes() | CORE_CODES == contract_codes
+    # One registry for both feature contracts: every advertised code exists, and nothing more.
+    assert registry == contract_codes | _contract_codes(IMPORT_CONTRACT)
 
 
 # ── schema-level fidelity (T23, review findings S1-4 / S1-5) ──
@@ -244,6 +261,34 @@ def test_live_schema_matches_the_contract_schema(app_openapi: dict[str, Any], na
     divergences = _diff(
         name,
         CONTRACT,
+        app_openapi,
+        {"$ref": f"#/components/schemas/{name}"},
+        {"$ref": f"#/components/schemas/{name}"},
+    )
+
+    assert not divergences, "\n" + "\n".join(divergences)
+
+
+# The parse result, its problems (D3) and catalog's changed input (ADR 0003).
+IMPORT_SCHEMAS = (
+    "ItemInput",
+    "FilamentMappingInput",
+    "SlicerFile",
+    "SlicedPlate",
+    "SlicerFilament",
+    "ImportSettingsMissingProblem",
+    "ImportRejectedProblem",
+)
+
+
+@pytest.mark.parametrize("name", IMPORT_SCHEMAS)
+def test_live_import_schema_matches_the_import_contract(
+    app_openapi: dict[str, Any], name: str
+) -> None:
+    assert name in app_openapi["components"]["schemas"], f"{name} is not in the live spec"
+    divergences = _diff(
+        name,
+        IMPORT_CONTRACT,
         app_openapi,
         {"$ref": f"#/components/schemas/{name}"},
         {"$ref": f"#/components/schemas/{name}"},

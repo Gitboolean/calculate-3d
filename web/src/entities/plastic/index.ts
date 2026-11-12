@@ -2,6 +2,7 @@ export {
   plasticsKey,
   useCreatePlastic,
   useDeletePlastic,
+  useRefreshPlastics,
   usePlastics,
   useUpdatePlastic,
   type Plastic,
